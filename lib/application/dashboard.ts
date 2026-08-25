@@ -2,7 +2,7 @@
 // HistoryLogViewModel.swift. Driving adapters (pages) call these
 // functions, never lib/repositories/* directly.
 import type { Repositories } from "@/lib/repositories/repositories";
-import type { DailyBreakdown, TimeEntry } from "@/lib/types/time-entry";
+import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10);

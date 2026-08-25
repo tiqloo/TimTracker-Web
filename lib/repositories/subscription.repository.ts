@@ -1,4 +1,4 @@
-import type { Subscription } from "@/lib/types/subscription";
+import type { Subscription } from "@/lib/domain/subscription";
 
 // Swap point for a future backend — see projects.repository.ts for the
 // rationale. `openBillingPortal` calls the SAME create-portal-session

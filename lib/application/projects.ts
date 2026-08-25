@@ -3,7 +3,7 @@
 // ONLY layer allowed to depend on repository ports; driving adapters
 // (pages) call these functions, never a repository directly.
 import type { Repositories } from "@/lib/repositories/repositories";
-import type { NewProject, Project } from "@/lib/types/project";
+import type { NewProject, Project } from "@/lib/domain/project";
 
 export async function listProjects(repos: Repositories): Promise<Project[]> {
   return repos.projects.getAll();

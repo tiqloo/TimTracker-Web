@@ -37,17 +37,59 @@ app's Clean Architecture layering:
 
 ```
 app/ (driving adapter)  →  lib/application/ (core, use cases)  →
-  lib/repositories/*.repository.ts (driven ports)  ←  lib/repositories/supabase/* (driven adapter)
+  lib/repositories/repositories.ts (pure port aggregate)  ←  lib/composition-root.ts (wires adapters to ports)
 ```
 
 - `app/*` (pages/components) imports ONLY from `lib/application/*`. Never
-  `lib/repositories/*` or `@supabase/supabase-js` directly.
+  `lib/repositories/*`, `lib/composition-root.ts`, or
+  `@supabase/supabase-js` directly.
 - `lib/application/*` (the core — mirrors `Application/UseCases`/
-  `Application/Services` in TimTracker-Starter) imports ONLY from
-  `lib/repositories/*.repository.ts` (the port interfaces). This is
-  where business logic/validation belongs.
-- Only `lib/repositories/index.ts` (the composition root) is allowed to
-  import a concrete adapter (`lib/repositories/supabase/*`). If a custom
-  backend replaces Supabase for some domain later, add a new adapter
-  (e.g. `lib/repositories/rest/*`) and wire it up ONLY there — `app/*`
-  and `lib/application/*` never change.
+  `Application/Services` in TimTracker-Starter) imports ONLY the
+  `Repositories` type from `lib/repositories/repositories.ts` (the pure
+  port aggregate, no adapter imports). Never `lib/composition-root.ts` or
+  any `lib/repositories/supabase/*` adapter directly. This is where
+  business logic/validation belongs — plus real domain rules that live in
+  `lib/domain/*` itself (e.g. `canUseApp()` in `lib/domain/subscription.ts`).
+- `lib/domain/*` (renamed from `lib/types/` on 2026-08-25 — a structure
+  review correctly pointed out "types" undersells that these are fachliche
+  Domain-Modelle, not generic TS helper types) holds domain models AND
+  real business rules, not just interfaces. `canUseApp()` mirrors the RLS
+  policy condition verbatim — keep both in sync if it ever changes.
+- Only `lib/composition-root.ts` is allowed to import a concrete adapter
+  (`lib/repositories/supabase/*`). It lives OUTSIDE `lib/repositories/`
+  on purpose — a composition root isn't itself a port/repository. If a
+  custom backend replaces Supabase for some domain later, add a new
+  adapter (e.g. `lib/repositories/rest/*`) and wire it up ONLY there —
+  `app/*` and `lib/application/*` never change.
+- All of the above is enforced by `eslint.config.mjs`
+  (`no-restricted-imports`), not just documented here. Watch out when
+  adding new rules: a bare import like `"@/lib/composition-root"` needs
+  an exact `paths` entry (glob `patterns` don't match a path with nothing
+  after the last segment), and a relative import like
+  `"./supabase/..."` needs a broad pattern like `"**/supabase/**"` (a
+  pattern anchored on `lib/repositories/supabase/**` won't match a
+  relative specifier that never contains that literal substring). Both
+  gaps were found by deliberately reintroducing the exact violation and
+  confirming `eslint` failed — do the same before trusting a new rule.
+
+## Deferred from the 2026-08-25 structure review (reasoning, not just a list)
+
+- **`repositories/` → `ports/out/` rename**: reasonable once a
+  non-repository port exists (PaymentProvider, EmailSender, ...) — today
+  all four ports genuinely are repositories, renaming now would be
+  premature.
+- **Explicit inbound-port interfaces + service classes**: the review
+  itself said not to force this for a project this size; plain async
+  functions in `lib/application/*` are enough.
+- **`app/api/webhooks/stripe/route.ts` in this repo**: rejected. Stripe
+  webhooks are already correctly owned by the `stripe-webhook` Supabase
+  Edge Function (`TimTracker-Starter/supabase/functions/stripe-webhook`,
+  battle-tested — it already caught and fixed a real Stripe API breaking
+  change). A second webhook receiver here would be a competing source of
+  truth, not an improvement.
+- **Restructuring `app/` to drop Heute/Historie/Projekte and only keep
+  Account/Billing**: rejected. Contradicts the explicit PO decision
+  (`TimTracker-Starter/docs/tickets/014-windows-version.md`, 2026-08-25
+  update) that this site should reach full Dashboard parity so those
+  views can eventually be removed from the native apps — the opposite of
+  what that review point assumed.

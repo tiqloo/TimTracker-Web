@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectsRepository } from "../projects.repository";
-import type { NewProject, Project } from "@/lib/types/project";
+import type { NewProject, Project } from "@/lib/domain/project";
 
 // Wire-format row shape from the `projects` table (supabase/migrations/
 // 0001_init.sql in TimTracker-Starter) — deliberately kept separate from

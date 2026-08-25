@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubscriptionRepository } from "../subscription.repository";
-import type { Subscription, SubscriptionStatus } from "@/lib/types/subscription";
+import type { Subscription, SubscriptionStatus } from "@/lib/domain/subscription";
 
 interface SubscriptionRow {
   status: SubscriptionStatus;

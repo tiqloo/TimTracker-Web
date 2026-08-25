@@ -4,7 +4,7 @@ import type {
   DailyBreakdown,
   TimeEntry,
   TimeEntrySource,
-} from "@/lib/types/time-entry";
+} from "@/lib/domain/time-entry";
 
 // The two system pseudo-projects seeded by supabase/migrations/0001_init.sql
 // / 0004_time_entries_project_fk.sql in TimTracker-Starter — every

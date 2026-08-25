@@ -8,15 +8,15 @@ import nextTs from "eslint-config-next/typescript";
 // found and fixed by hand on 2026-08-25 — this exists so the next one
 // fails CI instead of needing another manual audit).
 //
-// IMPORTANT: a bare directory import like "@/lib/repositories" (no
-// trailing "/index") does NOT match a glob pattern such as
-// "**/lib/repositories/**" — minimatch requires something after the
-// trailing slash. Every directory that must be blocked is therefore
-// listed BOTH as an exact `paths` entry (bare form) AND covered by a
-// `patterns` glob (nested-file form). Verified against the real bug this
-// was written for: manually reintroducing `from "@/lib/repositories"` in
-// lib/application/billing.ts and confirming `eslint` now fails on it,
-// before writing this comment.
+// IMPORTANT: a bare directory/file import like "@/lib/composition-root"
+// or "@/lib/repositories" (no trailing "/index") does NOT match a glob
+// pattern such as "**/lib/repositories/**" — minimatch requires
+// something after the trailing slash. Every module that must be blocked
+// is therefore listed BOTH as an exact `paths` entry (bare form) AND
+// covered by a `patterns` glob (nested-file form). Verified against the
+// real bug this was originally written for: manually reintroducing
+// `from "@/lib/repositories"` in lib/application/billing.ts and
+// confirming `eslint` failed on it, before writing this comment.
 const supabasePackages = ["@supabase/supabase-js", "@supabase/ssr"];
 
 const architectureBoundaries = defineConfig([
@@ -34,14 +34,9 @@ const architectureBoundaries = defineConfig([
                 "app/ darf nie Supabase direkt importieren — nur lib/application/* (Hexagonal-Grenze, siehe CLAUDE.md).",
             })),
             {
-              name: "@/lib/repositories",
+              name: "@/lib/composition-root",
               message:
-                "app/ darf nicht lib/repositories/* importieren — nur lib/application/*.",
-            },
-            {
-              name: "@/lib/repositories/index",
-              message:
-                "app/ darf nicht lib/repositories/* importieren — nur lib/application/*.",
+                "app/ darf nicht den Composition Root importieren — nur lib/application/*.",
             },
             {
               name: "@/lib/supabase",
@@ -50,7 +45,7 @@ const architectureBoundaries = defineConfig([
           ],
           patterns: [
             {
-              group: ["**/lib/repositories/**", "**/lib/supabase/**"],
+              group: ["**/lib/repositories/**", "**/lib/supabase/**", "**/supabase/**"],
               message:
                 "app/ darf nur lib/application/* importieren, nie lib/repositories/* oder lib/supabase/* direkt (Hexagonal-Grenze, siehe CLAUDE.md).",
             },
@@ -75,12 +70,7 @@ const architectureBoundaries = defineConfig([
                 "lib/application/* (der Kern) darf Supabase nie kennen — nur lib/repositories/repositories.ts (reine Ports).",
             })),
             {
-              name: "@/lib/repositories",
-              message:
-                "lib/application/* darf nicht den Composition Root (lib/repositories, resolved zu index.ts) importieren, nur lib/repositories/repositories.ts.",
-            },
-            {
-              name: "@/lib/repositories/index",
+              name: "@/lib/composition-root",
               message:
                 "lib/application/* darf nicht den Composition Root importieren, nur lib/repositories/repositories.ts.",
             },
@@ -91,7 +81,7 @@ const architectureBoundaries = defineConfig([
           ],
           patterns: [
             {
-              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**"],
+              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**", "**/supabase/**", "./supabase/**"],
               message:
                 "lib/application/* darf nur lib/repositories/repositories.ts importieren, nie einen konkreten Adapter.",
             },
@@ -102,11 +92,10 @@ const architectureBoundaries = defineConfig([
   },
   {
     // Driven ports (the .repository.ts interfaces + the pure aggregate):
-    // must stay adapter-free. index.ts (the composition root) is
-    // deliberately excluded — it's the one file allowed to know both
-    // sides.
+    // must stay adapter-free. lib/composition-root.ts is the one module
+    // allowed to know both sides, and lives outside lib/repositories/ so
+    // this glob doesn't need to exclude anything.
     files: ["lib/repositories/*.ts"],
-    ignores: ["lib/repositories/index.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -124,7 +113,7 @@ const architectureBoundaries = defineConfig([
           ],
           patterns: [
             {
-              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**"],
+              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**", "**/supabase/**", "./supabase/**"],
               message:
                 "Port-Interfaces dürfen keine konkrete Adapter-Implementierung importieren.",
             },

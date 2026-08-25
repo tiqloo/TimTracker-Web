@@ -1,4 +1,4 @@
-import type { DailyBreakdown, TimeEntry } from "@/lib/types/time-entry";
+import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 
 // Swap point for a future backend — see projects.repository.ts for the
 // rationale. Pages/components depend only on this interface.

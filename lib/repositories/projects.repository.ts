@@ -1,4 +1,4 @@
-import type { NewProject, Project } from "@/lib/types/project";
+import type { NewProject, Project } from "@/lib/domain/project";
 
 // This interface is the swap point for a future custom backend. Pages/
 // components must only ever depend on this type — never import
