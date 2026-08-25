@@ -25,11 +25,27 @@ interface TimeEntryRow {
   updated_at: string;
 }
 
+// `day` is stored as `timestamptz` in Postgres (0001_init.sql: "damit es
+// exakt wie start_time/end_time/updated_at decodiert werden kann" — the
+// client always writes literal midnight of the calendar day), so
+// PostgREST returns it as a full ISO datetime ("2026-08-24T00:00:00+00:00"),
+// not the plain "yyyy-MM-dd" the TimeEntry/DailyBreakdown domain types
+// document. Normalize to the first 10 characters here, at the adapter
+// boundary, so every consumer above this layer (getBreakdown/getForDay/
+// getForRange callers, isoToday()-based query params, history/[day]'s
+// route param) can rely on `day` actually being a plain ISO date — found
+// while wiring up the "Historie" day-detail links/labels in Phase 1c,
+// which were the first callers to actually render `.day` instead of just
+// using it as an opaque grouping key.
+function normalizeDay(day: string): string {
+  return day.slice(0, 10);
+}
+
 function toDomain(row: TimeEntryRow): TimeEntry {
   return {
     id: row.id,
     projectId: row.project_id,
-    day: row.day,
+    day: normalizeDay(row.day),
     startTime: row.start_time,
     endTime: row.end_time,
     source: row.source,
@@ -76,6 +92,22 @@ function buildBreakdown(day: string, entries: TimeEntry[], now: Date): DailyBrea
   };
 }
 
+async function fetchRange(
+  client: SupabaseClient,
+  fromDay: string,
+  toDay: string,
+): Promise<TimeEntry[]> {
+  const { data, error } = await client
+    .from("time_entries")
+    .select("*")
+    .gte("day", fromDay)
+    .lte("day", toDay)
+    .is("deleted_at", null)
+    .order("start_time", { ascending: true });
+  if (error) throw error;
+  return (data as TimeEntryRow[]).map(toDomain);
+}
+
 export function createSupabaseTimeEntriesRepository(
   client: SupabaseClient,
 ): TimeEntriesRepository {
@@ -91,17 +123,14 @@ export function createSupabaseTimeEntriesRepository(
       return (data as TimeEntryRow[]).map(toDomain);
     },
 
+    async getForRange(fromDay: string, toDay: string) {
+      return fetchRange(client, fromDay, toDay);
+    },
+
     async getBreakdown(fromDay: string, toDay: string) {
-      const { data, error } = await client
-        .from("time_entries")
-        .select("*")
-        .gte("day", fromDay)
-        .lte("day", toDay)
-        .is("deleted_at", null);
-      if (error) throw error;
+      const entries = await fetchRange(client, fromDay, toDay);
 
       const now = new Date();
-      const entries = (data as TimeEntryRow[]).map(toDomain);
       const byDay = new Map<string, TimeEntry[]>();
       for (const entry of entries) {
         const bucket = byDay.get(entry.day) ?? [];
