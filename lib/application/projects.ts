@@ -2,7 +2,7 @@
 // UpdateProjectUseCase.swift / ArchiveProjectUseCase.swift. This is the
 // ONLY layer allowed to depend on repository ports; driving adapters
 // (pages) call these functions, never a repository directly.
-import type { Repositories } from "@/lib/repositories";
+import type { Repositories } from "@/lib/repositories/repositories";
 import type { NewProject, Project } from "@/lib/types/project";
 
 export async function listProjects(repos: Repositories): Promise<Project[]> {

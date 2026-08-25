@@ -1,7 +1,7 @@
 // Application core (use cases) — mirrors StatisticsService.swift /
 // HistoryLogViewModel.swift. Driving adapters (pages) call these
 // functions, never lib/repositories/* directly.
-import type { Repositories } from "@/lib/repositories";
+import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/types/time-entry";
 
 function isoToday(): string {
