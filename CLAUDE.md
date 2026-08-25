@@ -72,6 +72,55 @@ app/ (driving adapter)  →  lib/application/ (core, use cases)  →
   gaps were found by deliberately reintroducing the exact violation and
   confirming `eslint` failed — do the same before trusting a new rule.
 
+## Resolved 2026-08-25: pages need Repositories, but can't import the composition root
+
+Implementing Ticket 018's auth pages (`(auth)/login`, `/register`,
+`/reset-password`) surfaced the gap the skeleton phase only gestured at:
+every `lib/application/*` function takes `repos: Repositories` as its
+first argument, but `app/*` isn't allowed to import `lib/repositories/*`
+or `lib/composition-root.ts` to build one itself.
+
+**Resolution:** two thin, designated files inside `lib/application/`
+(so they stay importable from `app/*`) whose only job is handing back a
+`Repositories` instance — zero business logic:
+- `lib/application/client.ts` — `"use client"`, wraps
+  `getBrowserRepositories()`.
+- `lib/application/server.ts` — async, wraps `getServerRepositories()`.
+
+`eslint.config.mjs` encodes this as a structural exception, not just a
+comment: the general `lib/application/**` rule (no composition-root
+import) explicitly `ignores` these two files, and a separate, narrower
+rule block applies to just them — it allows `@/lib/composition-root*`
+but still blocks `@supabase/supabase-js` and `lib/repositories/supabase/*`
+directly, so they can reach the composition root but not bypass it.
+Verified by deliberately reintroducing violations in both directions
+(composition-root import in a random `lib/application/*` file — still
+fails; `@supabase/supabase-js` import inside `client.ts` itself — still
+fails) and confirming `eslint` catches both, same testing discipline as
+the rest of this file's boundary rules.
+
+**Second-order finding from testing this for real:** the original single
+`lib/composition-root.ts` statically imported BOTH the browser and server
+Supabase clients. The moment `lib/application/client.ts` (a `"use
+client"` module) imported it, `npm run build` broke for real — Next.js
+refuses to bundle `lib/supabase/server.ts` (which uses `next/headers`,
+Server-Components-only) into any client-reachable module graph, even
+though the server branch is never called from client code. Fixed by
+splitting into `lib/composition-root.client.ts` /
+`lib/composition-root.server.ts`, one per Next.js runtime target;
+`lib/composition-root.ts` itself now only re-exports the `Repositories`
+type, kept so that path doesn't dangle. This is exactly the kind of
+gap a skeleton-only phase can't surface — worth remembering if a
+similar "single file importing two runtime-incompatible dependencies"
+pattern shows up elsewhere later (e.g. if `lib/application/server.ts`
+itself ever needs a browser-only dependency, don't reintroduce the same
+mistake there).
+
+Full reasoning also documented in `README.md`'s architecture section
+(kept in sync — read that version if you want the German-language
+structure-diagram context) and in
+`TimTracker-Starter/docs/tickets/018-account-website.md`.
+
 ## Deferred from the 2026-08-25 structure review (reasoning, not just a list)
 
 - **`repositories/` → `ports/out/` rename**: reasonable once a

@@ -1,42 +1,17 @@
-import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
-import { createSupabaseProjectsRepository } from "@/lib/repositories/supabase/projects.repository";
-import { createSupabaseTimeEntriesRepository } from "@/lib/repositories/supabase/time-entries.repository";
-import { createSupabaseSubscriptionRepository } from "@/lib/repositories/supabase/subscription.repository";
-import { createSupabaseAuthRepository } from "@/lib/repositories/supabase/auth.repository";
-import type { Repositories } from "@/lib/repositories/repositories";
-
-export type { Repositories } from "@/lib/repositories/repositories";
-
-// Composition root — analogous to App/DependencyContainer.swift in
-// TimTracker-Starter. Wires the concrete Supabase adapters to the
-// Repositories port aggregate. This is the ONLY file allowed to import
-// lib/repositories/supabase/* — lib/application/* must import the
-// Repositories TYPE from lib/repositories/repositories.ts instead
-// (enforced by eslint.config.mjs).
+// Composition root — type-only entry point. The actual factory functions
+// live in composition-root.client.ts (getBrowserRepositories) and
+// composition-root.server.ts (getServerRepositories), split by Next.js
+// runtime target on 2026-08-25 — see the comment at the top of
+// composition-root.client.ts for the full reasoning (in short: this file
+// used to statically import BOTH the browser and server Supabase clients,
+// which broke `npm run build` once a Client Component ("use client")
+// needed to reach it — importing this file at all pulled in
+// lib/supabase/server.ts's next/headers dependency into the client
+// bundle, which Next.js refuses to allow regardless of whether that
+// branch is actually called).
 //
-// Moved out of lib/repositories/ on 2026-08-25 (structure review) —
-// a composition root is not itself a repository/port, keeping it
-// alongside them was semantically confusing.
-
-// Use from Client Components ("use client").
-export function getBrowserRepositories(): Repositories {
-  const client = createBrowserSupabaseClient();
-  return {
-    projects: createSupabaseProjectsRepository(client),
-    timeEntries: createSupabaseTimeEntriesRepository(client),
-    subscription: createSupabaseSubscriptionRepository(client),
-    auth: createSupabaseAuthRepository(client),
-  };
-}
-
-// Use from Server Components / Route Handlers (async: cookies() is async).
-export async function getServerRepositories(): Promise<Repositories> {
-  const client = await createServerSupabaseClient();
-  return {
-    projects: createSupabaseProjectsRepository(client),
-    timeEntries: createSupabaseTimeEntriesRepository(client),
-    subscription: createSupabaseSubscriptionRepository(client),
-    auth: createSupabaseAuthRepository(client),
-  };
-}
+// This file is kept (rather than deleted) purely so a type-only import
+// of `Repositories` from "@/lib/composition-root" — the historical
+// import path — keeps working. Prefer importing the `Repositories` type
+// from lib/repositories/repositories.ts directly in new code.
+export type { Repositories } from "@/lib/repositories/repositories";

@@ -59,10 +59,18 @@ lib/composition-root.ts (Composition Root)
   `SupabaseProjectRepository`. Ein künftiges Backend würde nur hier
   andocken (z. B. `lib/repositories/rest/*` als zweiter Adapter) — weder
   `lib/application/*` noch `app/` ändern sich dabei.
-- **Composition Root** (`lib/composition-root.ts`): verdrahtet Adapter zu
-  Ports, Pendant zu `App/DependencyContainer.swift`. Bewusst **außerhalb**
-  von `lib/repositories/` (Review vom 2026-08-25) — ein Composition Root
-  ist selbst kein Repository/Port, das lag semantisch falsch dort.
+- **Composition Root** (`lib/composition-root.client.ts` /
+  `lib/composition-root.server.ts`): verdrahtet Adapter zu Ports, Pendant
+  zu `App/DependencyContainer.swift`. Bewusst **außerhalb** von
+  `lib/repositories/` (Review vom 2026-08-25) — ein Composition Root ist
+  selbst kein Repository/Port, das lag semantisch falsch dort. War
+  ursprünglich eine einzige Datei (`lib/composition-root.ts`); am
+  2026-08-25 (Ticket 018, Auth-Seiten) in zwei Dateien pro
+  Next.js-Runtime-Ziel aufgeteilt — siehe "Gelöste Architektur-Lücke"
+  unten für den genauen Grund (ein echter `npm run build`-Fehler, keine
+  Vorsichtsmaßnahme auf Verdacht). `lib/composition-root.ts` existiert
+  weiterhin als reiner Typ-Re-Export (`Repositories`), damit alte
+  Typ-Importe dieses Pfads nicht brechen.
 
 ```
 app/
@@ -92,7 +100,12 @@ lib/
     projects.ts             # createProject/renameProject/archiveProject/listProjects
     dashboard.ts             # getTodayBreakdown/getTodayEntries/getHistory
     billing.ts                # getSubscriptionStatus/manageSubscription
-    auth.ts                    # register/login/logout/requestPasswordReset
+    auth.ts                    # register/login/logout/requestPasswordReset/
+                               # updatePassword/onAuthStateChange
+    client.ts                  # getRepositories() für Client Components —
+                               # siehe "Gelöste Architektur-Lücke" unten
+    server.ts                  # getRepositories() für Server Components —
+                               # dito, Server-Pendant
   repositories/            # DRIVEN PORTS — Interfaces
     projects.repository.ts
     time-entries.repository.ts
@@ -108,35 +121,96 @@ lib/
       auth.repository.ts
   supabase/
     client.ts               # Browser-Client (nur von repositories/supabase/
-                             # + composition-root.ts genutzt)
-    server.ts                # Server-Client (dito)
-composition-root.ts        # Composition Root — einzige Datei, die Adapter
-                           # UND Ports kennt. getServerRepositories() /
+                             # + composition-root.client.ts genutzt)
+    server.ts                # Server-Client (nur von repositories/supabase/
+                             # + composition-root.server.ts genutzt)
+composition-root.ts        # Nur noch Typ-Re-Export (Repositories) —
+                           # historischer Importpfad, siehe unten
+composition-root.client.ts # Composition Root, Browser-Hälfte —
                            # getBrowserRepositories()
-proxy.ts                    # Session-Refresh
+composition-root.server.ts # Composition Root, Server-Hälfte —
+                           # getServerRepositories()
+proxy.ts                    # Session-Refresh + Route-Schutz (siehe unten)
 ```
 
 **Regel:** `app/*` importiert ausschließlich aus `lib/application/*`.
 `lib/application/*` importiert ausschließlich aus `lib/repositories/repositories.ts`
 (das reine Port-Aggregat, nie einen konkreten Adapter, nie den Composition
-Root). Nur `lib/composition-root.ts` kennt Ports UND Adapter gleichzeitig.
+Root) — **außer** `lib/application/client.ts` und `lib/application/server.ts`,
+siehe die gelöste Architektur-Lücke direkt darunter. Nur die
+Composition-Root-Dateien kennen Ports UND Adapter gleichzeitig.
 
-**Regel für jede zukünftige Seite:** `import { getServerRepositories }
-from "@/lib/composition-root"` (Server Component) oder
-`getBrowserRepositories()` (Client Component) — aber **nur innerhalb von
-`lib/application/*`**, niemals direkt aus `app/*`. Seiten rufen
-ausschließlich Funktionen aus `lib/application/*` auf.
+### Gelöste Architektur-Lücke: Seiten brauchen Repositories, dürfen aber den Composition Root nicht importieren
 
-Alle vier Schichtgrenzen sind per ESLint (`no-restricted-imports`,
+Beim Implementieren der Auth-Seiten (Ticket 018, 2026-08-25) zeigte sich
+die Lücke, die die ursprüngliche Doku nur andeutete: jede
+`lib/application/*`-Funktion nimmt `repos: Repositories` als ersten
+Parameter, aber `app/*` darf weder `lib/repositories/*` noch
+`lib/composition-root*` importieren, um so ein `Repositories`-Objekt
+selbst zu bauen. Gelöst durch **zwei dünne, dedizierte Dateien innerhalb
+von `lib/application/`** (bleiben damit für `app/*` importierbar):
+
+- `lib/application/client.ts` — `"use client"`, `getRepositories()` ruft
+  `getBrowserRepositories()` auf. Für Client Components.
+- `lib/application/server.ts` — `async getRepositories()` ruft
+  `getServerRepositories()` auf. Für Server Components/Route Handlers.
+
+Beide enthalten **bewusst keine Fachlogik** — ihr einziger Zweck ist,
+die Lücke zu schließen, ohne dass Seiten Ports/Composition Root direkt
+kennen müssen. Seiten rufen sie so:
+
+```ts
+const repos = getRepositories();       // Client Component
+await login(repos, email, password);   // Fachlogik weiterhin in auth.ts
+```
+
+`eslint.config.mjs` erzwingt das strukturell, nicht nur per Konvention:
+die allgemeine `lib/application/**`-Regel (kein Composition-Root-Import)
+schließt exakt diese beiden Dateien aus (`ignores: [...]`), und ein
+eigener, enger Regel-Block erlaubt ihnen zwar `@/lib/composition-root*`,
+blockiert aber weiterhin `@supabase/supabase-js` und
+`lib/repositories/supabase/*` direkt — sie dürfen den Composition Root
+erreichen, aber nicht daran vorbei.
+
+**Zweite, davon ausgelöste Lücke — der `npm run build`-Fehler, der zur
+Composition-Root-Aufspaltung führte:** Der ursprüngliche einzelne
+`lib/composition-root.ts` importierte **beide** Supabase-Clients
+(Browser + Server) statisch am Dateianfang. Sobald `lib/application/client.ts`
+(ein `"use client"`-Modul) diese Datei importierte, zog Next.js beim Build
+den kompletten Modulgraphen — inklusive `lib/supabase/server.ts`, das
+`next/headers` (eine Server-Components-exklusive API) nutzt — in das
+Client-Bundle und brach mit einem echten Fehler ab ("You're importing a
+module that depends on next/headers ... in the Pages Router"), unabhängig
+davon, ob der Server-Zweig tatsächlich aufgerufen wird. Gelöst durch
+Aufspaltung in `composition-root.client.ts` (nur Browser-Client) und
+`composition-root.server.ts` (nur Server-Client, `next/headers`);
+`composition-root.ts` bleibt als reiner Typ-Re-Export bestehen, damit
+alte `import type { Repositories } from "@/lib/composition-root"`-Importe
+nicht brechen. Verifiziert: `npm run build` schlug vor der Aufspaltung
+real fehl, danach grün.
+
+**Regel für jede zukünftige Seite:** `getRepositories()` aus
+`@/lib/application/client` (Client Component) oder
+`@/lib/application/server` (Server Component) holen, das Ergebnis an die
+passende `lib/application/*`-Funktion übergeben. Seiten rufen sonst
+ausschließlich Funktionen aus `lib/application/*` auf, nie
+`getBrowserRepositories()`/`getServerRepositories()` selbst.
+
+Alle Schichtgrenzen sind per ESLint (`no-restricted-imports`,
 `eslint.config.mjs`) automatisch erzwungen, nicht nur dokumentiert —
 verifiziert durch mehrfach bewusst provozierte Verstöße (inkl. Bare-
-Directory-Imports und relativer Importe wie `./supabase/...`, die
-Standard-Glob-Pattern nicht treffen), die alle korrekt fehlschlagen.
+Directory-Imports, relativer Importe wie `./supabase/...`, die
+Standard-Glob-Pattern nicht treffen, UND — neu am 2026-08-25 — dass
+`lib/application/client.ts`/`server.ts` zwar `@/lib/composition-root*`
+importieren dürfen, aber weiterhin nicht `@supabase/supabase-js` direkt),
+die alle korrekt fehlschlagen.
 
-Aktuell: Route-Struktur + vollständige Ports/Adapter/Kern-Schicht (Build/
-Lint grün) stehen. Seiten sind noch TODO-Stubs, die auf die jeweilige
-Application-Funktion verweisen — die eigentliche UI-Implementierung ist
-Ticket 018.
+Aktuell (Stand 2026-08-25): Auth-Seiten (`(auth)/login`, `/register`,
+`/reset-password`) vollständig implementiert inkl. Route-Schutz
+(`proxy.ts`) — siehe `TimTracker-Starter/docs/tickets/018-account-website.md`
+für Details und Testergebnisse. `(dashboard)/*`-Seiten sind weiterhin
+TODO-Stubs, die auf die jeweilige Application-Funktion verweisen und
+jetzt auf `lib/application/server.ts` als Repositories-Quelle zeigen.
 
 ## Setup
 
