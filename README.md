@@ -27,16 +27,34 @@ Login funktioniert mit demselben Account wie in der Mac-/Windows-App.
   Backend nötig, solange Supabase (RLS aus dem Haupt-Repo) reicht
 - Hosting: Vercel
 
-## Architektur: Repository Pattern (Ports & Adapters)
+## Architektur: Hexagonal (Ports & Adapters)
 
-Seiten/Komponenten greifen **nie** direkt auf Supabase zu — nur auf
-Repository-Interfaces (`lib/repositories/*.repository.ts`). Das ist
-dieselbe Clean-Architecture-Idee wie in der Swift-App
-(`ProjectRepository`-Protokoll + `SupabaseProjectRepository`): heute ist
-die einzige Implementierung Supabase-basiert, aber falls später ein
-eigenes Backend dazukommt (z. B. für SAP/Outlook/Teams-Integrationen oder
-Rechnungsstellung aus der langfristigen Vision), wird nur die
-Implementierung getauscht — kein Seiten-Code ändert sich.
+Drei Schichten, strikt in eine Richtung abhängig:
+
+```
+app/ (Driving Adapter — UI)
+   ↓ ruft ausschließlich auf
+lib/application/ (Kern — Use Cases)
+   ↓ ruft ausschließlich auf
+lib/repositories/*.repository.ts (Driven Ports — Interfaces)
+   ↑ implementiert von
+lib/repositories/supabase/* (Driven Adapter — heutige Implementierung)
+```
+
+- **Driving Adapter** (`app/`): SwiftUI-Pendant wäre Presentation. Kennt
+  nur `lib/application/*`, nie Repositories oder Supabase direkt.
+- **Kern/Use Cases** (`lib/application/`): Pendant zu `Application/UseCases`
+  bzw. `Application/Services` in der Swift-App. Enthält die eigentliche
+  Business-Logik (z. B. Namens-Trimming/Validierung beim Projekt-Anlegen)
+  und ist die einzige Schicht, die Repository-Ports kennen darf.
+- **Driven Ports** (`lib/repositories/*.repository.ts`): reine Interfaces,
+  Pendant zu `ProjectRepository` (Domain-Protokoll) in der Swift-App —
+  die Tausch-Nahtstelle für ein mögliches künftiges eigenes Backend.
+- **Driven Adapter** (`lib/repositories/supabase/*`): heutige
+  Implementierung der Ports gegen Supabase, Pendant zu
+  `SupabaseProjectRepository`. Ein künftiges Backend würde nur hier
+  andocken (z. B. `lib/repositories/rest/*` als zweiter Adapter) — weder
+  `lib/application/*` noch `app/` ändern sich dabei.
 
 ```
 app/
@@ -51,9 +69,7 @@ app/
     history/
     projects/             # volle CRUD, nicht nur ansehen
     settings/
-      billing/            # "Abo verwalten" — ruft dieselbe
-                           # create-portal-session Edge Function auf,
-                           # die für Ticket 007 bereits existiert
+      billing/            # "Abo verwalten"
 lib/
   types/                  # Domain-Modelle (framework-frei, spiegeln
                            # Domain/Models/*.swift 1:1 in Feldnamen)
@@ -61,23 +77,32 @@ lib/
     time-entry.ts          # inkl. DailyBreakdown.unassignedSeconds,
                            # dieselbe Formel wie der Ticket-001-Fix
     subscription.ts
-  repositories/            # Interfaces — die Tausch-Nahtstelle
+  application/             # KERN — Use Cases, einzige Schicht mit
+                           # Business-Logik, einzige die Repositories kennt
+    projects.ts             # createProject/renameProject/archiveProject/listProjects
+    dashboard.ts             # getTodayBreakdown/getTodayEntries/getHistory
+    billing.ts                # getSubscriptionStatus/manageSubscription
+  repositories/            # DRIVEN PORTS — Interfaces
     projects.repository.ts
     time-entries.repository.ts
     subscription.repository.ts
-    supabase/               # heutige Implementierung dieser Interfaces
+    supabase/               # DRIVEN ADAPTER — heutige Implementierung
       projects.repository.ts
       time-entries.repository.ts
       subscription.repository.ts
     index.ts                # Composition Root — Pendant zu
                              # App/DependencyContainer.swift.
                              # getServerRepositories() / getBrowserRepositories()
-                             # sind der EINZIGE Weg, an Daten zu kommen
   supabase/
     client.ts               # Browser-Client (nur von repositories/supabase/ genutzt)
     server.ts                # Server-Client (nur von repositories/supabase/ genutzt)
 proxy.ts                    # Session-Refresh
 ```
+
+**Regel:** `app/*` importiert ausschließlich aus `lib/application/*`.
+`lib/application/*` importiert ausschließlich aus `lib/repositories/*.repository.ts`
+(die Interfaces, nie `lib/repositories/supabase/*` direkt). Nur
+`lib/repositories/index.ts` kennt die konkrete Adapter-Implementierung.
 
 **Regel für jede zukünftige Seite:** `import { getServerRepositories }
 from "@/lib/repositories"` (Server Component) oder

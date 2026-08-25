@@ -1,6 +1,7 @@
-// TODO (Ticket 018): via getServerRepositories().timeEntries.getBreakdown(from, to)
+// TODO (Ticket 018): via lib/application/dashboard.ts#getHistory(repos, from, to)
 // + CSV/PDF export, matching HistoryLogView.swift / CSVExporter.swift /
-// PDFExporter.swift. Same repository-layer rule as app/(dashboard)/page.tsx.
+// PDFExporter.swift. Pages call lib/application/*, never lib/repositories/*
+// directly (hexagonal boundary — see app/(dashboard)/page.tsx).
 export default function HistoryPage() {
   return <main className="p-8">Historie — TODO</main>;
 }

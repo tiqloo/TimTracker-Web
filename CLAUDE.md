@@ -32,11 +32,22 @@ views can be removed from the native apps (see that repo's Ticket 014).
 
 ## Architecture rule — read before adding any page
 
-Never import `@supabase/supabase-js` or `lib/supabase/*` from a page or
-component. Only `lib/repositories/*` (interfaces) and
-`lib/repositories/index.ts` (`getServerRepositories()` /
-`getBrowserRepositories()`, the composition root) are allowed data-access
-entry points — this is the Repository/Ports-and-Adapters pattern, kept
-consistent with the Swift app's `ProjectRepository` protocol +
-`SupabaseProjectRepository` implementation, so a future custom backend
-can replace `lib/repositories/supabase/*` without touching any page.
+This is a Hexagonal Architecture (Ports & Adapters), matching the Swift
+app's Clean Architecture layering:
+
+```
+app/ (driving adapter)  →  lib/application/ (core, use cases)  →
+  lib/repositories/*.repository.ts (driven ports)  ←  lib/repositories/supabase/* (driven adapter)
+```
+
+- `app/*` (pages/components) imports ONLY from `lib/application/*`. Never
+  `lib/repositories/*` or `@supabase/supabase-js` directly.
+- `lib/application/*` (the core — mirrors `Application/UseCases`/
+  `Application/Services` in TimTracker-Starter) imports ONLY from
+  `lib/repositories/*.repository.ts` (the port interfaces). This is
+  where business logic/validation belongs.
+- Only `lib/repositories/index.ts` (the composition root) is allowed to
+  import a concrete adapter (`lib/repositories/supabase/*`). If a custom
+  backend replaces Supabase for some domain later, add a new adapter
+  (e.g. `lib/repositories/rest/*`) and wire it up ONLY there — `app/*`
+  and `lib/application/*` never change.
