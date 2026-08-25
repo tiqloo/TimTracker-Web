@@ -24,6 +24,11 @@ views can be removed from the native apps (see that repo's Ticket 014).
   `TimTracker-Starter/supabase/`.
 - Only `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
   belong in this repo's env — never the Supabase secret key.
+- `.env.local` should default to the LOCAL Docker Supabase stack
+  (`supabase start` in `TimTracker-Starter`), not production — see
+  README.md's "`.env.local`: lokal gegen Docker (Standard)" section
+  (decided in Phase 1b, 2026-08-25) for why and for pre-confirmed local
+  seed users to develop/test against.
 - `app/(dashboard)/settings/billing/` should call the already-deployed
   `create-portal-session` Edge Function (built for Ticket 007) — no new
   backend needed for that specific feature.

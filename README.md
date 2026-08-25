@@ -208,20 +208,59 @@ die alle korrekt fehlschlagen.
 Aktuell (Stand 2026-08-25): Auth-Seiten (`(auth)/login`, `/register`,
 `/reset-password`) vollständig implementiert inkl. Route-Schutz
 (`proxy.ts`) — siehe `TimTracker-Starter/docs/tickets/018-account-website.md`
-für Details und Testergebnisse. `(dashboard)/*`-Seiten sind weiterhin
-TODO-Stubs, die auf die jeweilige Application-Funktion verweisen und
-jetzt auf `lib/application/server.ts` als Repositories-Quelle zeigen.
+für Details und Testergebnisse. "Heute" (`(dashboard)/page.tsx`) plus die
+gemeinsame Nav/Logout-Leiste (`(dashboard)/layout.tsx`) sind seit Phase 1b
+(2026-08-25) ebenfalls real implementiert. `history/`, `projects/` und
+`settings/*` bleiben TODO-Stubs.
 
 ## Setup
 
 ```
 npm install
-cp .env.example .env.local   # echte Werte aus dem Supabase-Projekt eintragen
+cp .env.example .env.local   # siehe unten: lokal (Standard) vs. Produktion
 npm run dev
 ```
+
+### `.env.local`: lokal gegen Docker (Standard), Produktion nur gezielt
+
+**Seit Phase 1b (2026-08-25) ist der neue Standard für `npm run dev`, gegen
+den lokalen Docker-Supabase-Stack aus `TimTracker-Starter` zu laufen, nicht
+gegen Produktion.** Grund: `TimTracker-Starter/README.md`s
+Kollaborationsregel "Never test against the production Supabase project"
+gilt laut `CLAUDE.md` identisch für dieses Repo — ein `.env.local`, das
+standardmäßig auf Produktion zeigt, widerspricht dieser Regel bei jedem
+`npm run dev`, nicht nur bei gezielten Tests. Phase 1a musste noch direkt
+gegen Produktion testen, weil damals kein lokaler Stack für dieses Repo
+aufgesetzt war; Phase 1b hat das nachgeholt und dabei bestätigt, dass die
+lokale Umgebung (vorbestätigte Seed-Nutzer, siehe unten) für den
+Alltagsgebrauch tatsächlich besser geeignet ist — keine
+E-Mail-Bestätigungs-Hürde, reproduzierbare Testdaten.
+
+```
+cd ../TimTracker-Starter
+supabase start                 # lokaler Stack, siehe dortiges README
+supabase db reset               # wendet Migrationen + supabase/seed.sql an
+```
+
+`supabase start` gibt `API_URL` und `PUBLISHABLE_KEY` aus — diese in
+`.env.local` eintragen (`NEXT_PUBLIC_SUPABASE_URL` /
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`). Vorbestätigte Testnutzer aus
+`TimTracker-Starter/supabase/seed.sql`:
+
+| E-Mail | Passwort | Zustand |
+| --- | --- | --- |
+| `test@timtracker.local` | `testpassword123` | aktives Abo, ein Projekt, zwei Zeiteinträge "heute" |
+| `expired@timtracker.local` | `testpassword123` | abgelaufenes/gekündigtes Abo, keine Zeiteinträge — zum Testen von `canUseApp() === false` |
+
+Produktion bleibt für gezielte Einzel-Checks möglich (z. B. Verhalten bei
+echter E-Mail-Bestätigungspflicht, wie in Phase 1a dokumentiert) — dafür
+`.env.local` bewusst temporär umbiegen und danach wieder auf den lokalen
+Stack zurückstellen, nicht als Dauerzustand stehen lassen.
 
 ## Kollaborationsregeln
 
 Gelten identisch zum Haupt-Repo (siehe dessen `README.md` und
 `CLAUDE.md`): Tests vor Push, eigener Branch, keine Secrets im Repo/Chat,
-additive Migrationen bleiben im Haupt-Repo.
+additive Migrationen bleiben im Haupt-Repo. Insbesondere: lokal gegen
+Docker entwickeln/testen (siehe oben), nicht standardmäßig gegen
+Produktion.
