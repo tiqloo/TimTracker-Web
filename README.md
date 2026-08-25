@@ -22,11 +22,21 @@ Login funktioniert mit demselben Account wie in der Mac-/Windows-App.
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
-- `@supabase/supabase-js` + `@supabase/ssr` — kein eigenes Backend, RLS
-  aus dem Haupt-Repo gilt identisch
+- `@supabase/supabase-js` + `@supabase/ssr` — heutiger Daten-Adapter,
+  hinter einer Repository-Schicht gekapselt (siehe unten), kein eigenes
+  Backend nötig, solange Supabase (RLS aus dem Haupt-Repo) reicht
 - Hosting: Vercel
 
-## Struktur
+## Architektur: Repository Pattern (Ports & Adapters)
+
+Seiten/Komponenten greifen **nie** direkt auf Supabase zu — nur auf
+Repository-Interfaces (`lib/repositories/*.repository.ts`). Das ist
+dieselbe Clean-Architecture-Idee wie in der Swift-App
+(`ProjectRepository`-Protokoll + `SupabaseProjectRepository`): heute ist
+die einzige Implementierung Supabase-basiert, aber falls später ein
+eigenes Backend dazukommt (z. B. für SAP/Outlook/Teams-Integrationen oder
+Rechnungsstellung aus der langfristigen Vision), wird nur die
+Implementierung getauscht — kein Seiten-Code ändert sich.
 
 ```
 app/
@@ -45,14 +55,40 @@ app/
                            # create-portal-session Edge Function auf,
                            # die für Ticket 007 bereits existiert
 lib/
+  types/                  # Domain-Modelle (framework-frei, spiegeln
+                           # Domain/Models/*.swift 1:1 in Feldnamen)
+    project.ts
+    time-entry.ts          # inkl. DailyBreakdown.unassignedSeconds,
+                           # dieselbe Formel wie der Ticket-001-Fix
+    subscription.ts
+  repositories/            # Interfaces — die Tausch-Nahtstelle
+    projects.repository.ts
+    time-entries.repository.ts
+    subscription.repository.ts
+    supabase/               # heutige Implementierung dieser Interfaces
+      projects.repository.ts
+      time-entries.repository.ts
+      subscription.repository.ts
+    index.ts                # Composition Root — Pendant zu
+                             # App/DependencyContainer.swift.
+                             # getServerRepositories() / getBrowserRepositories()
+                             # sind der EINZIGE Weg, an Daten zu kommen
   supabase/
-    client.ts             # Browser-Client
-    server.ts             # Server-Client (Server Components)
-proxy.ts              # Session-Refresh
+    client.ts               # Browser-Client (nur von repositories/supabase/ genutzt)
+    server.ts                # Server-Client (nur von repositories/supabase/ genutzt)
+proxy.ts                    # Session-Refresh
 ```
 
-Aktuell nur Grundgerüst (Route-Struktur + Supabase-Client-Setup) — die
-eigentliche Implementierung ist Ticket 018.
+**Regel für jede zukünftige Seite:** `import { getServerRepositories }
+from "@/lib/repositories"` (Server Component) oder
+`getBrowserRepositories()` (Client Component) — niemals `@supabase/supabase-js`
+oder `lib/supabase/*` direkt importieren, das ist ausschließlich
+Implementierungsdetail der `repositories/supabase/*`-Dateien.
+
+Aktuell: Route-Struktur + volle Repository-Schicht (Interfaces + Supabase-
+Implementierung, Build/Lint grün) stehen. Seiten sind noch TODO-Stubs, die
+auf die jeweilige Repository-Methode verweisen — die eigentliche UI-
+Implementierung ist Ticket 018.
 
 ## Setup
 

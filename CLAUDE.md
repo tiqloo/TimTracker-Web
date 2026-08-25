@@ -29,3 +29,14 @@ views can be removed from the native apps (see that repo's Ticket 014).
   backend needed for that specific feature.
 - `app/(auth)/reset-password/` is also the missing hosted page Ticket 009
   (password reset, native apps) is waiting on.
+
+## Architecture rule — read before adding any page
+
+Never import `@supabase/supabase-js` or `lib/supabase/*` from a page or
+component. Only `lib/repositories/*` (interfaces) and
+`lib/repositories/index.ts` (`getServerRepositories()` /
+`getBrowserRepositories()`, the composition root) are allowed data-access
+entry points — this is the Repository/Ports-and-Adapters pattern, kept
+consistent with the Swift app's `ProjectRepository` protocol +
+`SupabaseProjectRepository` implementation, so a future custom backend
+can replace `lib/repositories/supabase/*` without touching any page.
