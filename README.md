@@ -48,7 +48,7 @@ lib/
   supabase/
     client.ts             # Browser-Client
     server.ts             # Server-Client (Server Components)
-middleware.ts              # Session-Refresh
+proxy.ts              # Session-Refresh
 ```
 
 Aktuell nur Grundgerüst (Route-Struktur + Supabase-Client-Setup) — die

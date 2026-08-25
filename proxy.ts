@@ -2,10 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Refreshes the Supabase auth session on every request, per the standard
-// @supabase/ssr Next.js middleware pattern. Route-level access control
+// @supabase/ssr Next.js proxy (formerly middleware) pattern. Route-level access control
 // (redirecting unauthenticated users away from (dashboard)/*) is added in
 // Ticket 018's implementation — this stub only keeps sessions alive.
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
