@@ -60,9 +60,22 @@ export function createSupabaseProjectsRepository(
     },
 
     async rename(id: string, name: string, notes: string) {
+      // `updated_at` has no DB trigger (0001_init.sql only defaults it on
+      // INSERT) — the native app's UpdateProjectUseCase.swift/
+      // ArchiveProjectUseCase.swift explicitly set `project.updatedAt =
+      // clock.now()` before saving for exactly this reason: SyncEngine.swift
+      // uses `updatedAt` for last-write-wins conflict resolution (`if
+      // remote.updatedAt >= local.updatedAt`). Found while testing this
+      // phase's rename/archive against real seeded data — without setting it
+      // explicitly here too, a web-side rename/archive would leave
+      // `updated_at` stale, which would both leave getAll()'s
+      // "order by updated_at desc" list ordering wrong AND make a later
+      // native-app sync potentially treat the web edit as older than a
+      // stale local copy, silently discarding it. Same fix applied to both
+      // rename and setArchived below.
       const { data, error } = await client
         .from("projects")
-        .update({ name, notes })
+        .update({ name, notes, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select()
         .single();
@@ -73,7 +86,7 @@ export function createSupabaseProjectsRepository(
     async setArchived(id: string, isArchived: boolean) {
       const { error } = await client
         .from("projects")
-        .update({ is_archived: isArchived })
+        .update({ is_archived: isArchived, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },

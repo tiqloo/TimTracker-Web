@@ -1,0 +1,462 @@
+"use client";
+
+// All interactive "Projekte" CRUD lives here (create, inline rename,
+// archive/unarchive, duplicate-name warning) — a Client Component because
+// every action needs immediate feedback without a full page reload, same
+// reasoning as the (auth)/* pages. Gets its Repositories instance from
+// lib/application/client.ts (the one designated exception, see CLAUDE.md's
+// "Resolved 2026-08-25" entry) and calls straight into
+// lib/application/projects.ts — never lib/repositories/* directly.
+//
+// Archiving is NOT deletion (docs/tickets/001-project-tracking.md's edge
+// cases: an archived project's historical time entries must remain intact
+// and correctly attributed) — archived projects stay visible here, just
+// grouped separately and visually muted, never hidden or removed from the
+// list.
+import { useState } from "react";
+import {
+  archiveProject,
+  createProject,
+  renameProject,
+} from "@/lib/application/projects";
+import { getRepositories } from "@/lib/application/client";
+import {
+  PROJECT_COLOR_PALETTE,
+  projectNameExists,
+  suggestedProjectColor,
+  type Project,
+} from "@/lib/domain/project";
+
+const inputClass =
+  "w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 disabled:opacity-50 dark:border-white/20 dark:focus:border-white/50";
+
+const buttonClass =
+  "rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/20";
+
+const primaryButtonClass =
+  "rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
+
+const errorClass =
+  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
+
+const warningClass = "text-sm text-amber-700 dark:text-amber-400";
+
+function ColorSwatch({ colorHex }: { colorHex: string }) {
+  return (
+    <span
+      className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+      style={{ backgroundColor: `#${colorHex}` }}
+      aria-hidden
+    />
+  );
+}
+
+function ColorPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (colorHex: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Farbe">
+      {PROJECT_COLOR_PALETTE.map((colorHex) => (
+        <button
+          key={colorHex}
+          type="button"
+          role="radio"
+          aria-checked={value === colorHex}
+          disabled={disabled}
+          onClick={() => onChange(colorHex)}
+          className={`h-6 w-6 rounded-full border-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+            value === colorHex
+              ? "border-foreground"
+              : "border-transparent"
+          }`}
+          style={{ backgroundColor: `#${colorHex}` }}
+          title={`#${colorHex}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function ProjectsClient({ initialProjects }: { initialProjects: Project[] }) {
+  const [projects, setProjects] = useState(initialProjects);
+  const active = projects.filter((project) => !project.isArchived);
+  const archived = projects.filter((project) => project.isArchived);
+
+  return (
+    <div className="flex flex-col gap-10">
+      <CreateProjectForm
+        projects={projects}
+        onCreated={(project) => setProjects((prev) => [project, ...prev])}
+      />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
+          Aktive Projekte
+        </h2>
+        {active.length === 0 ? (
+          <p className="text-sm text-black/60 dark:text-white/60">
+            Noch keine Projekte angelegt.
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+            {active.map((project) => (
+              <ProjectRow
+                key={project.id}
+                project={project}
+                allProjects={projects}
+                onChanged={(updated) =>
+                  setProjects((prev) =>
+                    prev.map((p) => (p.id === updated.id ? updated : p)),
+                  )
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {archived.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
+            Archivierte Projekte
+          </h2>
+          <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15 opacity-60">
+            {archived.map((project) => (
+              <ProjectRow
+                key={project.id}
+                project={project}
+                allProjects={projects}
+                onChanged={(updated) =>
+                  setProjects((prev) =>
+                    prev.map((p) => (p.id === updated.id ? updated : p)),
+                  )
+                }
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function CreateProjectForm({
+  projects,
+  onCreated,
+}: {
+  projects: Project[];
+  onCreated: (project: Project) => void;
+}) {
+  const [name, setName] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [notes, setNotes] = useState("");
+  const [colorHex, setColorHex] = useState(
+    suggestedProjectColor(projects.length),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const trimmedName = name.trim();
+  // Non-blocking duplicate-name warning, mirrors
+  // NewProjectFormView/DashboardViewModel.newProjectHasDuplicateWarning in
+  // the native app — duplicates are explicitly ALLOWED (e.g. the same
+  // project name for two different customers), so this never disables the
+  // submit button, it's purely informational.
+  const duplicateWarning =
+    trimmedName.length > 0 && projectNameExists(trimmedName, projects);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    if (!trimmedName) {
+      setError("Projektname darf nicht leer sein.");
+      return;
+    }
+
+    setPending(true);
+    try {
+      const repos = getRepositories();
+      const project = await createProject(repos, {
+        name: trimmedName,
+        colorHex,
+        customer: customer.trim(),
+        notes: notes.trim(),
+      });
+      onCreated(project);
+      setName("");
+      setCustomer("");
+      setNotes("");
+      setColorHex(suggestedProjectColor(projects.length + 1));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Projekt konnte nicht angelegt werden.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/15"
+    >
+      <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
+        Neues Projekt
+      </h2>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="new-project-name" className="text-sm font-medium">
+          Name
+        </label>
+        <input
+          id="new-project-name"
+          type="text"
+          required
+          disabled={pending}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={inputClass}
+        />
+        {duplicateWarning && (
+          <p className={warningClass}>
+            Ein Projekt mit diesem Namen existiert bereits — Anlegen ist trotzdem
+            möglich (z. B. für unterschiedliche Kunden).
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="new-project-customer" className="text-sm font-medium">
+          Kunde (optional)
+        </label>
+        <input
+          id="new-project-customer"
+          type="text"
+          disabled={pending}
+          value={customer}
+          onChange={(e) => setCustomer(e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="new-project-notes" className="text-sm font-medium">
+          Notiz (optional)
+        </label>
+        <textarea
+          id="new-project-notes"
+          rows={2}
+          disabled={pending}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium">Farbe</span>
+        <ColorPicker value={colorHex} onChange={setColorHex} disabled={pending} />
+      </div>
+      {error && <p className={errorClass}>{error}</p>}
+      <div>
+        <button type="submit" disabled={pending} className={primaryButtonClass}>
+          {pending ? "Wird angelegt…" : "Projekt anlegen"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ProjectRow({
+  project,
+  allProjects,
+  onChanged,
+}: {
+  project: Project;
+  allProjects: Project[];
+  onChanged: (project: Project) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [archivePending, setArchivePending] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  async function handleArchiveToggle() {
+    setArchiveError(null);
+    setArchivePending(true);
+    try {
+      const repos = getRepositories();
+      const nextArchived = !project.isArchived;
+      await archiveProject(repos, project.id, nextArchived);
+      onChanged({ ...project, isArchived: nextArchived });
+    } catch (err) {
+      setArchiveError(
+        err instanceof Error ? err.message : "Status konnte nicht geändert werden.",
+      );
+    } finally {
+      setArchivePending(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <li className="py-3">
+        <EditProjectForm
+          project={project}
+          allProjects={allProjects}
+          onSaved={(updated) => {
+            onChanged(updated);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex flex-col gap-2 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <ColorSwatch colorHex={project.colorHex} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">
+              {project.name}
+              {project.isArchived && (
+                <span className="ml-2 rounded bg-black/10 px-1.5 py-0.5 text-xs font-normal text-black/60 dark:bg-white/10 dark:text-white/60">
+                  Archiviert
+                </span>
+              )}
+            </p>
+            {project.customer && (
+              <p className="truncate text-xs text-black/60 dark:text-white/60">
+                {project.customer}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={() => setEditing(true)} className={buttonClass}>
+            Bearbeiten
+          </button>
+          <button
+            type="button"
+            onClick={handleArchiveToggle}
+            disabled={archivePending}
+            className={buttonClass}
+          >
+            {archivePending
+              ? "…"
+              : project.isArchived
+                ? "Reaktivieren"
+                : "Archivieren"}
+          </button>
+        </div>
+      </div>
+      {project.notes && (
+        <p className="truncate text-xs text-black/60 dark:text-white/60">{project.notes}</p>
+      )}
+      {archiveError && <p className={errorClass}>{archiveError}</p>}
+    </li>
+  );
+}
+
+// Matches the native "Edit Project" dialog's scope exactly: name + notes
+// only, no time fields, no color/customer change (docs/tickets/
+// 005-edit-project.md in TimTracker-Starter) — renameProject()'s signature
+// already reflects this same scope.
+function EditProjectForm({
+  project,
+  allProjects,
+  onSaved,
+  onCancel,
+}: {
+  project: Project;
+  allProjects: Project[];
+  onSaved: (project: Project) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(project.name);
+  const [notes, setNotes] = useState(project.notes);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const trimmedName = name.trim();
+  const duplicateWarning =
+    trimmedName.length > 0 &&
+    projectNameExists(trimmedName, allProjects, project.id);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    if (!trimmedName) {
+      setError("Projektname darf nicht leer sein.");
+      return;
+    }
+
+    setPending(true);
+    try {
+      const repos = getRepositories();
+      const updated = await renameProject(repos, project.id, trimmedName, notes.trim());
+      onSaved(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Projekt konnte nicht gespeichert werden.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`edit-name-${project.id}`} className="text-sm font-medium">
+          Name
+        </label>
+        <input
+          id={`edit-name-${project.id}`}
+          type="text"
+          required
+          disabled={pending}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={inputClass}
+        />
+        {duplicateWarning && (
+          <p className={warningClass}>
+            Ein Projekt mit diesem Namen existiert bereits — Speichern ist trotzdem
+            möglich (z. B. für unterschiedliche Kunden).
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`edit-notes-${project.id}`} className="text-sm font-medium">
+          Notiz
+        </label>
+        <textarea
+          id={`edit-notes-${project.id}`}
+          rows={2}
+          disabled={pending}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      {error && <p className={errorClass}>{error}</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={primaryButtonClass}>
+          {pending ? "Wird gespeichert…" : "Speichern"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={pending}
+          className={buttonClass}
+        >
+          Abbrechen
+        </button>
+      </div>
+    </form>
+  );
+}
