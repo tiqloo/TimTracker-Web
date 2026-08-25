@@ -86,12 +86,16 @@ lib/
     projects.repository.ts
     time-entries.repository.ts
     subscription.repository.ts
+    repositories.ts          # reines Port-Aggregat (Repositories-Interface),
+                             # KEIN Adapter-Import — das ist es, was
+                             # lib/application/* importieren darf
     supabase/               # DRIVEN ADAPTER — heutige Implementierung
       projects.repository.ts
       time-entries.repository.ts
       subscription.repository.ts
     index.ts                # Composition Root — Pendant zu
-                             # App/DependencyContainer.swift.
+                             # App/DependencyContainer.swift. Einzige
+                             # Datei, die Adapter UND Ports kennt.
                              # getServerRepositories() / getBrowserRepositories()
   supabase/
     client.ts               # Browser-Client (nur von repositories/supabase/ genutzt)
