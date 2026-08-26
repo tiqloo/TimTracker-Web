@@ -10,6 +10,7 @@ import {
   authButtonClass,
   authErrorClass,
   authInputClass,
+  authSuccessClass,
 } from "@/components/AuthCard";
 
 const GENERIC_LOGIN_ERROR = "E-Mail oder Passwort ist falsch.";
@@ -28,6 +29,11 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") || "/";
+  // Set by components/SettingsClient.tsx after a successful "Account
+  // löschen" (Ticket 018, Phase 1e) — confirms the deletion actually
+  // happened rather than silently landing back on an unremarkable login
+  // form.
+  const accountDeleted = searchParams.get("accountDeleted") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -88,6 +94,11 @@ function LoginForm() {
 
   return (
     <AuthCard title="Anmelden">
+      {accountDeleted && (
+        <p className={`${authSuccessClass} mb-4`}>
+          Dein Account wurde erfolgreich gelöscht.
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <label htmlFor="email" className="text-sm font-medium">

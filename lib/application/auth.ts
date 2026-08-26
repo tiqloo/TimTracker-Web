@@ -51,3 +51,12 @@ export function onAuthStateChange(
 ): () => void {
   return repos.auth.onAuthStateChange(callback);
 }
+
+// GDPR/DSGVO account deletion (Ticket 018, Phase 1e) — see
+// lib/repositories/auth.repository.ts's deleteAccount() doc for the full
+// contract. Deliberately does not also call logout(): the caller
+// (app/(dashboard)/settings) decides the post-deletion flow (sign out +
+// redirect), same separation as every other use case in this file.
+export async function deleteAccount(repos: Repositories): Promise<void> {
+  return repos.auth.deleteAccount();
+}

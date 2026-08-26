@@ -70,5 +70,17 @@ export function createSupabaseAuthRepository(
       });
       return () => subscription.unsubscribe();
     },
+
+    async deleteAccount() {
+      // Same delete-account Edge Function the native app calls (see
+      // Infrastructure/Auth/SupabaseAccountService.swift in
+      // TimTracker-Starter) — auth required (reads the caller's own JWT
+      // server-side), no request body. Returns { deleted: true } on
+      // success; functions.invoke() surfaces a non-2xx response as
+      // `error` rather than throwing itself, so it must be checked
+      // explicitly like every other Supabase call in this file.
+      const { error } = await client.functions.invoke("delete-account");
+      if (error) throw error;
+    },
   };
 }

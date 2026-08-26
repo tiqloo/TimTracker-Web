@@ -96,7 +96,13 @@ const architectureBoundaries = defineConfig([
           ],
           patterns: [
             {
-              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**", "**/supabase/**", "./supabase/**"],
+              group: [
+                "**/lib/repositories/supabase/**",
+                "**/lib/repositories/cookie/**",
+                "**/lib/supabase/**",
+                "**/supabase/**",
+                "./supabase/**",
+              ],
               message:
                 "lib/application/* darf nur lib/repositories/repositories.ts importieren, nie einen konkreten Adapter.",
             },
@@ -124,7 +130,13 @@ const architectureBoundaries = defineConfig([
           })),
           patterns: [
             {
-              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**", "**/supabase/**", "./supabase/**"],
+              group: [
+                "**/lib/repositories/supabase/**",
+                "**/lib/repositories/cookie/**",
+                "**/lib/supabase/**",
+                "**/supabase/**",
+                "./supabase/**",
+              ],
               message:
                 "Auch lib/application/client.ts|server.ts dürfen keinen konkreten Adapter direkt importieren — nur über lib/composition-root.ts.",
             },
@@ -158,7 +170,13 @@ const architectureBoundaries = defineConfig([
           ],
           patterns: [
             {
-              group: ["**/lib/repositories/supabase/**", "**/lib/supabase/**", "**/supabase/**", "./supabase/**"],
+              group: [
+                "**/lib/repositories/supabase/**",
+                "**/lib/repositories/cookie/**",
+                "**/lib/supabase/**",
+                "**/supabase/**",
+                "./supabase/**",
+              ],
               message:
                 "Port-Interfaces dürfen keine konkrete Adapter-Implementierung importieren.",
             },

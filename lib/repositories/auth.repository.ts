@@ -46,4 +46,15 @@ export interface AuthRepository {
   // reset link (see reset-password/page.tsx) — there is no other way to
   // distinguish "fresh visit" from "arrived via recovery link".
   onAuthStateChange(callback: (event: AuthChangeEvent) => void): () => void;
+  // GDPR/DSGVO deletion ("Recht auf Löschung"): invokes the already-
+  // deployed delete-account Edge Function (supabase/functions/delete-account
+  // in TimTracker-Starter), which deletes the auth.users row for the
+  // CURRENT session — projects/time_entries/subscriptions all cascade-
+  // delete via FK (see that function's own comment). Mirrors
+  // AccountServiceProtocol.deleteAccount() on the native app 1:1 (same
+  // Edge Function, same "no body needed, auth required" contract). Does
+  // NOT sign the caller out itself — the caller (app/(dashboard)/settings)
+  // is responsible for calling logout() afterward, same separation of
+  // concerns as every other method on this port.
+  deleteAccount(): Promise<void>;
 }

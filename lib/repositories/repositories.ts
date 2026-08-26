@@ -2,6 +2,7 @@ import type { ProjectsRepository } from "./projects.repository";
 import type { TimeEntriesRepository } from "./time-entries.repository";
 import type { SubscriptionRepository } from "./subscription.repository";
 import type { AuthRepository } from "./auth.repository";
+import type { LanguageRepository } from "./language.repository";
 
 // Pure aggregate of the driven ports — no adapter/Supabase import here,
 // on purpose. This is what lib/application/* is allowed to depend on.
@@ -12,4 +13,5 @@ export interface Repositories {
   timeEntries: TimeEntriesRepository;
   subscription: SubscriptionRepository;
   auth: AuthRepository;
+  language: LanguageRepository;
 }

@@ -29,9 +29,25 @@ export function formatTime(isoDateTime: string): string {
 // "24. August 2026" — used as the heading on a "Historie" day-detail page
 // (history/[day]/page.tsx). Parsed as local midnight (not UTC) so the
 // displayed date always matches the `day` string itself regardless of the
-// viewer's time zone offset.
-export function formatDayLabel(isoDay: string): string {
-  return new Date(`${isoDay}T00:00:00`).toLocaleDateString("de-DE", {
+// viewer's time zone offset. `locale` defaults to "de-DE" (this call
+// site's existing behavior, unchanged for every current caller) — added
+// as a parameter, not hardcoded, so settings/billing/page.tsx (Ticket
+// 018, Phase 1e) can pass the resolved language preference's locale
+// instead without a second near-duplicate function.
+export function formatDayLabel(isoDay: string, locale: string = "de-DE"): string {
+  return new Date(`${isoDay}T00:00:00`).toLocaleDateString(locale, {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+// Same shape as formatDayLabel, but for a full ISO datetime (e.g.
+// `subscriptions.current_period_end`, a timestamptz) rather than a plain
+// yyyy-MM-dd day string — used by settings/billing/page.tsx to show the
+// trial/period end date.
+export function formatFullDate(isoDateTime: string, locale: string = "de-DE"): string {
+  return new Date(isoDateTime).toLocaleDateString(locale, {
     day: "2-digit",
     month: "long",
     year: "numeric",
