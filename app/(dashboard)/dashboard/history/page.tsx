@@ -63,7 +63,7 @@ export default async function HistoryPage({
           {presets.map((preset) => (
             <Link
               key={preset.label}
-              href={`/history?from=${preset.from}&to=${preset.to}`}
+              href={`/dashboard/history?from=${preset.from}&to=${preset.to}`}
               className="text-sm underline"
             >
               {preset.label}
@@ -71,7 +71,7 @@ export default async function HistoryPage({
           ))}
         </nav>
 
-        <form action="/history" className="flex flex-wrap items-end gap-2 text-sm">
+        <form action="/dashboard/history" className="flex flex-wrap items-end gap-2 text-sm">
           <label className="flex flex-col gap-1">
             Von
             <input
@@ -98,7 +98,7 @@ export default async function HistoryPage({
           </button>
         </form>
 
-        <a href={`/history/export?from=${from}&to=${to}`} className="text-sm underline">
+        <a href={`/dashboard/history/export?from=${from}&to=${to}`} className="text-sm underline">
           Als CSV exportieren
         </a>
       </div>
@@ -116,7 +116,7 @@ export default async function HistoryPage({
           {days.map((day) => (
             <li key={day.day}>
               <Link
-                href={`/history/${day.day}`}
+                href={`/dashboard/history/${day.day}`}
                 className="flex items-center justify-between gap-4 py-3 text-sm hover:underline"
               >
                 <span className="w-36 shrink-0">{formatDayLabel(day.day)}</span>

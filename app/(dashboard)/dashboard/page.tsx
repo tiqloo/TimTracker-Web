@@ -29,7 +29,7 @@ export default async function TodayPage() {
   // message rather than a full paywall/upgrade flow — building that out
   // (pricing, checkout) belongs with the billing/settings work, not this
   // phase. TODO (Ticket 018, later phase): once
-  // app/(dashboard)/settings/billing exists, link there instead of just
+  // app/(dashboard)/dashboard/settings/billing exists, link there instead of just
   // stating the status.
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
@@ -62,7 +62,7 @@ export default async function TodayPage() {
         emptyMessage="Noch keine Zeiteinträge für heute."
       />
 
-      <Link href="/history" className="text-sm underline">
+      <Link href="/dashboard/history" className="text-sm underline">
         Zur Historie
       </Link>
     </main>

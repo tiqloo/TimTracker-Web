@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
       // dashboard, same as a successful login. Old sessions/tokens are
       // invalidated server-side by Supabase (already confirmed for the
       // native apps, Ticket 009).
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } catch (err) {
       setUpdateError(

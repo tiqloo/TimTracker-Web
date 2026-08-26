@@ -55,7 +55,7 @@ export default async function HistoryDayPage({
   return (
     <main className="flex flex-col gap-8 p-8">
       <div>
-        <Link href="/history" className="text-sm underline">
+        <Link href="/dashboard/history" className="text-sm underline">
           Zurück zur Historie
         </Link>
         <h1 className="mt-2 text-xl font-semibold">{formatDayLabel(day)}</h1>

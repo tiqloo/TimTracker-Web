@@ -1,18 +1,28 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Public (auth)/* routes — reachable while signed OUT. Everything else
-// (all of (dashboard)/*, including "/" itself — the "Heute" page lives at
-// the route group's root) requires a session.
-const PUBLIC_PATHS = ["/login", "/register", "/reset-password"];
-// Of those, these two additionally redirect AWAY to "/" when a session
-// already exists, so a signed-in user doesn't see the login/register form
-// again. /reset-password is deliberately excluded from that second list:
-// a real password-recovery link (Ticket 009) establishes a temporary
-// session client-side via Supabase's PASSWORD_RECOVERY event, and the
-// user must still be able to reach that page's "set new password" form
-// while that session is active.
+// "/" is the public marketing homepage (unauthenticated visitors land
+// here, and signed-in users may revisit it too — it is never gated or
+// redirected away from). The (auth)/* pages (/login, /register,
+// /reset-password) are also reachable while signed OUT. Everything under
+// "/dashboard" (the entire former (dashboard)/* route group, moved from
+// the site root to this prefix so the protected area has one consistent
+// namespace — see TimTracker-Starter/docs/tickets/018-account-website.md's
+// "public homepage" addendum for the full old-path -> new-path mapping)
+// requires a session.
+const PROTECTED_PREFIX = "/dashboard";
+// Of the public auth paths, these two additionally redirect AWAY to
+// "/dashboard" when a session already exists, so a signed-in user doesn't
+// see the login/register form again. /reset-password is deliberately
+// excluded from that second list: a real password-recovery link (Ticket
+// 009) establishes a temporary session client-side via Supabase's
+// PASSWORD_RECOVERY event, and the user must still be able to reach that
+// page's "set new password" form while that session is active.
 const REDIRECT_IF_AUTHENTICATED_PATHS = ["/login", "/register"];
+
+function isProtectedPath(pathname: string): boolean {
+  return pathname === PROTECTED_PREFIX || pathname.startsWith(`${PROTECTED_PREFIX}/`);
+}
 
 // Refreshes the Supabase auth session on every request, per the standard
 // @supabase/ssr Next.js proxy (formerly middleware) pattern, AND gates
@@ -53,9 +63,8 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
-  if (!user && !isPublicPath) {
+  if (!user && isProtectedPath(pathname)) {
     const loginUrl = new URL("/login", request.url);
     // Bounce back to the originally requested page after a successful
     // login (see app/(auth)/login/page.tsx).
@@ -67,7 +76,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && REDIRECT_IF_AUTHENTICATED_PATHS.includes(pathname)) {
-    return copyCookies(response, NextResponse.redirect(new URL("/", request.url)));
+    return copyCookies(
+      response,
+      NextResponse.redirect(new URL(PROTECTED_PREFIX, request.url)),
+    );
   }
 
   return response;

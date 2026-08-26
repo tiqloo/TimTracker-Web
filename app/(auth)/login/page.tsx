@@ -28,7 +28,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/";
+  const redirectTo = searchParams.get("redirectTo") || "/dashboard";
   // Set by components/SettingsClient.tsx after a successful "Account
   // löschen" (Ticket 018, Phase 1e) — confirms the deletion actually
   // happened rather than silently landing back on an unremarkable login
@@ -41,8 +41,8 @@ function LoginForm() {
   const [pending, setPending] = useState(false);
 
   // Supabase's signup-confirmation link (see
-  // register/page.tsx's emailRedirectTo) points here because "/" is a
-  // protected route (proxy.ts) unreachable before a session exists.
+  // register/page.tsx's emailRedirectTo) points here because "/dashboard"
+  // is a protected route (proxy.ts) unreachable before a session exists.
   // Instantiating the repos/browser client processes the confirmation
   // tokens carried in the URL automatically (@supabase/ssr's
   // detectSessionInUrl, on by default) and fires SIGNED_IN once done —

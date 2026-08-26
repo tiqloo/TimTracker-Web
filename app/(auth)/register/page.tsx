@@ -48,7 +48,7 @@ export default function RegisterPage() {
         setConfirmationPending(true);
         setPending(false);
       } else {
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
       }
     } catch (err) {

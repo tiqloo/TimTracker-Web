@@ -93,7 +93,7 @@ export default async function BillingSettingsPage() {
 
       <ManageSubscriptionButton />
 
-      <Link href="/settings" className="text-sm underline">
+      <Link href="/dashboard/settings" className="text-sm underline">
         Zurück zu den Einstellungen
       </Link>
     </main>

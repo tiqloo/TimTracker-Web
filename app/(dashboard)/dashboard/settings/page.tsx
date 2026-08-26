@@ -20,7 +20,7 @@ export default async function SettingsPage() {
     <main className="flex flex-col gap-8 p-8">
       <h1 className="text-xl font-semibold">Einstellungen</h1>
       <SettingsClient initialLanguage={language} />
-      <Link href="/settings/billing" className="text-sm underline">
+      <Link href="/dashboard/settings/billing" className="text-sm underline">
         Abo verwalten
       </Link>
     </main>

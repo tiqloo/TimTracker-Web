@@ -13,10 +13,10 @@ import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 
 const NAV_LINKS = [
-  { href: "/", label: "Heute" },
-  { href: "/history", label: "Historie" },
-  { href: "/projects", label: "Projekte" },
-  { href: "/settings", label: "Einstellungen" },
+  { href: "/dashboard", label: "Heute" },
+  { href: "/dashboard/history", label: "Historie" },
+  { href: "/dashboard/projects", label: "Projekte" },
+  { href: "/dashboard/settings", label: "Einstellungen" },
 ];
 
 export function DashboardNav() {
