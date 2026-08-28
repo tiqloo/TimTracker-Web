@@ -5,12 +5,16 @@ import { getSubscriptionStatus } from "@/lib/application/billing";
 import { canUseApp } from "@/lib/domain/subscription";
 import {
   addDaysIso,
+  buildChartBars,
   formatDayLabel,
   formatDuration,
+  resolveChartGranularity,
   resolveHistoryRange,
   startOfMonthIso,
   startOfWeekIso,
+  startOfYearIso,
 } from "@/lib/format";
+import { HistoryChart } from "@/components/HistoryChart";
 
 // "Historie" — flat list of past days for a selectable period, plus CSV
 // export of the same period. Mirrors HistoryLogView.swift: flat rows, no
@@ -44,14 +48,22 @@ export default async function HistoryPage({
   const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
 
-  const days = (await getHistory(repos, from, to)).slice().sort((a, b) =>
-    b.day.localeCompare(a.day),
-  );
+  const breakdowns = await getHistory(repos, from, to);
+  const days = breakdowns.slice().sort((a, b) => b.day.localeCompare(a.day));
+
+  // Chart granularity adapts to the selected range's length, not to which
+  // preset was clicked — so a hand-picked long custom range also falls
+  // back to monthly bars, not just the "Dieses Jahr" preset specifically.
+  // See lib/format.ts#resolveChartGranularity for the exact threshold and
+  // reasoning.
+  const granularity = resolveChartGranularity(from, to);
+  const chartBars = buildChartBars(breakdowns, from, to, granularity);
 
   const presets = [
     { label: "Letzte 30 Tage", from: addDaysIso(today, -29), to: today },
     { label: "Diese Woche", from: startOfWeekIso(today), to: today },
     { label: "Dieser Monat", from: startOfMonthIso(today), to: today },
+    { label: "Dieses Jahr", from: startOfYearIso(today), to: today },
   ];
 
   return (
@@ -106,6 +118,8 @@ export default async function HistoryPage({
       <p className="text-sm text-black/60 dark:text-white/60">
         {formatDayLabel(from)} – {formatDayLabel(to)}
       </p>
+
+      <HistoryChart bars={chartBars} granularity={granularity} />
 
       {days.length === 0 ? (
         <p className="text-sm text-black/60 dark:text-white/60">

@@ -3,11 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* "Historie" bar chart (Ticket 002) — categorical slots 1 (blue) and 2
+     (orange) from the dataviz palette, validated together with
+     scripts/validate_palette.js (CVD-safe adjacent pair in both light and
+     dark, all checks pass). Kept as tokens here rather than inline hex in
+     components/HistoryChart.tsx so light/dark swap in one place, same
+     pattern as --background/--foreground above. */
+  --chart-standard: #2a78d6;
+  --chart-project: #eb6834;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-chart-standard: var(--chart-standard);
+  --color-chart-project: var(--chart-project);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,6 +26,8 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --chart-standard: #3987e5;
+    --chart-project: #d95926;
   }
 }
 

@@ -77,6 +77,12 @@ export function startOfMonthIso(isoDay: string): string {
   return `${isoDay.slice(0, 7)}-01`;
 }
 
+// Added for the "Dieses Jahr" history preset (Ticket 002) — same
+// string-slicing style as startOfMonthIso above, no Date object involved.
+export function startOfYearIso(isoDay: string): string {
+  return `${isoDay.slice(0, 4)}-01-01`;
+}
+
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface DateRange {
@@ -101,6 +107,149 @@ export function resolveHistoryRange(
   let to = requestedTo ?? today;
   if (from > to) [from, to] = [to, from];
   return { from, to };
+}
+
+// --- "Historie" bar chart (Ticket 002) ---------------------------------
+//
+// Pure aggregation over an already-fetched DailyBreakdown[] (the same
+// getHistory() result history/page.tsx already lists) into per-bar chart
+// data. Lives here, not in lib/application/dashboard.ts, for the same
+// reason formatHistoryCsv does: it's a pure transform of already-fetched
+// data with no Repositories dependency, so it doesn't belong in the
+// application core — and it must stay reusable from the Server Component
+// that also builds the flat day list, without a second data fetch.
+
+export type ChartGranularity = "day" | "month";
+
+// Beyond this many days in the selected range, one bar per day becomes
+// both unreadable (label crowding) and needlessly many SVG elements, so
+// the chart aggregates into one bar per month instead. 62 (~2 months)
+// keeps every existing preset that should show daily bars — "Diese
+// Woche" (7 days), "Dieser Monat" (<=31), "Letzte 30 Tage" (30), and any
+// hand-picked range up to about two months — on daily granularity, while
+// "Dieses Jahr" (up to 366 days) and any longer custom range always fall
+// back to monthly bars. This is what keeps the year view performant and
+// readable per Ticket 002's edge case ("Sehr langer Zeitraum (Jahr)
+// bleibt performant und übersichtlich") — it must never render one bar
+// per day for a full year.
+const DAILY_GRANULARITY_MAX_DAYS = 62;
+
+// UTC-anchored on purpose, same pattern as addDaysIso/startOfWeekIso
+// above — this is date arithmetic (a day count), not display, so
+// anchoring to a fixed offset instead of the viewer's local zone keeps
+// it deterministic regardless of where the code runs, immune to DST.
+function daysBetweenIso(fromIso: string, toIso: string): number {
+  const from = new Date(`${fromIso}T00:00:00Z`).getTime();
+  const to = new Date(`${toIso}T00:00:00Z`).getTime();
+  return Math.round((to - from) / 86_400_000);
+}
+
+export function resolveChartGranularity(from: string, to: string): ChartGranularity {
+  return daysBetweenIso(from, to) > DAILY_GRANULARITY_MAX_DAYS ? "month" : "day";
+}
+
+export interface ChartBar {
+  key: string; // "yyyy-MM-dd" (day granularity) or "yyyy-MM" (month granularity)
+  label: string; // short axis label
+  standardSeconds: number;
+  projectSeconds: number;
+}
+
+const MONTH_LABELS_DE = [
+  "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+  "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
+];
+
+// The chart's day/month labels are built by slicing the already-normalized
+// "yyyy-MM-dd" / "yyyy-MM" ISO strings directly — deliberately NO `Date`
+// object is constructed anywhere in this section. `new Date("2026-08-24")`
+// (a date-only string, no time component) parses as UTC midnight in every
+// JS engine, so calling `.getDate()`/`.getDay()`/`.toLocaleDateString()`
+// on it can silently print the *previous* calendar day in any timezone
+// west of UTC (or the next one, east of it) — exactly the class of bug
+// Ticket 002's DST/timezone edge case warns against, and exactly what
+// bit `formatDayLabel` above (fixed by anchoring to local midnight
+// instead). Slicing the string sidesteps the whole bug class rather than
+// trying to get Date-parsing/timezone anchoring right for a chart axis
+// label, so it also can't regress if this file's other Date usage ever
+// changes. Verified explicitly for a spread of dates, including both
+// 2026 DST transitions (2026-03-29, 2026-10-25) and both year
+// boundaries, in lib/format.chart.test.ts.
+function dayOfMonthPart(isoDay: string): string {
+  return isoDay.slice(8, 10);
+}
+function monthPart(isoDayOrMonth: string): string {
+  return isoDayOrMonth.slice(5, 7);
+}
+
+export function formatShortDayLabel(isoDay: string): string {
+  return `${dayOfMonthPart(isoDay)}.${monthPart(isoDay)}.`;
+}
+
+export function formatMonthLabel(isoMonth: string): string {
+  const index = Number(monthPart(isoMonth)) - 1;
+  return MONTH_LABELS_DE[index] ?? isoMonth;
+}
+
+// Pure "yyyy-MM" successor — plain integer arithmetic on the sliced
+// year/month, no Date object, so it can't be affected by DST either.
+function nextMonthIso(isoMonth: string): string {
+  const year = Number(isoMonth.slice(0, 4));
+  const month = Number(isoMonth.slice(5, 7)); // 1-12
+  return month === 12
+    ? `${year + 1}-01`
+    : `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
+// Builds one bar per day (or per month, at month granularity) across the
+// full [from, to] range, filling in zero-activity days/months instead of
+// leaving a gap — Ticket 002 AK: "Tage ohne Aktivität zeigen einen
+// 0-Balken statt einer Lücke". `breakdowns` is the already-fetched
+// getHistory() result (sparse — only days with at least one entry come
+// back from the repository); order doesn't matter, this indexes it into
+// a Map first.
+export function buildChartBars(
+  breakdowns: DailyBreakdown[],
+  from: string,
+  to: string,
+  granularity: ChartGranularity,
+): ChartBar[] {
+  if (granularity === "day") {
+    const byDay = new Map(breakdowns.map((b) => [b.day, b] as const));
+    const bars: ChartBar[] = [];
+    for (let day = from; day <= to; day = addDaysIso(day, 1)) {
+      const b = byDay.get(day);
+      bars.push({
+        key: day,
+        label: formatShortDayLabel(day),
+        standardSeconds: b?.standardSeconds ?? 0,
+        projectSeconds: b?.projectSeconds ?? 0,
+      });
+    }
+    return bars;
+  }
+
+  const byMonth = new Map<string, { standardSeconds: number; projectSeconds: number }>();
+  for (const b of breakdowns) {
+    const key = b.day.slice(0, 7);
+    const acc = byMonth.get(key) ?? { standardSeconds: 0, projectSeconds: 0 };
+    acc.standardSeconds += b.standardSeconds;
+    acc.projectSeconds += b.projectSeconds;
+    byMonth.set(key, acc);
+  }
+
+  const toMonth = to.slice(0, 7);
+  const bars: ChartBar[] = [];
+  for (let month = from.slice(0, 7); month <= toMonth; month = nextMonthIso(month)) {
+    const acc = byMonth.get(month);
+    bars.push({
+      key: month,
+      label: formatMonthLabel(month),
+      standardSeconds: acc?.standardSeconds ?? 0,
+      projectSeconds: acc?.projectSeconds ?? 0,
+    });
+  }
+  return bars;
 }
 
 // Flat CSV export for "Historie": one row per session plus one daily

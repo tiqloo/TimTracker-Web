@@ -30,5 +30,14 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // *.test.ts files run directly via `node --test` (native TS type
+    // stripping, see package.json's "test" script) and use explicit
+    // ".ts" import extensions for that — which Next's own tsconfig
+    // (bundler resolution, no allowImportingTsExtensions) rejects during
+    // `next build`'s type-check pass. They're not part of the app build
+    // graph anyway, so excluding them here is correct, not a workaround.
+    "**/*.test.ts"
+  ]
 }
