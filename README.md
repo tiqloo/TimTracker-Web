@@ -264,3 +264,23 @@ Gelten identisch zum Haupt-Repo (siehe dessen `README.md` und
 additive Migrationen bleiben im Haupt-Repo. Insbesondere: lokal gegen
 Docker entwickeln/testen (siehe oben), nicht standardmäßig gegen
 Produktion.
+
+## Produktions-Deployment (Vercel)
+
+Projekt `gandar-s-projects/timtracker-web`, Domain `tiqloo.com`, mit dem
+GitHub-Repo verbunden — ein Push auf `master` sollte automatisch einen
+Produktions-Build auslösen.
+
+**Bekannte Falle (2026-08-31):** Vercel prüft den Git-Commit-Autor gegen
+verifizierte E-Mail-Adressen des verbundenen GitHub-Accounts. Steht in
+`git config --global user.email` eine E-Mail, die bei GitHub nicht als
+verifiziert hinterlegt ist, zeigt Vercel im Deployments-Dashboard
+`Blocked` mit "GitHub user not found" — der Build startet dann gar
+nicht erst, unabhängig vom Code. Symptom sieht dabei leicht nach einem
+Netzwerk-/Sandbox-Problem aus (kein Fehler im Terminal, einfach kein
+neuer Live-Stand), ist aber ausschließlich im Vercel-Dashboard sichtbar
+(Deployments-Liste → Klick auf die betroffene Zeile). Fix: die globale
+Git-E-Mail auf eine bei GitHub verifizierte Adresse umstellen (`git
+config --global user.email "..."`), dann committen — alte, bereits
+geblockte Deployments bleiben geblockt, ein neuer Commit mit korrekter
+Autor-Identität geht durch.
