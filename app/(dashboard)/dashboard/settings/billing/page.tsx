@@ -60,32 +60,36 @@ export default async function BillingSettingsPage() {
       : null;
 
   return (
-    <main className="flex flex-col gap-8 p-8">
-      <h1 className="text-xl font-semibold">Abo verwalten</h1>
+    <main className="flex flex-col gap-8 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">Abo verwalten</h1>
 
-      <section className="flex flex-col gap-2 rounded-lg border border-black/10 p-4 dark:border-white/15">
+      <section className="flex max-w-md flex-col gap-2 rounded-xl border border-line p-5">
         <p className="text-sm">
           Status:{" "}
           <span className="font-medium">{STATUS_LABELS[subscription.status]}</span>
         </p>
         {trialDaysRemaining !== null && (
-          <p className="text-sm text-black/70 dark:text-white/70">
-            Noch {trialDaysRemaining} {trialDaysRemaining === 1 ? "Tag" : "Tage"}{" "}
-            Testphase.
+          <p className="text-sm text-foreground/70">
+            Noch{" "}
+            <span className="font-mono tabular-nums">{trialDaysRemaining}</span>{" "}
+            {trialDaysRemaining === 1 ? "Tag" : "Tage"} Testphase.
           </p>
         )}
         {subscription.currentPeriodEnd && (
-          <p className="text-sm text-black/70 dark:text-white/70">
+          <p className="text-sm text-foreground/70">
             {subscription.status === "trialing"
               ? "Testphase endet am"
               : subscription.status === "active"
                 ? "Nächste Verlängerung am"
                 : "Zugriff endete am"}{" "}
-            {formatFullDate(subscription.currentPeriodEnd, locale)}.
+            <span className="font-mono tabular-nums">
+              {formatFullDate(subscription.currentPeriodEnd, locale)}
+            </span>
+            .
           </p>
         )}
         {subscription.status === "none" && (
-          <p className="text-sm text-black/70 dark:text-white/70">
+          <p className="text-sm text-foreground/70">
             Kein Testzeitraum oder Abo hinterlegt.
           </p>
         )}
@@ -93,8 +97,11 @@ export default async function BillingSettingsPage() {
 
       <ManageSubscriptionButton />
 
-      <Link href="/dashboard/settings" className="text-sm underline">
-        Zurück zu den Einstellungen
+      <Link
+        href="/dashboard/settings"
+        className="text-sm text-foreground/70 hover:text-foreground"
+      >
+        ← Zurück zu den Einstellungen
       </Link>
     </main>
   );

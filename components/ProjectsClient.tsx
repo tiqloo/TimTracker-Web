@@ -28,10 +28,10 @@ import {
 } from "@/lib/domain/project";
 
 const inputClass =
-  "w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 disabled:opacity-50 dark:border-white/20 dark:focus:border-white/50";
+  "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 disabled:opacity-50";
 
 const buttonClass =
-  "rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/20";
+  "rounded-md border border-line px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
 
 const primaryButtonClass =
   "rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
@@ -44,7 +44,7 @@ const warningClass = "text-sm text-amber-700 dark:text-amber-400";
 function ColorSwatch({ colorHex }: { colorHex: string }) {
   return (
     <span
-      className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+      className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-line"
       style={{ backgroundColor: `#${colorHex}` }}
       aria-hidden
     />
@@ -96,15 +96,11 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
-          Aktive Projekte
-        </h2>
+        <h2 className="text-sm font-medium text-foreground/70">Aktive Projekte</h2>
         {active.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">
-            Noch keine Projekte angelegt.
-          </p>
+          <p className="text-sm text-foreground/60">Noch keine Projekte angelegt.</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+          <ul className="flex flex-col divide-y divide-line border-t border-line">
             {active.map((project) => (
               <ProjectRow
                 key={project.id}
@@ -123,10 +119,8 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
 
       {archived.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
-            Archivierte Projekte
-          </h2>
-          <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15 opacity-60">
+          <h2 className="text-sm font-medium text-foreground/70">Archivierte Projekte</h2>
+          <ul className="flex flex-col divide-y divide-line border-t border-line opacity-60">
             {archived.map((project) => (
               <ProjectRow
                 key={project.id}
@@ -204,11 +198,9 @@ function CreateProjectForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/15"
+      className="flex flex-col gap-3 rounded-xl border border-line p-5"
     >
-      <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
-        Neues Projekt
-      </h2>
+      <h2 className="text-sm font-medium text-foreground/70">Neues Projekt</h2>
       <div className="flex flex-col gap-1">
         <label htmlFor="new-project-name" className="text-sm font-medium">
           Name
@@ -324,15 +316,13 @@ function ProjectRow({
             <p className="truncate text-sm font-medium">
               {project.name}
               {project.isArchived && (
-                <span className="ml-2 rounded bg-black/10 px-1.5 py-0.5 text-xs font-normal text-black/60 dark:bg-white/10 dark:text-white/60">
+                <span className="ml-2 rounded bg-paper px-1.5 py-0.5 text-xs font-normal text-foreground/60">
                   Archiviert
                 </span>
               )}
             </p>
             {project.customer && (
-              <p className="truncate text-xs text-black/60 dark:text-white/60">
-                {project.customer}
-              </p>
+              <p className="truncate text-xs text-foreground/60">{project.customer}</p>
             )}
           </div>
         </div>
@@ -355,7 +345,7 @@ function ProjectRow({
         </div>
       </div>
       {project.notes && (
-        <p className="truncate text-xs text-black/60 dark:text-white/60">{project.notes}</p>
+        <p className="truncate text-xs text-foreground/60">{project.notes}</p>
       )}
       {archiveError && <p className={errorClass}>{archiveError}</p>}
     </li>

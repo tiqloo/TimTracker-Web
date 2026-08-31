@@ -15,6 +15,7 @@ import {
   startOfYearIso,
 } from "@/lib/format";
 import { HistoryChart } from "@/components/HistoryChart";
+import { AccessGate } from "@/components/AccessGate";
 
 // "Historie" — flat list of past days for a selectable period, plus CSV
 // export of the same period. Mirrors HistoryLogView.swift: flat rows, no
@@ -32,16 +33,7 @@ export default async function HistoryPage({
   // verbatim, not reimplemented.
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return (
-      <main className="p-8">
-        <h1 className="mb-2 text-xl font-semibold">Historie</h1>
-        <p className="text-sm text-black/70 dark:text-white/70">
-          Kein aktiver Testzeitraum oder Abo mehr
-          {subscription.status !== "none" ? ` (Status: ${subscription.status})` : ""}.
-          Bitte Abo verwalten, um wieder auf deine Daten zuzugreifen.
-        </p>
-      </main>
-    );
+    return <AccessGate title="Historie" status={subscription.status} />;
   }
 
   const today = isoToday();
@@ -67,16 +59,16 @@ export default async function HistoryPage({
   ];
 
   return (
-    <main className="flex flex-col gap-6 p-8">
-      <h1 className="text-xl font-semibold">Historie</h1>
+    <main className="flex flex-col gap-6 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">Historie</h1>
 
       <div className="flex flex-wrap items-center gap-4">
-        <nav className="flex flex-wrap gap-3">
+        <nav className="flex flex-wrap gap-1">
           {presets.map((preset) => (
             <Link
               key={preset.label}
               href={`/dashboard/history?from=${preset.from}&to=${preset.to}`}
-              className="text-sm underline"
+              className="rounded-md px-2.5 py-1 text-sm text-foreground/70 hover:text-foreground"
             >
               {preset.label}
             </Link>
@@ -90,7 +82,7 @@ export default async function HistoryPage({
               type="date"
               name="from"
               defaultValue={from}
-              className="rounded border border-black/15 px-2 py-1 dark:border-white/20"
+              className="rounded-md border border-line px-2 py-1"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -99,42 +91,42 @@ export default async function HistoryPage({
               type="date"
               name="to"
               defaultValue={to}
-              className="rounded border border-black/15 px-2 py-1 dark:border-white/20"
+              className="rounded-md border border-line px-2 py-1"
             />
           </label>
-          <button
-            type="submit"
-            className="rounded border border-black/15 px-3 py-1 dark:border-white/20"
-          >
+          <button type="submit" className="rounded-md border border-line px-3 py-1">
             Anwenden
           </button>
         </form>
 
-        <a href={`/dashboard/history/export?from=${from}&to=${to}`} className="text-sm underline">
+        <a
+          href={`/dashboard/history/export?from=${from}&to=${to}`}
+          className="text-sm text-foreground/70 hover:text-foreground"
+        >
           Als CSV exportieren
         </a>
       </div>
 
-      <p className="text-sm text-black/60 dark:text-white/60">
-        {formatDayLabel(from)} – {formatDayLabel(to)}
+      <p>
+        <span className="font-mono text-xs tabular-nums text-foreground/50">
+          {formatDayLabel(from)} – {formatDayLabel(to)}
+        </span>
       </p>
 
       <HistoryChart bars={chartBars} granularity={granularity} />
 
       {days.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
-          Keine Aktivität in diesem Zeitraum.
-        </p>
+        <p className="text-sm text-foreground/60">Keine Aktivität in diesem Zeitraum.</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+        <ul className="flex flex-col divide-y divide-line border-t border-line">
           {days.map((day) => (
             <li key={day.day}>
               <Link
                 href={`/dashboard/history/${day.day}`}
-                className="flex items-center justify-between gap-4 py-3 text-sm hover:underline"
+                className="flex items-center justify-between gap-4 py-3 text-sm hover:bg-paper"
               >
                 <span className="w-36 shrink-0">{formatDayLabel(day.day)}</span>
-                <span className="flex flex-1 justify-end gap-6 tabular-nums text-black/70 dark:text-white/70">
+                <span className="flex flex-1 justify-end gap-6 font-mono tabular-nums text-foreground/70">
                   <DayValue label="Automatik" seconds={day.standardSeconds} />
                   <DayValue label="Projekt" seconds={day.projectSeconds} />
                   <DayValue label="Nicht zugeordnet" seconds={day.unassignedSeconds} />
@@ -151,7 +143,7 @@ export default async function HistoryPage({
 function DayValue({ label, seconds }: { label: string; seconds: number }) {
   return (
     <span className="flex w-28 flex-col items-end">
-      <span className="text-xs text-black/50 dark:text-white/50">{label}</span>
+      <span className="font-sans text-xs text-foreground/50">{label}</span>
       <span>{formatDuration(seconds)}</span>
     </span>
   );

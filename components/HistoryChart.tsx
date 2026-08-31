@@ -60,8 +60,8 @@ export function HistoryChart({
   const svgWidth = bars.length * (BAR_WIDTH + BAR_GAP);
 
   return (
-    <div className="rounded-lg border border-black/10 p-4 dark:border-white/15">
-      <div className="mb-3 flex items-center gap-4 text-xs text-black/60 dark:text-white/60">
+    <div className="rounded-xl border border-line p-4">
+      <div className="mb-3 flex items-center gap-4 font-mono text-xs text-foreground/60">
         <Legend swatchClassName="bg-chart-standard" label="Automatikzeit" />
         <Legend swatchClassName="bg-chart-project" label="Projektzeit" />
         <span className="ml-auto">
@@ -85,7 +85,7 @@ export function HistoryChart({
             y1={CHART_HEIGHT}
             x2={svgWidth}
             y2={CHART_HEIGHT}
-            className="stroke-black/15 dark:stroke-white/20"
+            className="stroke-line"
             strokeWidth={1}
           />
           {bars.map((bar, i) => {
@@ -111,7 +111,7 @@ export function HistoryChart({
                     width={BAR_WIDTH}
                     height={ZERO_SLIVER_HEIGHT}
                     rx={1}
-                    className="fill-black/20 dark:fill-white/25"
+                    className="fill-line"
                   />
                 ) : (
                   <>
@@ -142,7 +142,7 @@ export function HistoryChart({
                     x={x + BAR_WIDTH / 2}
                     y={CHART_HEIGHT + 16}
                     textAnchor="middle"
-                    className="fill-black/60 text-[9px] dark:fill-white/60"
+                    className="fill-foreground/60 font-mono text-[9px]"
                   >
                     {bar.label}
                   </text>

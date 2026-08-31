@@ -21,7 +21,7 @@ import { manageSubscription } from "@/lib/application/billing";
 import { getRepositories } from "@/lib/application/client";
 
 const primaryButtonClass =
-  "rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
 
 const errorClass =
   "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";

@@ -3,6 +3,7 @@ import { listProjects } from "@/lib/application/projects";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { canUseApp } from "@/lib/domain/subscription";
 import { ProjectsClient } from "@/components/ProjectsClient";
+import { AccessGate } from "@/components/AccessGate";
 
 // "Projekte" — full CRUD (create, rename, archive/unarchive), not
 // read-only. This is explicitly the point where the web app goes beyond
@@ -25,23 +26,14 @@ export default async function ProjectsPage() {
   // reimplemented.
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return (
-      <main className="p-8">
-        <h1 className="mb-2 text-xl font-semibold">Projekte</h1>
-        <p className="text-sm text-black/70 dark:text-white/70">
-          Kein aktiver Testzeitraum oder Abo mehr
-          {subscription.status !== "none" ? ` (Status: ${subscription.status})` : ""}.
-          Bitte Abo verwalten, um wieder auf deine Daten zuzugreifen.
-        </p>
-      </main>
-    );
+    return <AccessGate title="Projekte" status={subscription.status} />;
   }
 
   const projects = await listProjects(repos);
 
   return (
-    <main className="flex flex-col gap-8 p-8">
-      <h1 className="text-xl font-semibold">Projekte</h1>
+    <main className="flex flex-col gap-8 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">Projekte</h1>
       <ProjectsClient initialProjects={projects} />
     </main>
   );

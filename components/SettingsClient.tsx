@@ -16,10 +16,10 @@ import { deleteAccount, logout } from "@/lib/application/auth";
 import { APP_LANGUAGES, languageDisplayName } from "@/lib/domain/language";
 
 const inputClass =
-  "w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 disabled:opacity-50 dark:border-white/20 dark:focus:border-white/50";
+  "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 disabled:opacity-50";
 
 const buttonClass =
-  "rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/20";
+  "rounded-md border border-line px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
 
 const dangerButtonClass =
   "rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50";
@@ -69,7 +69,7 @@ function LanguageSection({ initialLanguage }: { initialLanguage: AppLanguage }) 
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-black/70 dark:text-white/70">Sprache</h2>
+      <h2 className="text-sm font-medium text-foreground/70">Sprache</h2>
       <div className="flex flex-col gap-1" role="radiogroup" aria-label="Sprache">
         {APP_LANGUAGES.map((option) => (
           <label
@@ -88,7 +88,7 @@ function LanguageSection({ initialLanguage }: { initialLanguage: AppLanguage }) 
           </label>
         ))}
       </div>
-      <p className="text-xs text-black/60 dark:text-white/60">
+      <p className="text-xs text-foreground/60">
         Wirkt sofort auf die Seitensprache (<code>&lt;html lang&gt;</code>) und die
         Datumsformate auf dieser und der Abo-Seite. Die Texte der Anwendung selbst
         (Heute, Historie, Projekte, …) sind aktuell ausschließlich auf Deutsch —
@@ -134,11 +134,11 @@ function DeleteAccountSection() {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-red-600/30 p-4">
+    <section className="flex flex-col gap-3 rounded-xl border border-red-600/30 p-5">
       <h2 className="text-sm font-medium text-red-700 dark:text-red-400">
         Account löschen
       </h2>
-      <p className="text-sm text-black/70 dark:text-white/70">
+      <p className="text-sm text-foreground/70">
         Löscht deinen Account unwiderruflich, inklusive aller Cloud-Daten (Projekte,
         Zeiteinträge, Abo). Lokale Daten auf deinen Geräten bleiben unangetastet.
         Diese Aktion kann nicht rückgängig gemacht werden.

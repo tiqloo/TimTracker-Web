@@ -39,26 +39,24 @@ export function DayDetail({
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-black/70 dark:text-white/70">
-          Einträge
-        </h2>
+        <h2 className="text-sm font-medium text-foreground/70">Einträge</h2>
         {entries.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">{emptyMessage}</p>
+          <p className="text-sm text-foreground/60">{emptyMessage}</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+          <ul className="flex flex-col divide-y divide-line border-t border-line">
             {entries.map((entry) => {
               const startMs = new Date(entry.startTime).getTime();
               const endMs = entry.endTime ? new Date(entry.endTime).getTime() : nowMs;
               return (
                 <li
                   key={entry.id}
-                  className="flex items-center justify-between gap-4 py-2 text-sm"
+                  className="flex items-center justify-between gap-4 py-2.5 text-sm"
                 >
-                  <span className="tabular-nums">
+                  <span className="font-mono tabular-nums">
                     {formatTime(entry.startTime)} –{" "}
                     {entry.endTime ? formatTime(entry.endTime) : "läuft"}
                   </span>
-                  <span className="tabular-nums text-black/70 dark:text-white/70">
+                  <span className="font-mono tabular-nums text-foreground/70">
                     {formatDuration((endMs - startMs) / 1000)}
                   </span>
                 </li>
@@ -73,9 +71,9 @@ export function DayDetail({
 
 function SummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-black/10 p-4 dark:border-white/15">
-      <p className="text-xs text-black/60 dark:text-white/60">{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
+    <div className="rounded-xl border border-line p-4">
+      <p className="text-xs text-foreground/60">{label}</p>
+      <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

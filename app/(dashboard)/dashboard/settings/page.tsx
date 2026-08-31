@@ -17,11 +17,14 @@ export default async function SettingsPage() {
   const language = await getLanguagePreference(repos);
 
   return (
-    <main className="flex flex-col gap-8 p-8">
-      <h1 className="text-xl font-semibold">Einstellungen</h1>
+    <main className="flex flex-col gap-8 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">Einstellungen</h1>
       <SettingsClient initialLanguage={language} />
-      <Link href="/dashboard/settings/billing" className="text-sm underline">
-        Abo verwalten
+      <Link
+        href="/dashboard/settings/billing"
+        className="text-sm text-foreground/70 hover:text-foreground"
+      >
+        Abo verwalten →
       </Link>
     </main>
   );
