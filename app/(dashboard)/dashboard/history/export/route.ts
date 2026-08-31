@@ -11,19 +11,11 @@ import { formatHistoryCsv, resolveHistoryRange } from "@/lib/format";
 // curl) downloads this directly via the "Als CSV exportieren" link in
 // history/page.tsx, no client-side JS needed to trigger it.
 //
-// PDF export (PDFExporter.swift/HistoryExportPageView.swift in the native
-// app) is deliberately NOT implemented here — it renders via SwiftUI's
-// NSHostingView straight to a PDF context, which has no web equivalent;
-// doing this properly server-side would mean pulling in a real PDF-
-// generation library (e.g. @react-pdf/renderer or pdf-lib) and rebuilding
-// the whole paginated layout (page breaks per month, header/summary tiles,
-// HistoryExportPageView's page-chunking logic) against it — a meaningfully
-// sized second effort, not a small addition to this phase. CSV already
-// covers the core "get my data out" need (opens directly in Excel/Numbers,
-// same semicolon-delimited format the native app produces) and is a
-// straight text response with no new dependency. Deferred, not dropped —
-// tracked as a follow-up in docs/tickets/018-account-website.md's Phase 1c
-// section.
+// PDF export (mirroring PDFExporter.swift/HistoryExportPageView.swift in
+// the native app) lives at the sibling route ./pdf/route.ts, via
+// lib/pdf/history-export-document.tsx (@react-pdf/renderer, no headless
+// browser) — Ticket 021. Kept as a separate route rather than a
+// `?format=pdf` branch here so each handler stays a single content type.
 export async function GET(request: Request) {
   const repos = await getRepositories();
 

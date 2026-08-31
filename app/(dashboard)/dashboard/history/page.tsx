@@ -105,6 +105,12 @@ export default async function HistoryPage({
         >
           Als CSV exportieren
         </a>
+        <a
+          href={`/dashboard/history/export/pdf?from=${from}&to=${to}`}
+          className="text-sm text-foreground/70 hover:text-foreground"
+        >
+          Als PDF exportieren
+        </a>
       </div>
 
       <p>

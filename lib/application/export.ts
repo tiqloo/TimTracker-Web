@@ -1,13 +1,15 @@
 // Application core (use case) — mirrors Application/Services/ExportService.swift.
 // Builds session-level ExportRow data for a date range, joined with each
-// entry's project name/customer, for the "Historie" CSV export. The
+// entry's project name/customer, for the "Historie" CSV/PDF export. The
 // getHistory use case (dashboard.ts) already covers the per-day summary
-// rows the export also needs — this file only adds the per-session rows,
+// rows both exports also need — this file only adds the per-session rows,
 // it doesn't duplicate the breakdown math.
 //
-// PDF export (PDFExporter.swift/HistoryExportPageView.swift in the native
-// app) is deliberately NOT implemented here yet — see the comment on
-// formatHistoryCsv's caller (app/(dashboard)/history/page.tsx) for why.
+// getExportRows is shared verbatim by both export formats: the CSV route
+// (app/(dashboard)/dashboard/history/export/route.ts) and the PDF route
+// (.../export/pdf/route.ts, rendering via
+// lib/pdf/history-export-document.tsx) — same ExportRow[] in, just a
+// different renderer.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { ExportRow } from "@/lib/domain/export-row";
 
