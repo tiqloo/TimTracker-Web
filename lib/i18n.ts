@@ -372,6 +372,8 @@ export const resetPassword = {
 // --- app/page.tsx (public homepage) ------------------------------------
 
 export const home = {
+  navFeatures: { de: "Funktionen", en: "Features" },
+  navPricing: { de: "Preis", en: "Pricing" },
   navSignIn: { de: "Anmelden", en: "Sign In" },
   navSignUp: { de: "Registrieren", en: "Sign Up" },
 
@@ -443,6 +445,24 @@ export const home = {
     de: "Voller Funktionsumfang während der Testphase, danach ein einfaches Abo — jederzeit über die Einstellungen verwaltbar.",
     en: "Full functionality during the trial, then a simple subscription — manageable anytime via settings.",
   },
+
+  pricingEyebrow: { de: "Preis", en: "Pricing" },
+  pricingTitle: { de: "Ein Plan. Alles dabei.", en: "One Plan. Everything Included." },
+  pricingBody: {
+    de: "Kein Feature-Gating, keine Staffelung — voller Funktionsumfang ab dem ersten Tag.",
+    en: "No feature gating, no tiers — full functionality from day one.",
+  },
+  pricingAmount: { de: "9,99 €", en: "€9.99" },
+  pricingPeriod: { de: "/ Monat", en: "/ month" },
+  pricingTrialNote: {
+    de: "7 Tage kostenlos testen, danach monatlich kündbar",
+    en: "7 days free, cancel anytime after",
+  },
+  pricingFeature1: { de: "Automatisches Tracking, Mac + Web", en: "Automatic tracking, Mac + Web" },
+  pricingFeature2: { de: "Unbegrenzt Projekte & Kunden", en: "Unlimited projects & customers" },
+  pricingFeature3: { de: "Historie mit Diagrammen, CSV & PDF-Export", en: "History with charts, CSV & PDF export" },
+  pricingFeature4: { de: "Cloud-Sync zwischen App und Web", en: "Cloud sync between app and web" },
+  pricingCta: { de: "Jetzt kostenlos testen", en: "Start Your Free Trial" },
 
   narrativeTag1: { de: "Für wen", en: "Who It's For" },
   narrativeHeading1: {

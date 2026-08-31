@@ -41,6 +41,7 @@ export default async function HomePage() {
         <Hero lang={lang} />
         <HowItWorks lang={lang} />
         <Features lang={lang} />
+        <Pricing lang={lang} />
         <Narrative lang={lang} />
       </main>
       <SiteFooter lang={lang} />
@@ -84,6 +85,18 @@ function SiteNav({ lang }: { lang: Lang }) {
           TimTracker
         </Link>
         <nav className="flex items-center gap-1">
+          <Link
+            href="#features"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground sm:inline-block"
+          >
+            {t(lang, home.navFeatures)}
+          </Link>
+          <Link
+            href="#pricing"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground sm:inline-block"
+          >
+            {t(lang, home.navPricing)}
+          </Link>
           <Link
             href="/login"
             className="rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground"
@@ -366,7 +379,7 @@ function features(lang: Lang): {
 
 function Features({ lang }: { lang: Lang }) {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
+    <section id="features" className="scroll-mt-14 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {t(lang, home.featuresTitle)}
@@ -390,6 +403,74 @@ function Features({ lang }: { lang: Lang }) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// The one deliberately heavier-weight card on the page — everywhere else
+// uses a plain hairline border, but the pricing decision is the moment a
+// visitor is actually deciding, so it earns slightly more visual weight
+// (a soft shadow, a subtly tinted background) instead of looking like
+// just another list item. Real price (price_1U5Ux1R8NjypN7Hn8wFkoklb in
+// the Stripe test account this product actually charges against), not
+// placeholder copy — single plan, no tiers, matching this whole site's
+// "no feature-gating" pitch.
+function pricingFeatures(lang: Lang): string[] {
+  return [
+    t(lang, home.pricingFeature1),
+    t(lang, home.pricingFeature2),
+    t(lang, home.pricingFeature3),
+    t(lang, home.pricingFeature4),
+  ];
+}
+
+function Pricing({ lang }: { lang: Lang }) {
+  return (
+    <section id="pricing" className="scroll-mt-14 border-t border-line px-4 py-14 sm:px-6 sm:py-20">
+      <div className="mx-auto w-full max-w-5xl">
+        <div className="mx-auto max-w-xl text-center">
+          <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
+            {t(lang, home.pricingEyebrow)}
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+            {t(lang, home.pricingTitle)}
+          </h2>
+          <p className="mt-3 text-sm text-foreground/65 sm:text-base">
+            {t(lang, home.pricingBody)}
+          </p>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-sm rounded-2xl border border-line bg-paper p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)]">
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
+              {t(lang, home.pricingAmount)}
+            </span>
+            <span className="text-sm text-foreground/55">{t(lang, home.pricingPeriod)}</span>
+          </div>
+          <p className="mt-2">
+            <TimeLabel>{t(lang, home.pricingTrialNote)}</TimeLabel>
+          </p>
+
+          <ul className="mt-6 flex flex-col gap-3">
+            {pricingFeatures(lang).map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-sm text-foreground/80">
+                <span className="mt-0.5 shrink-0 text-foreground/45">
+                  <IconCheck />
+                </span>
+                {feature}
+              </li>
+            ))}
+          </ul>
+
+          <Link
+            href="/register"
+            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background"
+          >
+            {t(lang, home.pricingCta)}
+            <ArrowIcon />
+          </Link>
         </div>
       </div>
     </section>
