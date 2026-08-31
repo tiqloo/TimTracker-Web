@@ -10,9 +10,10 @@
 //
 // Not used by the auth pages (Ticket 018 phase 1, all Client Components —
 // they need onAuthStateChange/router-driven redirects, which require the
-// browser client) but IS the pattern the still-TODO dashboard pages
-// (app/(dashboard)/*) should follow once implemented — see the comments
-// left in those stub files.
+// browser client) but IS the pattern every app/(dashboard)/* page follows
+// (Heute/Historie/Projekte/Einstellungen/Billing, all implemented as of
+// Phase 1e — this comment used to describe them as still-TODO stubs,
+// stale as of the Controller audit on 2026-08-31).
 // Imports from composition-root.server.ts specifically — see
 // lib/application/client.ts's comment and composition-root.client.ts's
 // comment for why the single composition-root.ts barrel was split.
