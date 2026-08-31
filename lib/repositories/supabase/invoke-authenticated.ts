@@ -21,11 +21,24 @@ export async function invokeAuthenticated<T = unknown>(
   client: SupabaseClient,
   functionName: string,
 ) {
+  // getSession() reads from local storage/cookies without a network round
+  // trip, so it can briefly return null on a freshly loaded page even
+  // though the user genuinely has a valid session (the browser client's
+  // async session restore hasn't resolved yet). A null session here
+  // previously fell through to functions.invoke() with no override header,
+  // silently reproducing the exact publishable-key bug this file exists to
+  // fix — throw a clear, actionable error instead of a confusing "Nicht
+  // angemeldet." from the server side.
   const {
     data: { session },
   } = await client.auth.getSession();
+  if (!session) {
+    throw new Error(
+      "Sitzung konnte nicht geladen werden. Bitte die Seite neu laden und erneut versuchen.",
+    );
+  }
   return client.functions.invoke<T>(functionName, {
-    headers: session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
 }
 
