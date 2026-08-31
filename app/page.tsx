@@ -1,27 +1,35 @@
 import Link from "next/link";
 
-// Public marketing homepage — "/" itself, now unprotected (see proxy.ts;
-// the former (dashboard)/* route group that used to live here moved to
+// Public marketing homepage — "/" itself, unprotected (see proxy.ts; the
+// former (dashboard)/* route group that used to live here moved to
 // /dashboard, see TimTracker-Starter/docs/tickets/018-account-website.md's
-// "public homepage" addendum for the full mapping). Structurally inspired
-// by macpaw.com/macpaw.com/community (large bold headline in a light card,
-// a feature grid, an alternating tagged narrative section, a plain
-// footer) — adapted to a single small real product, not literally copied.
-// Every feature listed below corresponds to something actually shipped in
-// Phase 1 of Ticket 018 (see that file); nothing here is aspirational
-// copy for a feature that doesn't exist yet.
+// "public homepage" addendum for the full mapping).
+//
+// Redesigned 2026-08-31 (structure feedback: previous version read as a
+// generic templated SaaS page — floating pill nav, one big rounded-blob
+// hero card, unicode-glyph "icons" — no visual evidence it was actually
+// built for a time tracker). This version's signature element is
+// DayTimeline below: a real segmented-timeline rendering of the product's
+// own two chart colors (--chart-standard/--chart-project, the exact tokens
+// components/HistoryChart.tsx uses), showing the product's entire pitch —
+// automatic capture first, assignment after — in one glance instead of
+// describing it in prose. Mono type (already loaded, previously unused —
+// see globals.css) is reserved specifically for timestamps/data
+// throughout, prose stays in the sans face; that split is deliberate, not
+// decorative (see the module comment on TimeLabel below).
 //
 // Deliberately a plain Server Component with no data fetching — this page
-// has nothing user-specific to show (logged-in visitors see the same
-// page as logged-out ones, see proxy.ts's comment on why "/" is never
+// has nothing user-specific to show (logged-in visitors see the same page
+// as logged-out ones, see proxy.ts's comment on why "/" is never
 // redirect-gated), so there's no Repositories/getRepositories() call here
 // unlike every (dashboard)/* page.
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-1 flex-col">
+    <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
       <SiteNav />
       <main className="flex flex-1 flex-col">
         <Hero />
+        <HowItWorks />
         <Features />
         <Narrative />
       </main>
@@ -30,29 +38,68 @@ export default function HomePage() {
   );
 }
 
+// Small literal mark (a clock face, not an abstract logo) — the one place
+// on the page a "brand symbol" appears, kept tiny and quiet on purpose.
+function Mark() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
+      <circle
+        cx="10"
+        cy="10"
+        r="8.25"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+      />
+      <path
+        d="M10 5.5V10l3 2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function SiteNav() {
   return (
-    <header className="px-4 pt-4 sm:px-6">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-full border border-black/10 bg-white/70 px-4 py-2.5 backdrop-blur dark:border-white/15 dark:bg-black/40">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
+    <header className="border-b border-line px-4 sm:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-sm font-semibold tracking-tight"
+        >
+          <Mark />
           TimTracker
         </Link>
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-1">
           <Link
             href="/login"
-            className="rounded-full px-4 py-1.5 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10"
+            className="rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground"
           >
             Anmelden
           </Link>
           <Link
             href="/register"
-            className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background"
+            className="rounded-md bg-foreground px-3.5 py-1.5 text-sm font-medium text-background"
           >
             Registrieren
           </Link>
         </nav>
       </div>
     </header>
+  );
+}
+
+// Every timestamp/duration/data-style string on the page goes through this
+// — the mono face is reserved for things that are literally data, mirroring
+// how the real dashboard renders durations. Prose never uses it.
+function TimeLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-mono text-xs tabular-nums text-foreground/55">
+      {children}
+    </span>
   );
 }
 
@@ -75,70 +122,262 @@ function ArrowIcon() {
   );
 }
 
+// The signature element: one realistic workday, rendered as the exact
+// segment/color language components/HistoryChart.tsx uses on the real
+// dashboard (--chart-standard = automatic presence, --chart-project =
+// time assigned to a project) — a demonstration of the product instead of
+// an illustration of it. The empty 12:30–13:15 gap renders as a thin
+// muted sliver rather than a blank space on purpose, mirroring Ticket
+// 002's AK ("Tage ohne Aktivität zeigen einen 0-Balken statt einer
+// Lücke") — same rule, same reason: a gap in a timeline reads as "missing
+// data," a sliver reads as "checked, nothing happened."
+const DAY_SEGMENTS: {
+  from: string;
+  to: string;
+  kind: "auto" | "project" | "idle";
+  label: string;
+}[] = [
+  { from: "09:02", to: "12:30", kind: "auto", label: "Anwesend" },
+  { from: "12:30", to: "13:15", kind: "idle", label: "Pause" },
+  { from: "13:15", to: "17:30", kind: "project", label: "Client X" },
+  { from: "17:30", to: "18:47", kind: "auto", label: "Anwesend" },
+];
+
+const DAY_START_MIN = 9 * 60 + 2;
+const DAY_END_MIN = 18 * 60 + 47;
+const DAY_SPAN_MIN = DAY_END_MIN - DAY_START_MIN;
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function DayTimeline() {
+  return (
+    <div className="w-full max-w-md rounded-xl border border-line bg-background shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:max-w-none">
+      <div className="flex items-center gap-1.5 border-b border-line px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full border border-line" />
+        <span className="h-2.5 w-2.5 rounded-full border border-line" />
+        <span className="h-2.5 w-2.5 rounded-full border border-line" />
+        <span className="ml-2 text-xs font-medium text-foreground/60">
+          TimTracker — Heute
+        </span>
+      </div>
+      <div className="px-4 py-5 sm:px-6 sm:py-6">
+        <div className="flex h-7 w-full overflow-hidden rounded-md border border-line">
+          {DAY_SEGMENTS.map((segment, index) => {
+            const width =
+              ((toMinutes(segment.to) - toMinutes(segment.from)) /
+                DAY_SPAN_MIN) *
+              100;
+            return (
+              <div
+                key={index}
+                title={`${segment.label}: ${segment.from}–${segment.to}`}
+                style={{
+                  width: `${width}%`,
+                  backgroundColor:
+                    segment.kind === "auto"
+                      ? "var(--chart-standard)"
+                      : segment.kind === "project"
+                        ? "var(--chart-project)"
+                        : "var(--line)",
+                }}
+                className="h-full first:rounded-l-[5px] last:rounded-r-[5px]"
+              />
+            );
+          })}
+        </div>
+        <div className="mt-2.5 flex justify-between">
+          <TimeLabel>09:02 Login</TimeLabel>
+          <TimeLabel>18:47 Ruhezustand</TimeLabel>
+        </div>
+        <div className="mt-5 flex items-center gap-4 border-t border-line pt-4">
+          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
+            <span className="h-2 w-2 rounded-full bg-[var(--chart-standard)]" />
+            Automatisch erfasst
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
+            <span className="h-2 w-2 rounded-full bg-[var(--chart-project)]" />
+            Client X zugeordnet
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Hero() {
   return (
-    <section className="px-4 py-10 sm:px-6 sm:py-16">
-      <div className="mx-auto w-full max-w-6xl rounded-[2.5rem] bg-[#f2f1fa] px-6 py-16 text-center sm:px-12 sm:py-24 dark:bg-white/[0.04]">
-        <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-6xl">
-          Zeit erfassen, ohne daran zu denken.
-        </h1>
-        <p className="mx-auto mt-6 max-w-xl text-base text-black/70 sm:text-lg dark:text-white/70">
-          TimTracker läuft im Hintergrund auf deinem Mac (Windows folgt) und
-          erfasst deine Arbeitszeit automatisch anhand von Login, Sperren und
-          Ruhezustand — kein Start-/Stopp-Knopf, den du vergessen kannst.
-          Zeit einzelnen Projekten zuordnen, Historie einsehen und als CSV
-          exportieren geht direkt hier im Web-Dashboard.
-        </p>
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background"
-          >
-            Kostenlos starten
-            <ArrowIcon />
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 rounded-full border border-black/15 px-6 py-3 text-sm font-medium dark:border-white/20"
-          >
-            Anmelden
-          </Link>
+    <section className="px-4 py-14 sm:px-6 sm:py-20">
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+        <div>
+          <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
+            Läuft im Hintergrund
+          </p>
+          <h1 className="mt-3 max-w-xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+            Zeit erfassen, ohne daran zu denken.
+          </h1>
+          <p className="mt-5 max-w-md text-base text-foreground/65 sm:text-lg">
+            TimTracker beobachtet Login, Sperren und Ruhezustand auf deinem
+            Mac (Windows folgt) und erfasst deine Arbeitszeit automatisch —
+            kein Start-/Stopp-Knopf, den du vergessen kannst. Welchem Projekt
+            die Zeit gehört, ordnest du danach zu.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background"
+            >
+              Kostenlos starten
+              <ArrowIcon />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium"
+            >
+              Anmelden
+            </Link>
+          </div>
+          <p className="mt-4">
+            <TimeLabel>7 Tage kostenlos · keine Kreditkarte nötig</TimeLabel>
+          </p>
         </div>
-        <p className="mt-4 text-xs text-black/50 dark:text-white/50">
-          7 Tage kostenlos testen, keine Kreditkarte nötig für den Trial.
-        </p>
+        <DayTimeline />
       </div>
     </section>
   );
 }
 
-const FEATURES: { title: string; description: string; icon: string }[] = [
+// A real sequence (login happens, then assignment, then export — in that
+// order, every time), which is the one case this page uses numbered steps
+// for — see the module comment on why that's deliberate rather than
+// decorative.
+const STEPS: { title: string; body: string }[] = [
   {
-    icon: "◐",
+    title: "Läuft automatisch",
+    body: "Login, Wake, Sleep und Bildschirmsperre werden erfasst, sobald du am Rechner bist — ohne dass du etwas anklickst.",
+  },
+  {
+    title: "Du ordnest zu",
+    body: "Erfasste Zeit im Nachhinein einem Projekt oder Kunden zuweisen, in der App oder direkt im Web-Dashboard.",
+  },
+  {
+    title: "Du exportierst",
+    body: "Historie ansehen und den gewählten Zeitraum als CSV exportieren — für Excel, Numbers oder die Buchhaltung.",
+  },
+];
+
+function HowItWorks() {
+  return (
+    <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
+      <div className="mx-auto w-full max-w-5xl">
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          So funktioniert&apos;s
+        </h2>
+        <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-10">
+          {STEPS.map((step, index) => (
+            <div key={step.title}>
+              <TimeLabel>{String(index + 1).padStart(2, "0")}</TimeLabel>
+              <h3 className="mt-2 text-base font-semibold">{step.title}</h3>
+              <p className="mt-2 text-sm text-foreground/65">{step.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
+      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.4" fill="none" />
+      <path d="M10 6v4l2.5 1.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconTag() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
+      <path
+        d="M11.2 3.5H5.8a2.3 2.3 0 0 0-2.3 2.3v5.4c0 .3.1.6.3.8l6.3 6.3c.5.5 1.4.5 1.9 0l4.9-4.9c.5-.5.5-1.4 0-1.9L10.6 5.2c-.2-.2-.5-.3-.8-.3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <circle cx="7.6" cy="7.6" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconExport() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
+      <path
+        d="M10 3v9m0 0-3-3m3 3 3-3M4 13.5v1.8c0 .9.7 1.7 1.7 1.7h8.6c.9 0 1.7-.8 1.7-1.7v-1.8"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+function IconWindow() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
+      <rect x="3" y="4" width="14" height="12" rx="1.6" stroke="currentColor" strokeWidth="1.4" fill="none" />
+      <path d="M3 7.4h14" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
+      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.4" fill="none" />
+      <path d="M6.8 10.2 9 12.4l4.2-4.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+const FEATURES: {
+  title: string;
+  description: string;
+  Icon: () => React.JSX.Element;
+}[] = [
+  {
+    Icon: IconClock,
     title: "Automatisches Tracking",
     description:
       "Erfasst Anwesenheit anhand von Login, Wake/Sleep und Bildschirmsperre — kein manuelles Starten oder Stoppen nötig.",
   },
   {
-    icon: "▤",
+    Icon: IconTag,
     title: "Projekte",
     description:
       "Erfasste Zeit im Nachhinein einzelnen Projekten oder Kunden zuordnen, statt jede Session einzeln zu takten.",
   },
   {
-    icon: "↓",
+    Icon: IconExport,
     title: "Historie & Export",
     description:
       "Vergangene Tage einsehen und den gewählten Zeitraum als CSV exportieren — passend für Excel, Numbers oder die Buchhaltung.",
   },
   {
-    icon: "◫",
+    Icon: IconWindow,
     title: "Web-Dashboard",
     description:
       "Heute-Übersicht, Historie, Projekte und Einstellungen auch im Browser abrufbar — mit demselben Account wie in der App.",
   },
   {
-    icon: "✓",
+    Icon: IconCheck,
     title: "7 Tage kostenlos testen",
     description:
       "Voller Funktionsumfang während der Testphase, danach ein einfaches Abo — jederzeit über die Einstellungen verwaltbar.",
@@ -148,23 +387,27 @@ const FEATURES: { title: string; description: string; icon: string }[] = [
 function Features() {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto w-full max-w-6xl">
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+      <div className="mx-auto w-full max-w-5xl">
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Was TimTracker macht
         </h2>
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => (
+        <div className="mt-8 grid grid-cols-1 divide-y divide-line border-t border-line sm:grid-cols-2">
+          {FEATURES.map(({ title, description, Icon }, index) => (
             <div
-              key={feature.title}
-              className="flex flex-col gap-3 rounded-2xl border border-black/10 p-6 dark:border-white/15"
+              key={title}
+              className={`flex gap-4 py-6 sm:px-6 sm:py-7 ${
+                index % 2 === 0 ? "sm:border-r sm:border-line" : ""
+              } ${index < 2 ? "" : "sm:border-t sm:border-line"}`}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f2f1fa] text-base dark:bg-white/10">
-                {feature.icon}
+              <span className="mt-0.5 text-foreground/45">
+                <Icon />
               </span>
-              <h3 className="text-sm font-semibold">{feature.title}</h3>
-              <p className="text-sm text-black/65 dark:text-white/65">
-                {feature.description}
-              </p>
+              <div>
+                <h3 className="text-sm font-semibold">{title}</h3>
+                <p className="mt-1.5 text-sm text-foreground/65">
+                  {description}
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -193,21 +436,21 @@ const NARRATIVE_SECTIONS: { tag: string; heading: string; body: string }[] = [
 
 function Narrative() {
   return (
-    <section className="bg-[#f7f7fb] px-4 py-14 sm:px-6 sm:py-20 dark:bg-white/[0.03]">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-12">
+    <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-12">
         {NARRATIVE_SECTIONS.map((section) => (
           <div
             key={section.tag}
             className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_2fr] sm:gap-8"
           >
-            <span className="text-xs font-semibold tracking-wide text-black/50 uppercase dark:text-white/50">
+            <span className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
               {section.tag}
             </span>
             <div className="flex flex-col gap-2">
               <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">
                 {section.heading}
               </h3>
-              <p className="max-w-2xl text-sm text-black/70 sm:text-base dark:text-white/70">
+              <p className="max-w-2xl text-sm text-foreground/65 sm:text-base">
                 {section.body}
               </p>
             </div>
@@ -230,26 +473,29 @@ function currentYear(): number {
 
 function SiteFooter() {
   return (
-    <footer className="border-t border-black/10 px-4 py-10 sm:px-6 dark:border-white/15">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    <footer className="border-t border-line px-4 py-10 sm:px-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold">TimTracker</p>
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Mark />
+            TimTracker
+          </p>
+          <p className="mt-1.5 max-w-sm text-sm text-foreground/60">
             Fragen zu deinem Account? Erreichbar über die Support-Adresse in
             deiner Bestätigungs-E-Mail.
           </p>
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          <Link href="/login" className="underline">
+        <div className="flex items-center gap-5 text-sm">
+          <Link href="/login" className="text-foreground/70 hover:text-foreground">
             Anmelden
           </Link>
-          <Link href="/register" className="underline">
+          <Link href="/register" className="text-foreground/70 hover:text-foreground">
             Registrieren
           </Link>
         </div>
       </div>
-      <p className="mx-auto mt-8 w-full max-w-6xl text-xs text-black/40 dark:text-white/40">
-        © {currentYear()} TimTracker
+      <p className="mx-auto mt-8 w-full max-w-5xl">
+        <TimeLabel>© {currentYear()} TimTracker</TimeLabel>
       </p>
     </footer>
   );

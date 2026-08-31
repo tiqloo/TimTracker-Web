@@ -8,9 +8,19 @@
      scripts/validate_palette.js (CVD-safe adjacent pair in both light and
      dark, all checks pass). Kept as tokens here rather than inline hex in
      components/HistoryChart.tsx so light/dark swap in one place, same
-     pattern as --background/--foreground above. */
+     pattern as --background/--foreground above. Also reused (deliberately,
+     not coincidentally) as the marketing homepage's only accent colors —
+     see app/page.tsx's DayTimeline — so the public site and the real
+     product never show two different color languages for the same
+     "automatic vs. assigned" distinction. */
   --chart-standard: #2a78d6;
   --chart-project: #eb6834;
+  /* Homepage-only tokens: a slightly-off-white section background distinct
+     from the pure-white --background (used to alternate sections without
+     a hard edge) and a low-contrast hairline rule color, replacing the
+     borrow-everything border-black/10 opacity trick used before. */
+  --paper: #f5f4f0;
+  --line: #e3e1d9;
 }
 
 @theme inline {
@@ -18,6 +28,8 @@
   --color-foreground: var(--foreground);
   --color-chart-standard: var(--chart-standard);
   --color-chart-project: var(--chart-project);
+  --color-paper: var(--paper);
+  --color-line: var(--line);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -28,11 +40,18 @@
     --foreground: #ededed;
     --chart-standard: #3987e5;
     --chart-project: #d95926;
+    --paper: #131419;
+    --line: #24262c;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Was hardcoded to Arial/Helvetica, silently ignoring the Geist fonts
+     next/font/google already loads in app/layout.tsx (--font-geist-sans /
+     --font-geist-mono were defined and exposed via @theme inline above but
+     never actually applied anywhere) — every page was rendering in the
+     browser's default sans-serif fallback. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
