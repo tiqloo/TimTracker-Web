@@ -1,5 +1,10 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AuthChangeEvent, AuthRepository } from "../auth.repository";
+import { AuthApiError, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  EmailAlreadyInUseError,
+  ReauthenticationFailedError,
+  type AuthChangeEvent,
+  type AuthRepository,
+} from "../auth.repository";
 import type { Profile } from "@/lib/domain/profile";
 import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated";
 
@@ -123,6 +128,45 @@ export function createSupabaseAuthRepository(
         data: { display_name: displayName },
       });
       if (error) throw error;
+    },
+
+    async changeEmail(newEmail: string, currentPassword: string) {
+      // getUser() (not getSession()), same reasoning as getProfile() above
+      // — revalidates against the Auth server rather than trusting a
+      // possibly-stale local JWT for the email this re-auth check hinges on.
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      const currentEmail = userData.user.email;
+      if (!currentEmail) {
+        throw new Error("Current session has no email address on file.");
+      }
+
+      // Re-authentication: signInWithPassword against the session's OWN
+      // email, not anything caller-supplied — confirms the caller actually
+      // knows the account's current password before a security-sensitive
+      // change, same principle the ticket asks for. A failure here is
+      // always "wrong password" from the caller's perspective (the email is
+      // already known-correct), never "unknown account".
+      const { error: reauthError } = await client.auth.signInWithPassword({
+        email: currentEmail,
+        password: currentPassword,
+      });
+      if (reauthError) throw new ReauthenticationFailedError();
+
+      const { error: updateError } = await client.auth.updateUser({ email: newEmail });
+      if (updateError) {
+        // AuthApiError.code is "email_exists" for this case — verified
+        // against the real local Docker stack (see
+        // docs/tickets/025-profile-email-change.md). The message-pattern
+        // fallback only applies when `code` is missing entirely (e.g. a
+        // future SDK/GoTrue version that stops populating it), so a
+        // same-shaped-but-unrelated 422 doesn't get misclassified.
+        const isEmailAlreadyInUse =
+          updateError instanceof AuthApiError &&
+          (updateError.code === "email_exists" ||
+            (!updateError.code && /already.*registered/i.test(updateError.message)));
+        throw isEmailAlreadyInUse ? new EmailAlreadyInUseError() : updateError;
+      }
     },
   };
 }

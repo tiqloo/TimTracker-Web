@@ -12,11 +12,26 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
-import { deleteAccount, logout, updateDisplayName, type Profile } from "@/lib/application/auth";
+import {
+  changeEmail,
+  deleteAccount,
+  logout,
+  updateDisplayName,
+  EmailAlreadyInUseError,
+  ReauthenticationFailedError,
+  type Profile,
+} from "@/lib/application/auth";
 import { APP_LANGUAGES, languageCodeToLocale, languageDisplayName } from "@/lib/domain/language";
 import { normalizeDisplayNameInput } from "@/lib/domain/profile";
 import { formatFullDate } from "@/lib/format";
-import { common, profile as i18nProfile, settings, t, type Lang } from "@/lib/i18n";
+import {
+  common,
+  emailChangeSuccessMessage,
+  profile as i18nProfile,
+  settings,
+  t,
+  type Lang,
+} from "@/lib/i18n";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -138,7 +153,143 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
           </dd>
         </div>
       </dl>
+      <EmailChangeAction profile={profile} lang={lang} />
     </section>
+  );
+}
+
+// "E-Mail-Adresse ändern" (Ticket 025, TimTracker-Starter repo — direct
+// follow-up to 024's read-only email field). Lives inside ProfileSection's
+// card per the ticket's AK ("Neues Feld/Aktion im 'Profil'-Abschnitt"), but
+// as its own component so its form/pending/error state doesn't tangle with
+// the display-name form above it. Same two-step-reveal convention as
+// DeleteAccountSection below (a button first, the form only after it's
+// clicked) rather than showing the form unconditionally.
+//
+// Deliberately does NOT update `profile.email`/call router.refresh() on
+// success, unlike ProfileSection's own save above — Supabase's "secure
+// email change" (double confirm, verified ON for this project) means the
+// OLD address stays the account's real, active email until BOTH
+// confirmation links are clicked (see changeEmail's port doc), so
+// optimistically showing the new address here would show a change that
+// hasn't actually happened yet. Only a persistent text confirmation is
+// shown instead — see `sentTo` below.
+function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) {
+  const [changing, setChanging] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // The addresses of the last successfully SENT request (not necessarily
+  // confirmed/applied yet) — kept so the success message can name them
+  // even after the form collapses back down.
+  const [sentTo, setSentTo] = useState<{ oldEmail: string; newEmail: string } | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setPending(true);
+    try {
+      const repos = getRepositories();
+      await changeEmail(repos, newEmail, currentPassword);
+      setSentTo({ oldEmail: profile.email, newEmail: newEmail.trim() });
+      setChanging(false);
+      setNewEmail("");
+      setCurrentPassword("");
+    } catch (err) {
+      // Distinct, named error types (not raw Supabase messages) for the two
+      // known failure causes — see EmailAlreadyInUseError's own comment for
+      // why the "already in use" case specifically must stay generic
+      // (anti-enumeration, Ticket 025 AK).
+      if (err instanceof EmailAlreadyInUseError) {
+        setError(t(lang, i18nProfile.emailAlreadyInUseError));
+      } else if (err instanceof ReauthenticationFailedError) {
+        setError(t(lang, i18nProfile.emailChangeWrongPasswordError));
+      } else {
+        setError(t(lang, i18nProfile.emailChangeGenericError));
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-4">
+      {!changing ? (
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setChanging(true);
+              setError(null);
+            }}
+            className={buttonClass}
+          >
+            {t(lang, i18nProfile.emailChangeButton)}
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <p className="text-sm text-foreground/70">{t(lang, i18nProfile.emailChangeIntro)}</p>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="email-change-new-email" className="text-sm font-medium">
+              {t(lang, i18nProfile.emailChangeNewEmailLabel)}
+            </label>
+            <input
+              id="email-change-new-email"
+              type="email"
+              autoComplete="email"
+              required
+              disabled={pending}
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="email-change-password" className="text-sm font-medium">
+              {t(lang, i18nProfile.emailChangeCurrentPasswordLabel)}
+            </label>
+            <input
+              id="email-change-password"
+              type="password"
+              autoComplete="current-password"
+              required
+              disabled={pending}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          {error && <p className={errorClass}>{error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={pending} className={primaryButtonClass}>
+              {pending
+                ? t(lang, i18nProfile.emailChangeSending)
+                : t(lang, i18nProfile.emailChangeSubmit)}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setChanging(false);
+                setNewEmail("");
+                setCurrentPassword("");
+                setError(null);
+              }}
+              disabled={pending}
+              className={buttonClass}
+            >
+              {t(lang, common.cancel)}
+            </button>
+          </div>
+        </form>
+      )}
+      {sentTo && !changing && (
+        <p className="text-sm text-foreground/70">
+          {emailChangeSuccessMessage(lang, sentTo.oldEmail, sentTo.newEmail)}
+        </p>
+      )}
+    </div>
   );
 }
 

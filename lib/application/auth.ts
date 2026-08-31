@@ -10,6 +10,10 @@ import { normalizeDisplayNameInput } from "@/lib/domain/profile";
 // pattern lib/composition-root.ts uses for `Repositories` itself.
 export type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
 export type { Profile } from "@/lib/domain/profile";
+// Value re-export (not type-only): app/* needs `instanceof` checks against
+// these to show the right error message — same reasoning as re-exporting
+// the port's types above, just for runtime-checkable classes instead.
+export { EmailAlreadyInUseError, ReauthenticationFailedError } from "@/lib/repositories/auth.repository";
 
 export async function register(
   repos: Repositories,
@@ -81,4 +85,18 @@ export async function updateDisplayName(
   rawDisplayName: string,
 ): Promise<void> {
   return repos.auth.updateDisplayName(normalizeDisplayNameInput(rawDisplayName));
+}
+
+// Ticket 025 (TimTracker-Starter repo) — "E-Mail-Adresse ändern" action in
+// the Profil section. Trims the raw new-email input before handing it down
+// (same "normalize once, at the use-case boundary" spirit as
+// updateDisplayName above); the actual re-auth + change + error mapping is
+// business logic that belongs on the port, see
+// lib/repositories/auth.repository.ts#changeEmail's own doc.
+export async function changeEmail(
+  repos: Repositories,
+  newEmail: string,
+  currentPassword: string,
+): Promise<void> {
+  return repos.auth.changeEmail(newEmail.trim(), currentPassword);
 }

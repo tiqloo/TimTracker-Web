@@ -6,6 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  emailChangeSuccessMessage,
   historyChartAriaLabel,
   historyChartTooltip,
   t,
@@ -49,4 +50,18 @@ test("historyChartTooltip: interpolates the bar label and both durations", () =>
     historyChartTooltip("en", "24.08.", "2h 00m", "1h 30m"),
     "24.08.: Automatic 2h 00m, Project 1h 30m",
   );
+});
+
+// Ticket 025 (TimTracker-Starter repo) — the AK's required success copy
+// names BOTH addresses and states the change isn't yet effective.
+test("emailChangeSuccessMessage: names both addresses and states neither is confirmed yet", () => {
+  const de = emailChangeSuccessMessage("de", "old@example.com", "new@example.com");
+  assert.match(de, /old@example\.com/);
+  assert.match(de, /new@example\.com/);
+  assert.match(de, /erst nach Bestätigung beider wirksam/);
+
+  const en = emailChangeSuccessMessage("en", "old@example.com", "new@example.com");
+  assert.match(en, /old@example\.com/);
+  assert.match(en, /new@example\.com/);
+  assert.match(en, /only takes effect once both are confirmed/);
 });

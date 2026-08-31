@@ -236,7 +236,47 @@ export const profile = {
   displayNameSaved: { de: "Gespeichert.", en: "Saved." },
   emailLabel: { de: "E-Mail-Adresse", en: "Email Address" },
   createdAtLabel: { de: "Konto erstellt am", en: "Account Created" },
+  // --- EmailChangeSection (Ticket 025, follow-up to 024) ---------------
+  emailChangeButton: { de: "E-Mail-Adresse ändern…", en: "Change Email Address…" },
+  emailChangeIntro: {
+    de: "Aus Sicherheitsgründen bitte das aktuelle Passwort bestätigen.",
+    en: "For security, please confirm your current password.",
+  },
+  emailChangeNewEmailLabel: { de: "Neue E-Mail-Adresse", en: "New Email Address" },
+  emailChangeCurrentPasswordLabel: { de: "Aktuelles Passwort", en: "Current Password" },
+  emailChangeSubmit: { de: "Bestätigungs-E-Mails senden", en: "Send Confirmation Emails" },
+  emailChangeSending: { de: "Wird gesendet…", en: "Sending…" },
+  // Deliberately generic (does not say "already registered to another
+  // account") — anti-enumeration, see
+  // lib/repositories/auth.repository.ts#EmailAlreadyInUseError's comment.
+  emailAlreadyInUseError: {
+    de: "Diese E-Mail-Adresse kann nicht verwendet werden.",
+    en: "This email address cannot be used.",
+  },
+  emailChangeWrongPasswordError: { de: "Passwort ist falsch.", en: "Password is incorrect." },
+  emailChangeGenericError: {
+    de: "E-Mail-Adresse konnte nicht geändert werden.",
+    en: "Email address could not be changed.",
+  },
 } satisfies Record<string, Translated>;
+
+// Ticket 025: the AK's required success copy — "Bestätigungs-E-Mails an
+// [alte] und [neue Adresse] gesendet — die Änderung wird erst nach
+// Bestätigung beider wirksam." Interpolated (needs both addresses), so a
+// function rather than a static Translated entry, same pattern as
+// trialDaysRemainingParts/historyChartTooltip above. Reflects the double-
+// confirmation behavior verified ON for both the local Docker stack and
+// production before this was written (see
+// docs/tickets/025-profile-email-change.md).
+export function emailChangeSuccessMessage(
+  lang: Lang,
+  oldEmail: string,
+  newEmail: string,
+): string {
+  return lang === "de"
+    ? `Bestätigungs-E-Mails an ${oldEmail} und ${newEmail} gesendet — die Änderung wird erst nach Bestätigung beider wirksam.`
+    : `Confirmation emails sent to ${oldEmail} and ${newEmail} — the change only takes effect once both are confirmed.`;
+}
 
 // --- app/(dashboard)/dashboard/settings/page.tsx + SettingsClient.tsx --
 

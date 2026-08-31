@@ -7,6 +7,34 @@
 
 import type { Profile } from "@/lib/domain/profile";
 
+// Ticket 025 (TimTracker-Starter repo, follow-up to 024): thrown by
+// changeEmail() below when the requested new address is already in use by
+// ANY account. A distinct, named error type — not a plain `Error` carrying
+// Supabase's own message ("A user with this email address has already been
+// registered", verified against the real local Docker stack) — so the UI
+// can show a deliberately generic "this address can't be used" string
+// instead. Showing Supabase's raw wording would confirm to the caller that
+// the address belongs to a specific other account, exactly the enumeration
+// the ticket's AK forbids (same anti-enumeration principle already applied
+// to requestPasswordReset() above, Ticket 009).
+export class EmailAlreadyInUseError extends Error {
+  constructor() {
+    super("Email address already in use.");
+    this.name = "EmailAlreadyInUseError";
+  }
+}
+
+// Thrown by changeEmail() when the supplied password confirmation doesn't
+// match the CURRENT session's own account. Kept distinct from
+// EmailAlreadyInUseError so the UI can show the right one of the two
+// different messages the ticket's form can fail with.
+export class ReauthenticationFailedError extends Error {
+  constructor() {
+    super("Password confirmation failed.");
+    this.name = "ReauthenticationFailedError";
+  }
+}
+
 // Vendor-agnostic mirror of Supabase's AuthChangeEvent string union
 // (@supabase/auth-js lib/types.ts). Defined locally rather than imported
 // from @supabase/supabase-js — this file is a pure port and must stay
@@ -76,4 +104,27 @@ export interface AuthRepository {
   // method here (the port is a thin passthrough, normalization is
   // business logic that belongs in lib/domain/*).
   updateDisplayName(displayName: string | null): Promise<void>;
+  // Ticket 025 (TimTracker-Starter repo, follow-up to 024's read-only email
+  // field): changes the CURRENT session's email address. Re-authenticates
+  // FIRST via `currentPassword` (AK: "Passwort-Bestätigung" before this
+  // security-sensitive change — same re-auth-before-sensitive-action
+  // principle as "Account löschen" in Ticket 018, though that flow confirms
+  // via a typed confirmation word rather than a password since deletion has
+  // no separate secret to check against) using the session's OWN current
+  // email — read server-side by the adapter, never trusted from the
+  // caller — throwing ReauthenticationFailedError if that fails.
+  //
+  // On success, requests the change via `supabase.auth.updateUser({
+  // email })`. Supabase's default "secure email change" (double-confirm)
+  // setting — verified ON for both this project's local Docker stack AND
+  // production before implementing this (see
+  // docs/tickets/025-profile-email-change.md in TimTracker-Starter for how)
+  // — then emails BOTH the old and new address and leaves the old one
+  // active for login until both confirmation links are clicked. That's
+  // already Supabase's own behavior, nothing else to build for it here.
+  //
+  // Throws EmailAlreadyInUseError if the new address is already registered
+  // to any account — see that error's own comment for why it's a distinct
+  // type rather than the raw Supabase error.
+  changeEmail(newEmail: string, currentPassword: string): Promise<void>;
 }
