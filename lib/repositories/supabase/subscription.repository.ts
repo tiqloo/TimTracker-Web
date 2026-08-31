@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubscriptionRepository } from "../subscription.repository";
 import type { Subscription, SubscriptionStatus } from "@/lib/domain/subscription";
-import { invokeAuthenticated } from "./invoke-authenticated";
+import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated";
 
 interface SubscriptionRow {
   status: SubscriptionStatus;
@@ -45,7 +45,7 @@ export function createSupabaseSubscriptionRepository(
         client,
         "create-portal-session",
       );
-      if (error) throw error;
+      if (error) throw await describeFunctionsError(error);
       if (!data?.url) throw new Error("create-portal-session returned no url");
       return data.url;
     },

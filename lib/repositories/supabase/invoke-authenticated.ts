@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { FunctionsHttpError, type SupabaseClient } from "@supabase/supabase-js";
 
 // Real production bug found 2026-08-31 (docs/audit-findings.md in
 // TimTracker-Starter): SupabaseClient.functions is a getter that builds a
@@ -27,4 +27,22 @@ export async function invokeAuthenticated<T = unknown>(
   return client.functions.invoke<T>(functionName, {
     headers: session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
   });
+}
+
+// `functions.invoke()`'s returned `error` for a non-2xx response is a
+// FunctionsHttpError whose OWN .message is always the same generic string
+// ("Edge Function returned a non-2xx status code") — the function's real
+// response body (e.g. "Kein Stripe-Kunde hinterlegt...", the exact text
+// this repo's own Edge Functions return) lives separately in
+// `error.context`, a Response object that has to be read explicitly
+// (documented in @supabase/functions-js's own FunctionsClient.ts). Without
+// this, every distinct server-side error (missing customer, expired
+// access, a genuine 500) looks identical and unhelpful in the UI — surface
+// it instead.
+export async function describeFunctionsError(error: unknown): Promise<Error> {
+  if (error instanceof FunctionsHttpError && error.context instanceof Response) {
+    const body = await error.context.text().catch(() => "");
+    if (body) return new Error(body);
+  }
+  return error instanceof Error ? error : new Error(String(error));
 }

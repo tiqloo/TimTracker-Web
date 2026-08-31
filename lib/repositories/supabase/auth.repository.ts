@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuthChangeEvent, AuthRepository } from "../auth.repository";
-import { invokeAuthenticated } from "./invoke-authenticated";
+import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated";
 
 export function createSupabaseAuthRepository(
   client: SupabaseClient,
@@ -87,7 +87,7 @@ export function createSupabaseAuthRepository(
       // signed-in user's JWT, which this auth:"user"-gated function
       // rejects with a 401 that looks like an auth bug but isn't one.
       const { error } = await invokeAuthenticated(client, "delete-account");
-      if (error) throw error;
+      if (error) throw await describeFunctionsError(error);
     },
   };
 }
