@@ -61,6 +61,10 @@ export const nav = {
   today: { de: "Heute", en: "Today" },
   history: { de: "Historie", en: "History" },
   projects: { de: "Projekte", en: "Projects" },
+  // Ticket 030 (TimTracker-Starter repo) — new nav entry, own icon (see
+  // DashboardNav.tsx's SupportIcon), otherwise same flat-link treatment
+  // as every other entry in NAV_LINKS.
+  support: { de: "Support", en: "Support" },
   settings: { de: "Einstellungen", en: "Settings" },
   logout: { de: "Logout", en: "Log Out" },
   loggingOut: { de: "Wird abgemeldet…", en: "Logging out…" },
@@ -389,6 +393,226 @@ export function trialDaysRemainingParts(
   }
   return { before: "", after: `${days === 1 ? "day" : "days"} left in trial.` };
 }
+
+// --- app/(dashboard)/dashboard/support (components/SupportClient.tsx) --
+// Ticket 030 (TimTracker-Starter repo) — new "Support" page. Deliberately
+// mailto:-based for V1 (no new form/Edge Function, no new dependency):
+// docs/audit-findings.md's open "kein Custom-SMTP für das
+// Produktions-Supabase-Projekt konfiguriert" finding means a Supabase-
+// Auth-mailer-backed form would be unreliable right now (built-in mailer
+// rate-limited to ~3-4 mails/hour, silently fails above that since the
+// API always returns 200 for anti-enumeration reasons) — a real Edge
+// Function alternative doesn't share that specific limit but is still
+// more moving parts than this ticket's AK asks for as the V1 default.
+// SUPPORT_EMAIL below is a clearly-marked placeholder (tiqloo.com is the
+// real production domain per TimTracker-Web/README.md's "Produktions-
+// Deployment" section, but this exact mailbox has NOT been confirmed to
+// exist/receive mail by a human) — flagged in this ticket's report,
+// replace with the real address before shipping.
+export const support = {
+  pageTitle: { de: "Support", en: "Support" },
+  // Split around the interpolated display name — see SupportClient.tsx's
+  // greeting, same "prefix/name/suffix" split as DashboardNav.tsx uses
+  // for the identical truncate-long-name requirement (Ticket 030 Edge
+  // Cases: "gleiche truncate-Regel wie in der Nav").
+  greetingSuffix: { de: ", wobei können wir dir helfen?", en: ", how can we help you?" },
+  requestTitle: { de: "Neue Anfrage", en: "New Request" },
+  requestLabel: { de: "Beschreibe dein Anliegen", en: "Describe your request" },
+  requestPlaceholder: { de: "Wobei brauchst du Hilfe?", en: "What do you need help with?" },
+  requestSubmit: { de: "Anfrage per E-Mail senden", en: "Send Request via Email" },
+  // Edge case (ticket AK): "Absenden ohne konfigurierten Mail-Client ->
+  // Nutzer sieht zumindest die Ziel-Adresse als sichtbaren Text daneben,
+  // nicht nur als unsichtbaren Link-Href" — requestSendsTo + the visible
+  // address next to the button satisfy that.
+  requestSendsTo: { de: "Wird gesendet an:", en: "Will be sent to:" },
+  requestFallbackHint: {
+    de: "Öffnet dein E-Mail-Programm mit einer vorausgefüllten Nachricht. Falls sich nichts öffnet, schreib uns direkt an die Adresse oben.",
+    en: "Opens your email app with a pre-filled message. If nothing opens, write to the address above directly.",
+  },
+  requestMailSubject: { de: "TimTracker Support-Anfrage", en: "TimTracker Support Request" },
+  quickLinksTitle: { de: "Schnellzugriffe", en: "Quick Links" },
+  feedbackTitle: { de: "Feedback teilen", en: "Share Feedback" },
+  feedbackBody: {
+    de: "Idee, Kritik oder Lob — wir lesen jede Nachricht.",
+    en: "Idea, criticism, or praise — we read every message.",
+  },
+  feedbackMailSubject: { de: "TimTracker Feedback", en: "TimTracker Feedback" },
+  // "Kontoinhaber" from the Personio reference is deliberately NOT
+  // ported (B2B-only concept, no equivalent in TimTracker's one-person
+  // accounts, see the ticket's AK) — this settings quick link is the
+  // suggested replacement the ticket names instead.
+  settingsQuickLinkTitle: { de: "Einstellungen", en: "Settings" },
+  settingsQuickLinkBody: {
+    de: "Profil, Sprache, Abo und Account verwalten.",
+    en: "Manage profile, language, subscription, and account.",
+  },
+  footerHelpcenter: { de: "Helpcenter", en: "Help Center" },
+  footerChangelog: { de: "Produkt-Neuerungen", en: "What's New" },
+} satisfies Record<string, Translated>;
+
+// --- app/(dashboard)/dashboard/support/helpcenter -----------------------
+// Static FAQ page (Ticket 030). Every answer below names a feature that
+// has actually shipped (grounded against docs/tickets/README.md and the
+// live code, not invented) — CSV/PDF export (021/002/018), Stripe
+// customer-portal cancellation (007), email/password change (025/026),
+// language switching (018 Phase 1e/022), account deletion (018 Phase 1e).
+export interface FaqEntry {
+  question: Translated;
+  answer: Translated;
+}
+
+export const helpcenter = {
+  pageTitle: { de: "Helpcenter", en: "Help Center" },
+  backToSupport: { de: "← Zurück zu Support", en: "← Back to Support" },
+  intro: {
+    de: "Antworten auf häufige Fragen zu TimTracker.",
+    en: "Answers to common questions about TimTracker.",
+  },
+  faqs: [
+    {
+      question: { de: "Wie exportiere ich meine erfassten Zeiten?", en: "How do I export my tracked time?" },
+      answer: {
+        de: "Auf der Historie-Seite wählst du den gewünschten Zeitraum und exportierst ihn oben rechts als CSV oder PDF — passend für Excel, Numbers oder die Buchhaltung.",
+        en: "On the History page, pick the period you want and export it at the top as CSV or PDF — suited for Excel, Numbers, or accounting.",
+      },
+    },
+    {
+      question: { de: "Wie kündige ich mein Abo?", en: "How do I cancel my subscription?" },
+      answer: {
+        de: "Öffne Einstellungen → \"Abo verwalten\". Das führt dich zum Stripe-Kundenportal, wo du dein Abo jederzeit selbst kündigen oder deine Zahlungsmethode ändern kannst.",
+        en: "Open Settings → \"Manage Subscription\". This takes you to the Stripe customer portal, where you can cancel your subscription or update your payment method at any time.",
+      },
+    },
+    {
+      question: { de: "Wie ändere ich meine E-Mail-Adresse?", en: "How do I change my email address?" },
+      answer: {
+        de: "In Einstellungen → Profil → \"E-Mail-Adresse ändern…\" gibst du die neue Adresse und dein aktuelles Passwort ein. Wir schicken Bestätigungslinks an die alte UND die neue Adresse — die Änderung wirkt erst, sobald beide bestätigt sind.",
+        en: "In Settings → Profile → \"Change Email Address…\", enter the new address and your current password. We send confirmation links to both the old AND new address — the change only takes effect once both are confirmed.",
+      },
+    },
+    {
+      question: { de: "Wie ändere ich mein Passwort?", en: "How do I change my password?" },
+      answer: {
+        de: "In Einstellungen → Profil → \"Passwort ändern…\" gibst du dein aktuelles und ein neues Passwort ein. Die Änderung wirkt sofort, du bleibst eingeloggt.",
+        en: "In Settings → Profile → \"Change Password…\", enter your current and a new password. The change takes effect immediately, you stay logged in.",
+      },
+    },
+    {
+      question: { de: "Kann ich die Sprache der Oberfläche ändern?", en: "Can I change the interface language?" },
+      answer: {
+        de: "Ja — in Einstellungen kannst du zwischen Deutsch und Englisch wechseln. Der Wechsel wirkt sofort auf die gesamte Oberfläche, inklusive Datumsformaten.",
+        en: "Yes — in Settings you can switch between German and English. The change takes effect immediately across the whole interface, including date formats.",
+      },
+    },
+    {
+      question: {
+        de: "Kann ich TimTracker auch im Browser nutzen, nicht nur auf dem Mac?",
+        en: "Can I use TimTracker in the browser, not just on the Mac?",
+      },
+      answer: {
+        de: "Ja — auf tiqloo.com meldest du dich mit demselben Account wie in der Mac-App an und siehst Heute, Historie, Projekte und Einstellungen direkt im Browser.",
+        en: "Yes — at tiqloo.com you sign in with the same account as in the Mac app and see Today, History, Projects, and Settings directly in your browser.",
+      },
+    },
+    {
+      question: { de: "Wie lösche ich meinen Account?", en: "How do I delete my account?" },
+      answer: {
+        de: "Ganz unten in Einstellungen findest du \"Account löschen…\". Das löscht deinen Account und alle Cloud-Daten (Projekte, Zeiteinträge, Abo) unwiderruflich — lokale Daten auf deinen Geräten bleiben unangetastet.",
+        en: "At the bottom of Settings you'll find \"Delete Account…\". This permanently deletes your account and all cloud data (projects, time entries, subscription) — local data on your devices stays untouched.",
+      },
+    },
+  ] satisfies FaqEntry[],
+} as const;
+
+// --- app/(dashboard)/dashboard/support/changelog -------------------------
+// Static "Produkt-Neuerungen" page (Ticket 030). Every entry below is a
+// real, already-shipped web feature, dated/ticket-numbered from
+// docs/tickets/README.md — not invented placeholder copy. Newest first.
+export interface ChangelogEntry {
+  date: string;
+  ticket: string;
+  title: Translated;
+  body: Translated;
+}
+
+export const changelog = {
+  pageTitle: { de: "Produkt-Neuerungen", en: "What's New" },
+  backToSupport: { de: "← Zurück zu Support", en: "← Back to Support" },
+  entries: [
+    {
+      date: "2026-09-01",
+      ticket: "027",
+      title: { de: "Sicherheits-Header", en: "Security Headers" },
+      body: {
+        de: "Die Verbindung zu TimTracker ist jetzt zusätzlich per Content-Security-Policy und weiteren Sicherheits-Headern abgesichert.",
+        en: "The connection to TimTracker is now additionally secured with a Content Security Policy and other security headers.",
+      },
+    },
+    {
+      date: "2026-08-31",
+      ticket: "026",
+      title: { de: "Passwort ändern", en: "Change Password" },
+      body: {
+        de: "Passwort direkt in den Einstellungen ändern, ganz ohne Log-out.",
+        en: "Change your password directly in Settings, no log-out required.",
+      },
+    },
+    {
+      date: "2026-08-31",
+      ticket: "025",
+      title: { de: "E-Mail-Adresse ändern", en: "Change Email Address" },
+      body: {
+        de: "E-Mail-Adresse in den Einstellungen ändern, mit Bestätigung an die alte und die neue Adresse.",
+        en: "Change your email address in Settings, confirmed via both the old and new address.",
+      },
+    },
+    {
+      date: "2026-08-31",
+      ticket: "024",
+      title: { de: "Profil: Anzeigename", en: "Profile: Display Name" },
+      body: {
+        de: "Neuer Profil-Bereich in den Einstellungen mit einstellbarem Anzeigenamen.",
+        en: "New profile section in Settings with an editable display name.",
+      },
+    },
+    {
+      date: "2026-08-31",
+      ticket: "022",
+      title: { de: "Zweisprachige Oberfläche", en: "Bilingual Interface" },
+      body: {
+        de: "Die gesamte Web-Oberfläche ist jetzt auf Deutsch und Englisch verfügbar.",
+        en: "The entire web interface is now available in German and English.",
+      },
+    },
+    {
+      date: "2026-08-31",
+      ticket: "021",
+      title: { de: "PDF-Export", en: "PDF Export" },
+      body: {
+        de: "Historie zusätzlich zu CSV jetzt auch als PDF exportierbar.",
+        en: "History can now be exported as PDF, in addition to CSV.",
+      },
+    },
+    {
+      date: "2026-08-26",
+      ticket: "018",
+      title: { de: "Öffentliche Website", en: "Public Website" },
+      body: {
+        de: "Neue öffentliche Startseite unter tiqloo.com mit Funktionsübersicht und Preis.",
+        en: "New public homepage at tiqloo.com with a feature overview and pricing.",
+      },
+    },
+    {
+      date: "2026-08-25",
+      ticket: "018",
+      title: { de: "Web-Dashboard gestartet", en: "Web Dashboard Launched" },
+      body: {
+        de: "Anmeldung, Heute-Übersicht, Historie, Projekte und Einstellungen jetzt auch im Browser — mit demselben Account wie in der Mac-App.",
+        en: "Sign-in, Today overview, History, Projects, and Settings now also in the browser — with the same account as the Mac app.",
+      },
+    },
+  ] satisfies ChangelogEntry[],
+} as const;
 
 // --- app/(auth)/login (components/LoginForm.tsx) -----------------------
 

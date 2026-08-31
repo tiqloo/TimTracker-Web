@@ -20,10 +20,17 @@ import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
 
-const NAV_LINKS: { href: string; label: Translated }[] = [
+// Ticket 030 (TimTracker-Starter repo): "Support" is the one entry here
+// with an icon (the AK explicitly calls for "eigenes Icon, analog zur
+// Referenz" — Personio's support entry has one). Every other link stays
+// plain text, unchanged, rather than retrofitting icons everywhere just
+// for consistency's sake — out of scope for this ticket. `icon` is
+// therefore optional, not a new shared convention.
+const NAV_LINKS: { href: string; label: Translated; icon?: React.ComponentType }[] = [
   { href: "/dashboard", label: nav.today },
   { href: "/dashboard/history", label: nav.history },
   { href: "/dashboard/projects", label: nav.projects },
+  { href: "/dashboard/support", label: nav.support, icon: SupportIcon },
   { href: "/dashboard/settings", label: nav.settings },
 ];
 
@@ -38,6 +45,26 @@ function Mark() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+// Same stroke-only, currentColor visual language as Mark() above (no new
+// icon style introduced) — a question mark in a circle, the conventional
+// "help" glyph the Personio reference itself uses.
+function SupportIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
+      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path
+        d="M7.7 7.8a2.3 2.3 0 1 1 3.5 1.95c-.65.4-1.2.8-1.2 1.65"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <circle cx="10" cy="14" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -73,17 +100,19 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
                 link.href === "/dashboard"
                   ? pathname === "/dashboard"
                   : pathname.startsWith(link.href);
+              const Icon = link.icon;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={active ? "page" : undefined}
-                  className={`rounded-md px-3 py-1.5 text-sm ${
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${
                     active
                       ? "font-medium text-foreground"
                       : "text-foreground/60 hover:text-foreground"
                   }`}
                 >
+                  {Icon && <Icon />}
                   {t(lang, link.label)}
                 </Link>
               );
