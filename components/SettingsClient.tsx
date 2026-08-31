@@ -12,15 +12,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
-import { deleteAccount, logout } from "@/lib/application/auth";
-import { APP_LANGUAGES, languageDisplayName } from "@/lib/domain/language";
-import { common, settings, t, type Lang } from "@/lib/i18n";
+import { deleteAccount, logout, updateDisplayName, type Profile } from "@/lib/application/auth";
+import { APP_LANGUAGES, languageCodeToLocale, languageDisplayName } from "@/lib/domain/language";
+import { normalizeDisplayNameInput } from "@/lib/domain/profile";
+import { formatFullDate } from "@/lib/format";
+import { common, profile as i18nProfile, settings, t, type Lang } from "@/lib/i18n";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
 const buttonClass =
   "rounded-md border border-line px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
+
+const primaryButtonClass =
+  "rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
 
 const dangerButtonClass =
   "rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50";
@@ -30,16 +35,110 @@ const errorClass =
 
 export function SettingsClient({
   initialLanguage,
+  profile,
   lang,
 }: {
   initialLanguage: AppLanguage;
+  profile: Profile;
   lang: Lang;
 }) {
   return (
     <div className="flex flex-col gap-10">
+      <ProfileSection profile={profile} lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
       <DeleteAccountSection lang={lang} />
     </div>
+  );
+}
+
+// "Profil" (Ticket 024, TimTracker-Starter repo) — editable display name
+// plus the two read-only account fields (email, account-creation date).
+// Placed above LanguageSection per the ticket's AK. Same Client Component
+// + pending/error state shape as LanguageSection/DeleteAccountSection
+// below: optimistic local state update on success, then router.refresh()
+// so DashboardNav (which resolves the profile server-side in
+// app/(dashboard)/layout.tsx) picks up the new value too — same reasoning
+// LanguageSection's own comment gives for why it calls router.refresh()
+// after already updating its own state locally.
+function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
+  const router = useRouter();
+  const [displayName, setDisplayName] = useState(profile.displayName ?? "");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSaved(false);
+    setPending(true);
+    try {
+      const repos = getRepositories();
+      await updateDisplayName(repos, displayName);
+      // Mirrors what the save just persisted (trim, empty -> "") rather
+      // than re-fetching — same optimistic-update pattern LanguageSection
+      // uses, see its own comment.
+      setDisplayName(normalizeDisplayNameInput(displayName) ?? "");
+      setSaved(true);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t(lang, i18nProfile.displayNameSaveError));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4 rounded-xl border border-line p-5">
+      <h2 className="text-sm font-medium text-foreground/70">
+        {t(lang, i18nProfile.sectionTitle)}
+      </h2>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="profile-display-name" className="text-sm font-medium">
+            {t(lang, i18nProfile.displayNameLabel)}{" "}
+            <span className="font-normal text-foreground/50">
+              ({t(lang, i18nProfile.displayNameOptionalHint)})
+            </span>
+          </label>
+          <input
+            id="profile-display-name"
+            type="text"
+            autoComplete="name"
+            disabled={pending}
+            value={displayName}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              setSaved(false);
+            }}
+            className={inputClass}
+          />
+        </div>
+        {error && <p className={errorClass}>{error}</p>}
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={pending} className={primaryButtonClass}>
+            {pending ? t(lang, common.saving) : t(lang, common.save)}
+          </button>
+          {saved && !pending && !error && (
+            <span className="text-sm text-foreground/60">
+              {t(lang, i18nProfile.displayNameSaved)}
+            </span>
+          )}
+        </div>
+      </form>
+      <dl className="flex flex-col gap-2 border-t border-line pt-4 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-foreground/60">{t(lang, i18nProfile.emailLabel)}</dt>
+          <dd className="truncate">{profile.email}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-foreground/60">{t(lang, i18nProfile.createdAtLabel)}</dt>
+          <dd className="font-mono tabular-nums">
+            {formatFullDate(profile.createdAt, languageCodeToLocale(lang))}
+          </dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 

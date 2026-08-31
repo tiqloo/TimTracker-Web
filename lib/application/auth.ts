@@ -3,10 +3,13 @@
 // lib/repositories/* or lib/composition-root.ts directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
+import type { Profile } from "@/lib/domain/profile";
+import { normalizeDisplayNameInput } from "@/lib/domain/profile";
 // Type-only re-export so app/* can name this type without importing
 // lib/repositories/* directly (blocked by eslint.config.mjs) — same
 // pattern lib/composition-root.ts uses for `Repositories` itself.
 export type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
+export type { Profile } from "@/lib/domain/profile";
 
 export async function register(
   repos: Repositories,
@@ -59,4 +62,23 @@ export function onAuthStateChange(
 // redirect), same separation as every other use case in this file.
 export async function deleteAccount(repos: Repositories): Promise<void> {
   return repos.auth.deleteAccount();
+}
+
+// Ticket 024 (TimTracker-Starter repo) — "Profil" section of Einstellungen
+// plus the DashboardNav identity display. See
+// lib/repositories/auth.repository.ts's getProfile() doc for the field
+// contract.
+export async function getProfile(repos: Repositories): Promise<Profile> {
+  return repos.auth.getProfile();
+}
+
+// Normalizes the raw text-input value (trim, empty/whitespace-only -> null)
+// before persisting — this is the one call site that does so, so a page
+// calling this use case doesn't have to duplicate
+// lib/domain/profile.ts#normalizeDisplayNameInput's rule itself.
+export async function updateDisplayName(
+  repos: Repositories,
+  rawDisplayName: string,
+): Promise<void> {
+  return repos.auth.updateDisplayName(normalizeDisplayNameInput(rawDisplayName));
 }

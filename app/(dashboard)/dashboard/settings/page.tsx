@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode, getLanguagePreference } from "@/lib/application/language";
+import { getProfile } from "@/lib/application/auth";
 import { SettingsClient } from "@/components/SettingsClient";
 import { settings, t } from "@/lib/i18n";
 
@@ -17,15 +18,16 @@ import { settings, t } from "@/lib/i18n";
 export default async function SettingsPage() {
   const repos = await getRepositories();
   const headerList = await headers();
-  const [language, lang] = await Promise.all([
+  const [language, lang, profile] = await Promise.all([
     getLanguagePreference(repos),
     getEffectiveLanguageCode(repos, headerList.get("accept-language")),
+    getProfile(repos),
   ]);
 
   return (
     <main className="flex flex-col gap-8 py-8">
       <h1 className="text-2xl font-semibold tracking-tight">{t(lang, settings.pageTitle)}</h1>
-      <SettingsClient initialLanguage={language} lang={lang} />
+      <SettingsClient initialLanguage={language} profile={profile} lang={lang} />
       <Link
         href="/dashboard/settings/billing"
         className="text-sm text-foreground/70 hover:text-foreground"

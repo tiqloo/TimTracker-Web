@@ -223,6 +223,21 @@ export const history = {
   backToHistory: { de: "← Zurück zur Historie", en: "← Back to History" },
 } satisfies Record<string, Translated>;
 
+// --- components/SettingsClient.tsx: ProfileSection (Ticket 024) --------
+
+export const profile = {
+  sectionTitle: { de: "Profil", en: "Profile" },
+  displayNameLabel: { de: "Anzeigename", en: "Display Name" },
+  displayNameOptionalHint: { de: "optional", en: "optional" },
+  displayNameSaveError: {
+    de: "Anzeigename konnte nicht gespeichert werden.",
+    en: "Display name could not be saved.",
+  },
+  displayNameSaved: { de: "Gespeichert.", en: "Saved." },
+  emailLabel: { de: "E-Mail-Adresse", en: "Email Address" },
+  createdAtLabel: { de: "Konto erstellt am", en: "Account Created" },
+} satisfies Record<string, Translated>;
+
 // --- app/(dashboard)/dashboard/settings/page.tsx + SettingsClient.tsx --
 
 export const settings = {

@@ -5,6 +5,8 @@
 // enough that a plain interface is sufficient, per the same review's own
 // point 4 about not over-engineering inbound ports.
 
+import type { Profile } from "@/lib/domain/profile";
+
 // Vendor-agnostic mirror of Supabase's AuthChangeEvent string union
 // (@supabase/auth-js lib/types.ts). Defined locally rather than imported
 // from @supabase/supabase-js — this file is a pure port and must stay
@@ -57,4 +59,21 @@ export interface AuthRepository {
   // is responsible for calling logout() afterward, same separation of
   // concerns as every other method on this port.
   deleteAccount(): Promise<void>;
+  // Ticket 024 (TimTracker-Starter repo): the current session's identity
+  // fields (email, display name, account-creation date). `email`/
+  // `createdAt` come straight off `auth.users`; `displayName` is read
+  // back out of `user_metadata` (see updateDisplayName below) and is
+  // `null` when unset — callers use
+  // `lib/domain/profile.ts#displayNameOrFallback` for the email-prefix
+  // fallback rather than re-deriving it themselves.
+  getProfile(): Promise<Profile>;
+  // Persists the display name into `auth.users.user_metadata` via
+  // `supabase.auth.updateUser({ data })` — no new table/migration, same
+  // as the ticket's AK requires. `displayName` must already be
+  // normalized (trimmed, empty -> null) by the caller — see
+  // `lib/domain/profile.ts#normalizeDisplayNameInput`; this port method
+  // does not re-validate it, same separation of concerns as every other
+  // method here (the port is a thin passthrough, normalization is
+  // business logic that belongs in lib/domain/*).
+  updateDisplayName(displayName: string | null): Promise<void>;
 }

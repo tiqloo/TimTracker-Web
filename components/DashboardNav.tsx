@@ -42,7 +42,7 @@ function Mark() {
   );
 }
 
-export function DashboardNav({ lang }: { lang: Lang }) {
+export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
@@ -90,14 +90,32 @@ export function DashboardNav({ lang }: { lang: Lang }) {
             })}
           </nav>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={pending}
-          className="text-sm text-foreground/70 hover:text-foreground disabled:opacity-50"
-        >
-          {pending ? t(lang, nav.loggingOut) : t(lang, nav.logout)}
-        </button>
+        <div className="flex min-w-0 items-center gap-3">
+          {/* Ticket 024 (TimTracker-Starter repo): identity display —
+              already resolved to the display name (or the email-prefix
+              fallback) by app/(dashboard)/layout.tsx, see
+              lib/domain/profile.ts#displayNameOrFallback. `truncate`
+              (needs the `min-w-0` above, since this sits inside a flex
+              row — without it a flex item won't shrink below its content
+              width and truncate has nothing to clip against) covers the
+              ticket's "sehr langer Anzeigename -> abgeschnitten, kein
+              Layout-Bruch" edge case. */}
+          <Link
+            href="/dashboard/settings"
+            className="min-w-0 max-w-[8rem] truncate text-sm text-foreground/70 hover:text-foreground sm:max-w-[14rem]"
+            title={displayName}
+          >
+            {displayName}
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={pending}
+            className="shrink-0 text-sm text-foreground/70 hover:text-foreground disabled:opacity-50"
+          >
+            {pending ? t(lang, nav.loggingOut) : t(lang, nav.logout)}
+          </button>
+        </div>
       </div>
     </header>
   );

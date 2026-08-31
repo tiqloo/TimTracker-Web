@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuthChangeEvent, AuthRepository } from "../auth.repository";
+import type { Profile } from "@/lib/domain/profile";
 import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated";
 
 export function createSupabaseAuthRepository(
@@ -88,6 +89,40 @@ export function createSupabaseAuthRepository(
       // rejects with a 401 that looks like an auth bug but isn't one.
       const { error } = await invokeAuthenticated(client, "delete-account");
       if (error) throw await describeFunctionsError(error);
+    },
+
+    async getProfile(): Promise<Profile> {
+      // client.auth.getUser() (not getSession()) deliberately — it
+      // revalidates against Supabase Auth server-side rather than trusting
+      // a possibly-stale local JWT, same reasoning Supabase's own docs
+      // give for any call whose result gets displayed/trusted rather than
+      // used purely for a client-side route guard.
+      const { data, error } = await client.auth.getUser();
+      if (error) throw error;
+      const rawDisplayName = data.user.user_metadata?.display_name;
+      return {
+        email: data.user.email ?? "",
+        // user_metadata is untyped (Record<string, unknown>) — narrow to
+        // string explicitly rather than trusting the cast, since anything
+        // could technically end up in there (e.g. a stray boolean/number
+        // from a bug elsewhere) and this value flows straight into the
+        // nav/settings UI.
+        displayName: typeof rawDisplayName === "string" ? rawDisplayName : null,
+        createdAt: data.user.created_at,
+      };
+    },
+
+    async updateDisplayName(displayName: string | null) {
+      // Supabase merges `data` into the existing user_metadata rather than
+      // replacing it wholesale, so this only ever touches the
+      // `display_name` key — explicitly setting it to `null` (rather than
+      // omitting it) is what "clears back to the email fallback" means
+      // here; getProfile()'s `typeof rawDisplayName === "string"` check
+      // above treats stored `null` the same as "never set".
+      const { error } = await client.auth.updateUser({
+        data: { display_name: displayName },
+      });
+      if (error) throw error;
     },
   };
 }
