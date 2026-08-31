@@ -1,15 +1,6 @@
 import type { SubscriptionStatus } from "@/lib/domain/subscription";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
-
-const STATUS_LABELS: Record<SubscriptionStatus, string> = {
-  trialing: "Testphase",
-  active: "Aktiv (Zeitraum abgelaufen)",
-  past_due: "Zahlung überfällig",
-  canceled: "Gekündigt",
-  unpaid: "Nicht bezahlt",
-  incomplete_expired: "Unvollständig (abgelaufen)",
-  none: "Kein Abo",
-};
+import { accessGate, t, type Lang } from "@/lib/i18n";
 
 // Shared "no access" screen for Heute/Historie/Projekte — replaces four
 // copies of the same inline block (page.tsx, history/page.tsx,
@@ -23,26 +14,26 @@ const STATUS_LABELS: Record<SubscriptionStatus, string> = {
 export function AccessGate({
   title,
   status,
+  lang,
 }: {
   title: string;
   status: SubscriptionStatus;
+  lang: Lang;
 }) {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8 sm:px-8">
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       <div className="mt-6 max-w-md rounded-xl border border-line p-5">
-        <p className="text-sm text-foreground/70">
-          Kein aktiver Testzeitraum oder Abo mehr.
-        </p>
+        <p className="text-sm text-foreground/70">{t(lang, accessGate.message)}</p>
         {status !== "none" && (
           <p className="mt-1">
             <span className="font-mono text-xs tabular-nums text-foreground/50">
-              Status: {STATUS_LABELS[status]}
+              {t(lang, accessGate.statusPrefix)} {t(lang, accessGate.statusLabels[status])}
             </span>
           </p>
         )}
         <div className="mt-4">
-          <ManageSubscriptionButton />
+          <ManageSubscriptionButton lang={lang} />
         </div>
       </div>
     </div>

@@ -14,6 +14,7 @@ import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
 import { deleteAccount, logout } from "@/lib/application/auth";
 import { APP_LANGUAGES, languageDisplayName } from "@/lib/domain/language";
+import { common, settings, t, type Lang } from "@/lib/i18n";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -27,18 +28,28 @@ const dangerButtonClass =
 const errorClass =
   "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
 
-const DELETE_CONFIRMATION_WORD = "LÖSCHEN";
-
-export function SettingsClient({ initialLanguage }: { initialLanguage: AppLanguage }) {
+export function SettingsClient({
+  initialLanguage,
+  lang,
+}: {
+  initialLanguage: AppLanguage;
+  lang: Lang;
+}) {
   return (
     <div className="flex flex-col gap-10">
-      <LanguageSection initialLanguage={initialLanguage} />
-      <DeleteAccountSection />
+      <LanguageSection initialLanguage={initialLanguage} lang={lang} />
+      <DeleteAccountSection lang={lang} />
     </div>
   );
 }
 
-function LanguageSection({ initialLanguage }: { initialLanguage: AppLanguage }) {
+function LanguageSection({
+  initialLanguage,
+  lang,
+}: {
+  initialLanguage: AppLanguage;
+  lang: Lang;
+}) {
   const router = useRouter();
   const [language, setLanguage] = useState(initialLanguage);
   const [pending, setPending] = useState(false);
@@ -52,16 +63,14 @@ function LanguageSection({ initialLanguage }: { initialLanguage: AppLanguage }) 
       await setLanguagePreference(repos, next);
       setLanguage(next);
       // Refetches the current route's Server Component tree (root layout
-      // included) against the now-updated cookie — this is what actually
-      // moves <html lang> and this app's own Intl-based date formatting
-      // (settings/billing) over to the new value. See
-      // lib/domain/language.ts's SCOPE NOTE: it does NOT retranslate any
-      // UI text, there is none wired to this preference yet.
+      // included) against the now-updated cookie — this is what moves
+      // <html lang>, this app's own Intl-based date formatting, AND (as
+      // of Ticket 022) every translated UI string over to the new value,
+      // since every Server Component page re-resolves getEffectiveLanguageCode()
+      // on that refetch.
       router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Sprache konnte nicht gespeichert werden.",
-      );
+      setError(err instanceof Error ? err.message : t(lang, settings.languageSaveError));
     } finally {
       setPending(false);
     }
@@ -69,8 +78,14 @@ function LanguageSection({ initialLanguage }: { initialLanguage: AppLanguage }) 
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-foreground/70">Sprache</h2>
-      <div className="flex flex-col gap-1" role="radiogroup" aria-label="Sprache">
+      <h2 className="text-sm font-medium text-foreground/70">
+        {t(lang, settings.languageSectionTitle)}
+      </h2>
+      <div
+        className="flex flex-col gap-1"
+        role="radiogroup"
+        aria-label={t(lang, settings.languageSectionTitle)}
+      >
         {APP_LANGUAGES.map((option) => (
           <label
             key={option}
@@ -89,25 +104,24 @@ function LanguageSection({ initialLanguage }: { initialLanguage: AppLanguage }) 
         ))}
       </div>
       <p className="text-xs text-foreground/60">
-        Wirkt sofort auf die Seitensprache (<code>&lt;html lang&gt;</code>) und die
-        Datumsformate auf dieser und der Abo-Seite. Die Texte der Anwendung selbst
-        (Heute, Historie, Projekte, …) sind aktuell ausschließlich auf Deutsch —
-        vollständige Zweisprachigkeit ist bewusst nicht Teil dieser Phase (siehe
-        Ticket 018, Phase 1e).
+        {t(lang, settings.languageInfoPrefix)}
+        <code>&lt;html lang&gt;</code>
+        {t(lang, settings.languageInfoSuffix)}
       </p>
       {error && <p className={errorClass}>{error}</p>}
     </section>
   );
 }
 
-function DeleteAccountSection() {
+function DeleteAccountSection({ lang }: { lang: Lang }) {
   const router = useRouter();
   const [confirmationText, setConfirmationText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  const canConfirm = confirmationText.trim() === DELETE_CONFIRMATION_WORD;
+  const confirmationWord = t(lang, settings.deleteConfirmationWord);
+  const canConfirm = confirmationText.trim() === confirmationWord;
 
   async function handleDelete() {
     if (!canConfirm) return;
@@ -126,9 +140,7 @@ function DeleteAccountSection() {
       router.push("/login?accountDeleted=1");
       router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Konto konnte nicht gelöscht werden.",
-      );
+      setError(err instanceof Error ? err.message : t(lang, settings.deleteError));
       setPending(false);
     }
   }
@@ -136,13 +148,9 @@ function DeleteAccountSection() {
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-red-600/30 p-5">
       <h2 className="text-sm font-medium text-red-700 dark:text-red-400">
-        Account löschen
+        {t(lang, settings.deleteAccountTitle)}
       </h2>
-      <p className="text-sm text-foreground/70">
-        Löscht deinen Account unwiderruflich, inklusive aller Cloud-Daten (Projekte,
-        Zeiteinträge, Abo). Lokale Daten auf deinen Geräten bleiben unangetastet.
-        Diese Aktion kann nicht rückgängig gemacht werden.
-      </p>
+      <p className="text-sm text-foreground/70">{t(lang, settings.deleteAccountBody)}</p>
 
       {!confirming ? (
         <div>
@@ -151,14 +159,15 @@ function DeleteAccountSection() {
             onClick={() => setConfirming(true)}
             className={dangerButtonClass}
           >
-            Account löschen…
+            {t(lang, settings.deleteAccountButton)}
           </button>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
           <label htmlFor="delete-confirm" className="text-sm">
-            Gib <span className="font-semibold">{DELETE_CONFIRMATION_WORD}</span> ein, um
-            zu bestätigen:
+            {t(lang, settings.deleteConfirmPrefix)}{" "}
+            <span className="font-semibold">{confirmationWord}</span>{" "}
+            {t(lang, settings.deleteConfirmSuffix)}
           </label>
           <input
             id="delete-confirm"
@@ -177,7 +186,7 @@ function DeleteAccountSection() {
               disabled={!canConfirm || pending}
               className={dangerButtonClass}
             >
-              {pending ? "Wird gelöscht…" : "Endgültig löschen"}
+              {pending ? t(lang, settings.deletePending) : t(lang, settings.deleteConfirm)}
             </button>
             <button
               type="button"
@@ -189,7 +198,7 @@ function DeleteAccountSection() {
               disabled={pending}
               className={buttonClass}
             >
-              Abbrechen
+              {t(lang, common.cancel)}
             </button>
           </div>
         </div>

@@ -19,6 +19,7 @@
 import { useState } from "react";
 import { manageSubscription } from "@/lib/application/billing";
 import { getRepositories } from "@/lib/application/client";
+import { manageSubscriptionButton, t, type Lang } from "@/lib/i18n";
 
 const primaryButtonClass =
   "rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
@@ -26,7 +27,7 @@ const primaryButtonClass =
 const errorClass =
   "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
 
-export function ManageSubscriptionButton() {
+export function ManageSubscriptionButton({ lang }: { lang: Lang }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,9 +43,7 @@ export function ManageSubscriptionButton() {
       // button flash back to its enabled state during that navigation.
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Abo-Verwaltung konnte nicht geöffnet werden.",
+        err instanceof Error ? err.message : t(lang, manageSubscriptionButton.error),
       );
       setPending(false);
     }
@@ -59,7 +58,7 @@ export function ManageSubscriptionButton() {
           disabled={pending}
           className={primaryButtonClass}
         >
-          {pending ? "Wird geöffnet…" : "Abo verwalten"}
+          {pending ? t(lang, manageSubscriptionButton.opening) : t(lang, manageSubscriptionButton.manage)}
         </button>
       </div>
       {error && <p className={errorClass}>{error}</p>}

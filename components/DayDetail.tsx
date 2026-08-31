@@ -9,37 +9,40 @@
 // (getTodayBreakdown/getTodayEntries vs. getBreakdownForDay/getEntriesForDay).
 import { formatDuration, formatTime } from "@/lib/format";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
+import { dayDetail, t, type Lang } from "@/lib/i18n";
 
 export function DayDetail({
   breakdown,
   entries,
   nowMs,
   emptyMessage,
+  lang,
 }: {
   breakdown: DailyBreakdown;
   entries: TimeEntry[];
   nowMs: number;
   emptyMessage: string;
+  lang: Lang;
 }) {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryTile
-          label="Automatikzeit gesamt"
+          label={t(lang, dayDetail.totalAutomaticTime)}
           value={formatDuration(breakdown.totalSeconds)}
         />
         <SummaryTile
-          label="Projektzeit"
+          label={t(lang, dayDetail.projectTime)}
           value={formatDuration(breakdown.projectSeconds)}
         />
         <SummaryTile
-          label="Nicht zugeordnete Zeit"
+          label={t(lang, dayDetail.unassignedTime)}
           value={formatDuration(breakdown.unassignedSeconds)}
         />
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-foreground/70">Einträge</h2>
+        <h2 className="text-sm font-medium text-foreground/70">{t(lang, dayDetail.entries)}</h2>
         {entries.length === 0 ? (
           <p className="text-sm text-foreground/60">{emptyMessage}</p>
         ) : (
@@ -54,7 +57,7 @@ export function DayDetail({
                 >
                   <span className="font-mono tabular-nums">
                     {formatTime(entry.startTime)} –{" "}
-                    {entry.endTime ? formatTime(entry.endTime) : "läuft"}
+                    {entry.endTime ? formatTime(entry.endTime) : t(lang, dayDetail.running)}
                   </span>
                   <span className="font-mono tabular-nums text-foreground/70">
                     {formatDuration((endMs - startMs) / 1000)}

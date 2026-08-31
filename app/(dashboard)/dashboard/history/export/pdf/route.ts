@@ -2,9 +2,11 @@ import { getRepositories } from "@/lib/application/server";
 import { getHistory, isoToday } from "@/lib/application/dashboard";
 import { getExportRows } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel, resolveHistoryRange } from "@/lib/format";
 import { renderHistoryExportPdf } from "@/lib/pdf/history-export-document";
+import { exportGate, t } from "@/lib/i18n";
 
 // PDF export for "Historie" — sibling of ../route.ts's CSV export, same
 // access gate, same date-range resolution, same ExportRow/DailyBreakdown
@@ -25,10 +27,11 @@ export async function GET(request: Request) {
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return new Response(
-      "Kein aktiver Testzeitraum oder Abo mehr. Bitte Abo verwalten, um wieder auf deine Daten zuzugreifen.",
-      { status: 403, headers: { "Content-Type": "text/plain; charset=utf-8" } },
-    );
+    const lang = await getEffectiveLanguageCode(repos, request.headers.get("accept-language"));
+    return new Response(t(lang, exportGate.noAccess), {
+      status: 403,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   const url = new URL(request.url);

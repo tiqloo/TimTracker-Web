@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getBreakdownForDay, getEntriesForDay } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { languageCodeToLocale } from "@/lib/domain/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel } from "@/lib/format";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
+import { dayDetail, history, t } from "@/lib/i18n";
 
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -32,10 +36,15 @@ export default async function HistoryDayPage({
   if (!ISO_DAY_RE.test(day)) notFound();
 
   const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  const locale = languageCodeToLocale(lang);
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return <AccessGate title={formatDayLabel(day)} status={subscription.status} />;
+    return (
+      <AccessGate title={formatDayLabel(day, locale)} status={subscription.status} lang={lang} />
+    );
   }
 
   const [breakdown, entries] = await Promise.all([
@@ -48,16 +57,19 @@ export default async function HistoryDayPage({
     <main className="flex flex-col gap-8 py-8">
       <div>
         <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
-          ← Zurück zur Historie
+          {t(lang, history.backToHistory)}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">{formatDayLabel(day)}</h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+          {formatDayLabel(day, locale)}
+        </h1>
       </div>
 
       <DayDetail
         breakdown={breakdown}
         entries={entries}
         nowMs={nowMs}
-        emptyMessage="Keine Zeiteinträge für diesen Tag."
+        emptyMessage={t(lang, dayDetail.noEntriesThisDay)}
+        lang={lang}
       />
     </main>
   );

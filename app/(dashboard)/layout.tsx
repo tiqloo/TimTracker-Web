@@ -1,4 +1,7 @@
+import { headers } from "next/headers";
 import { DashboardNav } from "@/components/DashboardNav";
+import { getRepositories } from "@/lib/application/server";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
 
 // Shared shell for all (dashboard)/* pages (Heute/Historie/Projekte/
 // Einstellungen) — a plain top nav plus logout, nothing more. Route
@@ -10,14 +13,27 @@ import { DashboardNav } from "@/components/DashboardNav";
 // <main>) so content stops stretching edge-to-edge on a wide monitor —
 // matches the public homepage's container width, one place to keep both
 // in sync.
-export default function DashboardLayout({
+//
+// Now async (Ticket 022): resolves the effective UI language once here,
+// same getEffectiveLanguageCode() pattern app/layout.tsx already uses for
+// <html lang>, so DashboardNav (a Client Component — needs router/logout)
+// gets it as a prop instead of re-deriving it itself. Every (dashboard)/*
+// page independently resolves the same value for its OWN strings (same
+// existing convention as every page independently calling
+// getRepositories()), so this one call doesn't need to flow any further
+// than the nav.
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
-      <DashboardNav />
+      <DashboardNav lang={lang} />
       <div className="mx-auto w-full max-w-5xl flex-1 px-6 sm:px-8">{children}</div>
     </div>
   );

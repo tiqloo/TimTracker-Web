@@ -5,8 +5,8 @@ import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import { formatFullDate } from "@/lib/format";
-import type { SubscriptionStatus } from "@/lib/domain/subscription";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
+import { billing, t, trialDaysRemainingParts } from "@/lib/i18n";
 
 // Wrapped for the same reason app/(dashboard)/page.tsx's currentTimeMs()
 // is (see that file's comment) — eslint's react-hooks/purity rule flags a
@@ -17,16 +17,6 @@ import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton"
 function currentTimeMs(): number {
   return Date.now();
 }
-
-const STATUS_LABELS: Record<SubscriptionStatus, string> = {
-  trialing: "Testphase",
-  active: "Aktiv",
-  past_due: "Zahlung überfällig",
-  canceled: "Gekündigt",
-  unpaid: "Nicht bezahlt",
-  incomplete_expired: "Unvollständig (abgelaufen)",
-  none: "Kein Abo",
-};
 
 // "Abo verwalten" — Server Component for the initial status fetch, same
 // split as every other (dashboard)/* page. Deliberately has NO
@@ -59,29 +49,37 @@ export default async function BillingSettingsPage() {
         )
       : null;
 
+  const trialParts =
+    trialDaysRemaining !== null ? trialDaysRemainingParts(languageCode, trialDaysRemaining) : null;
+
+  const periodEndLabel =
+    subscription.status === "trialing"
+      ? billing.trialEndsOn
+      : subscription.status === "active"
+        ? billing.nextRenewalOn
+        : billing.accessEndedOn;
+
   return (
     <main className="flex flex-col gap-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Abo verwalten</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t(languageCode, billing.pageTitle)}</h1>
 
       <section className="flex max-w-md flex-col gap-2 rounded-xl border border-line p-5">
         <p className="text-sm">
-          Status:{" "}
-          <span className="font-medium">{STATUS_LABELS[subscription.status]}</span>
+          {t(languageCode, billing.statusPrefix)}{" "}
+          <span className="font-medium">
+            {t(languageCode, billing.statusLabels[subscription.status])}
+          </span>
         </p>
-        {trialDaysRemaining !== null && (
+        {trialDaysRemaining !== null && trialParts && (
           <p className="text-sm text-foreground/70">
-            Noch{" "}
+            {trialParts.before && `${trialParts.before} `}
             <span className="font-mono tabular-nums">{trialDaysRemaining}</span>{" "}
-            {trialDaysRemaining === 1 ? "Tag" : "Tage"} Testphase.
+            {trialParts.after}
           </p>
         )}
         {subscription.currentPeriodEnd && (
           <p className="text-sm text-foreground/70">
-            {subscription.status === "trialing"
-              ? "Testphase endet am"
-              : subscription.status === "active"
-                ? "Nächste Verlängerung am"
-                : "Zugriff endete am"}{" "}
+            {t(languageCode, periodEndLabel)}{" "}
             <span className="font-mono tabular-nums">
               {formatFullDate(subscription.currentPeriodEnd, locale)}
             </span>
@@ -90,18 +88,18 @@ export default async function BillingSettingsPage() {
         )}
         {subscription.status === "none" && (
           <p className="text-sm text-foreground/70">
-            Kein Testzeitraum oder Abo hinterlegt.
+            {t(languageCode, billing.noSubscriptionOnFile)}
           </p>
         )}
       </section>
 
-      <ManageSubscriptionButton />
+      <ManageSubscriptionButton lang={languageCode} />
 
       <Link
         href="/dashboard/settings"
         className="text-sm text-foreground/70 hover:text-foreground"
       >
-        ← Zurück zu den Einstellungen
+        {t(languageCode, billing.backToSettings)}
       </Link>
     </main>
   );

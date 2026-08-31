@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { getRepositories } from "@/lib/application/server";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { home, t, type Lang } from "@/lib/i18n";
 
 // Public marketing homepage — "/" itself, unprotected (see proxy.ts; the
 // former (dashboard)/* route group that used to live here moved to
@@ -18,22 +22,28 @@ import Link from "next/link";
 // throughout, prose stays in the sans face; that split is deliberate, not
 // decorative (see the module comment on TimeLabel below).
 //
-// Deliberately a plain Server Component with no data fetching — this page
-// has nothing user-specific to show (logged-in visitors see the same page
-// as logged-out ones, see proxy.ts's comment on why "/" is never
-// redirect-gated), so there's no Repositories/getRepositories() call here
-// unlike every (dashboard)/* page.
-export default function HomePage() {
+// Now async (Ticket 022): resolves the effective UI language the same
+// getEffectiveLanguageCode() way every (dashboard)/* page and the root
+// layout already do — no login required to read it (a plain cookie, see
+// lib/repositories/cookie/language.server.ts), so this still works for a
+// fully signed-out visitor. This page still has no OTHER user-specific
+// data to show (logged-in visitors see the same page as logged-out ones,
+// see proxy.ts's comment on why "/" is never redirect-gated).
+export default async function HomePage() {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
-      <SiteNav />
+      <SiteNav lang={lang} />
       <main className="flex flex-1 flex-col">
-        <Hero />
-        <HowItWorks />
-        <Features />
-        <Narrative />
+        <Hero lang={lang} />
+        <HowItWorks lang={lang} />
+        <Features lang={lang} />
+        <Narrative lang={lang} />
       </main>
-      <SiteFooter />
+      <SiteFooter lang={lang} />
     </div>
   );
 }
@@ -62,7 +72,7 @@ function Mark() {
   );
 }
 
-function SiteNav() {
+function SiteNav({ lang }: { lang: Lang }) {
   return (
     <header className="border-b border-line px-4 sm:px-6">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between">
@@ -78,13 +88,13 @@ function SiteNav() {
             href="/login"
             className="rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground"
           >
-            Anmelden
+            {t(lang, home.navSignIn)}
           </Link>
           <Link
             href="/register"
             className="rounded-md bg-foreground px-3.5 py-1.5 text-sm font-medium text-background"
           >
-            Registrieren
+            {t(lang, home.navSignUp)}
           </Link>
         </nav>
       </div>
@@ -131,17 +141,19 @@ function ArrowIcon() {
 // 002's AK ("Tage ohne Aktivität zeigen einen 0-Balken statt einer
 // Lücke") — same rule, same reason: a gap in a timeline reads as "missing
 // data," a sliver reads as "checked, nothing happened."
-const DAY_SEGMENTS: {
+function daySegments(lang: Lang): {
   from: string;
   to: string;
   kind: "auto" | "project" | "idle";
   label: string;
-}[] = [
-  { from: "09:02", to: "12:30", kind: "auto", label: "Anwesend" },
-  { from: "12:30", to: "13:15", kind: "idle", label: "Pause" },
-  { from: "13:15", to: "17:30", kind: "project", label: "Client X" },
-  { from: "17:30", to: "18:47", kind: "auto", label: "Anwesend" },
-];
+}[] {
+  return [
+    { from: "09:02", to: "12:30", kind: "auto", label: t(lang, home.timelineSegmentPresent) },
+    { from: "12:30", to: "13:15", kind: "idle", label: t(lang, home.timelineSegmentBreak) },
+    { from: "13:15", to: "17:30", kind: "project", label: t(lang, home.timelineSegmentClient) },
+    { from: "17:30", to: "18:47", kind: "auto", label: t(lang, home.timelineSegmentPresent) },
+  ];
+}
 
 const DAY_START_MIN = 9 * 60 + 2;
 const DAY_END_MIN = 18 * 60 + 47;
@@ -152,7 +164,8 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
-function DayTimeline() {
+function DayTimeline({ lang }: { lang: Lang }) {
+  const segments = daySegments(lang);
   return (
     <div className="w-full max-w-md rounded-xl border border-line bg-background shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:max-w-none">
       <div className="flex items-center gap-1.5 border-b border-line px-4 py-2.5">
@@ -160,12 +173,12 @@ function DayTimeline() {
         <span className="h-2.5 w-2.5 rounded-full border border-line" />
         <span className="h-2.5 w-2.5 rounded-full border border-line" />
         <span className="ml-2 text-xs font-medium text-foreground/60">
-          TimTracker — Heute
+          {t(lang, home.timelineWindowTitle)}
         </span>
       </div>
       <div className="px-4 py-5 sm:px-6 sm:py-6">
         <div className="flex h-7 w-full overflow-hidden rounded-md border border-line">
-          {DAY_SEGMENTS.map((segment, index) => {
+          {segments.map((segment, index) => {
             const width =
               ((toMinutes(segment.to) - toMinutes(segment.from)) /
                 DAY_SPAN_MIN) *
@@ -189,17 +202,17 @@ function DayTimeline() {
           })}
         </div>
         <div className="mt-2.5 flex justify-between">
-          <TimeLabel>09:02 Login</TimeLabel>
-          <TimeLabel>18:47 Ruhezustand</TimeLabel>
+          <TimeLabel>{t(lang, home.timelineLoginTime)}</TimeLabel>
+          <TimeLabel>{t(lang, home.timelineSleepTime)}</TimeLabel>
         </div>
         <div className="mt-5 flex items-center gap-4 border-t border-line pt-4">
           <span className="flex items-center gap-1.5 text-xs text-foreground/70">
             <span className="h-2 w-2 rounded-full bg-[var(--chart-standard)]" />
-            Automatisch erfasst
+            {t(lang, home.timelineLegendAuto)}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-foreground/70">
             <span className="h-2 w-2 rounded-full bg-[var(--chart-project)]" />
-            Client X zugeordnet
+            {t(lang, home.timelineLegendProject)}
           </span>
         </div>
       </div>
@@ -207,43 +220,40 @@ function DayTimeline() {
   );
 }
 
-function Hero() {
+function Hero({ lang }: { lang: Lang }) {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
         <div>
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
-            Läuft im Hintergrund
+            {t(lang, home.heroEyebrow)}
           </p>
           <h1 className="mt-3 max-w-xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
-            Zeit erfassen, ohne daran zu denken.
+            {t(lang, home.heroTitle)}
           </h1>
           <p className="mt-5 max-w-md text-base text-foreground/65 sm:text-lg">
-            TimTracker beobachtet Login, Sperren und Ruhezustand auf deinem
-            Mac (Windows folgt) und erfasst deine Arbeitszeit automatisch —
-            kein Start-/Stopp-Knopf, den du vergessen kannst. Welchem Projekt
-            die Zeit gehört, ordnest du danach zu.
+            {t(lang, home.heroBody)}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/register"
               className="inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background"
             >
-              Kostenlos starten
+              {t(lang, home.heroCtaStart)}
               <ArrowIcon />
             </Link>
             <Link
               href="/login"
               className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium"
             >
-              Anmelden
+              {t(lang, home.heroCtaLogin)}
             </Link>
           </div>
           <p className="mt-4">
-            <TimeLabel>7 Tage kostenlos · keine Kreditkarte nötig</TimeLabel>
+            <TimeLabel>{t(lang, home.heroTrialNote)}</TimeLabel>
           </p>
         </div>
-        <DayTimeline />
+        <DayTimeline lang={lang} />
       </div>
     </section>
   );
@@ -253,30 +263,23 @@ function Hero() {
 // order, every time), which is the one case this page uses numbered steps
 // for — see the module comment on why that's deliberate rather than
 // decorative.
-const STEPS: { title: string; body: string }[] = [
-  {
-    title: "Läuft automatisch",
-    body: "Login, Wake, Sleep und Bildschirmsperre werden erfasst, sobald du am Rechner bist — ohne dass du etwas anklickst.",
-  },
-  {
-    title: "Du ordnest zu",
-    body: "Erfasste Zeit im Nachhinein einem Projekt oder Kunden zuweisen, in der App oder direkt im Web-Dashboard.",
-  },
-  {
-    title: "Du exportierst",
-    body: "Historie ansehen und den gewählten Zeitraum als CSV exportieren — für Excel, Numbers oder die Buchhaltung.",
-  },
-];
+function steps(lang: Lang): { title: string; body: string }[] {
+  return [
+    { title: t(lang, home.step1Title), body: t(lang, home.step1Body) },
+    { title: t(lang, home.step2Title), body: t(lang, home.step2Body) },
+    { title: t(lang, home.step3Title), body: t(lang, home.step3Body) },
+  ];
+}
 
-function HowItWorks() {
+function HowItWorks({ lang }: { lang: Lang }) {
   return (
     <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          So funktioniert&apos;s
+          {t(lang, home.howItWorksTitle)}
         </h2>
         <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-10">
-          {STEPS.map((step, index) => (
+          {steps(lang).map((step, index) => (
             <div key={step.title}>
               <TimeLabel>{String(index + 1).padStart(2, "0")}</TimeLabel>
               <h3 className="mt-2 text-base font-semibold">{step.title}</h3>
@@ -347,52 +350,29 @@ function IconCheck() {
   );
 }
 
-const FEATURES: {
+function features(lang: Lang): {
   title: string;
   description: string;
   Icon: () => React.JSX.Element;
-}[] = [
-  {
-    Icon: IconClock,
-    title: "Automatisches Tracking",
-    description:
-      "Erfasst Anwesenheit anhand von Login, Wake/Sleep und Bildschirmsperre — kein manuelles Starten oder Stoppen nötig.",
-  },
-  {
-    Icon: IconTag,
-    title: "Projekte",
-    description:
-      "Erfasste Zeit im Nachhinein einzelnen Projekten oder Kunden zuordnen, statt jede Session einzeln zu takten.",
-  },
-  {
-    Icon: IconExport,
-    title: "Historie & Export",
-    description:
-      "Vergangene Tage einsehen und den gewählten Zeitraum als CSV exportieren — passend für Excel, Numbers oder die Buchhaltung.",
-  },
-  {
-    Icon: IconWindow,
-    title: "Web-Dashboard",
-    description:
-      "Heute-Übersicht, Historie, Projekte und Einstellungen auch im Browser abrufbar — mit demselben Account wie in der App.",
-  },
-  {
-    Icon: IconCheck,
-    title: "7 Tage kostenlos testen",
-    description:
-      "Voller Funktionsumfang während der Testphase, danach ein einfaches Abo — jederzeit über die Einstellungen verwaltbar.",
-  },
-];
+}[] {
+  return [
+    { Icon: IconClock, title: t(lang, home.feature1Title), description: t(lang, home.feature1Body) },
+    { Icon: IconTag, title: t(lang, home.feature2Title), description: t(lang, home.feature2Body) },
+    { Icon: IconExport, title: t(lang, home.feature3Title), description: t(lang, home.feature3Body) },
+    { Icon: IconWindow, title: t(lang, home.feature4Title), description: t(lang, home.feature4Body) },
+    { Icon: IconCheck, title: t(lang, home.feature5Title), description: t(lang, home.feature5Body) },
+  ];
+}
 
-function Features() {
+function Features({ lang }: { lang: Lang }) {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Was TimTracker macht
+          {t(lang, home.featuresTitle)}
         </h2>
         <div className="mt-8 grid grid-cols-1 divide-y divide-line border-t border-line sm:grid-cols-2">
-          {FEATURES.map(({ title, description, Icon }, index) => (
+          {features(lang).map(({ title, description, Icon }, index) => (
             <div
               key={title}
               className={`flex gap-4 py-6 sm:px-6 sm:py-7 ${
@@ -416,29 +396,19 @@ function Features() {
   );
 }
 
-const NARRATIVE_SECTIONS: { tag: string; heading: string; body: string }[] = [
-  {
-    tag: "Für wen",
-    heading: "Gebaut für Freelancer und Entwickler, die das Tracken vergessen",
-    body: "Ein manueller Timer wird im Arbeitsalltag zuverlässig vergessen — beim Kunden-Call, beim Debuggen, beim Wechsel zwischen Projekten. TimTracker setzt deshalb nicht auf Disziplin, sondern erfasst Anwesenheit automatisch im Hintergrund, sobald du am Rechner bist.",
-  },
-  {
-    tag: "Ehrlich",
-    heading: "Automatik zuerst, Zuordnung im Nachhinein",
-    body: "Erfasst wird zunächst nur Anwesenheitszeit, keine App- oder Website-Nutzung. Welchem Projekt diese Zeit gehört, ordnest du danach zu — in der App oder direkt hier im Dashboard.",
-  },
-  {
-    tag: "Plattformübergreifend",
-    heading: "Ein Account, App und Web",
-    body: "Login, Historie und Projekte sind zwischen der macOS-App (Windows in Arbeit) und diesem Web-Dashboard synchron — derselbe Account, dieselben Daten, egal von wo du gerade draufschaust.",
-  },
-];
+function narrativeSections(lang: Lang): { tag: string; heading: string; body: string }[] {
+  return [
+    { tag: t(lang, home.narrativeTag1), heading: t(lang, home.narrativeHeading1), body: t(lang, home.narrativeBody1) },
+    { tag: t(lang, home.narrativeTag2), heading: t(lang, home.narrativeHeading2), body: t(lang, home.narrativeBody2) },
+    { tag: t(lang, home.narrativeTag3), heading: t(lang, home.narrativeHeading3), body: t(lang, home.narrativeBody3) },
+  ];
+}
 
-function Narrative() {
+function Narrative({ lang }: { lang: Lang }) {
   return (
     <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-12">
-        {NARRATIVE_SECTIONS.map((section) => (
+        {narrativeSections(lang).map((section) => (
           <div
             key={section.tag}
             className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_2fr] sm:gap-8"
@@ -471,7 +441,7 @@ function currentYear(): number {
   return new Date().getFullYear();
 }
 
-function SiteFooter() {
+function SiteFooter({ lang }: { lang: Lang }) {
   return (
     <footer className="border-t border-line px-4 py-10 sm:px-6">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
@@ -481,16 +451,15 @@ function SiteFooter() {
             TimTracker
           </p>
           <p className="mt-1.5 max-w-sm text-sm text-foreground/60">
-            Fragen zu deinem Account? Erreichbar über die Support-Adresse in
-            deiner Bestätigungs-E-Mail.
+            {t(lang, home.footerSupport)}
           </p>
         </div>
         <div className="flex items-center gap-5 text-sm">
           <Link href="/login" className="text-foreground/70 hover:text-foreground">
-            Anmelden
+            {t(lang, home.navSignIn)}
           </Link>
           <Link href="/register" className="text-foreground/70 hover:text-foreground">
-            Registrieren
+            {t(lang, home.navSignUp)}
           </Link>
         </div>
       </div>

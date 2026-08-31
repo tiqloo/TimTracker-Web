@@ -1,9 +1,12 @@
+import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { listProjects } from "@/lib/application/projects";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { ProjectsClient } from "@/components/ProjectsClient";
 import { AccessGate } from "@/components/AccessGate";
+import { projects as i18nProjects, t } from "@/lib/i18n";
 
 // "Projekte" — full CRUD (create, rename, archive/unarchive), not
 // read-only. This is explicitly the point where the web app goes beyond
@@ -21,20 +24,24 @@ import { AccessGate } from "@/components/AccessGate";
 // than server actions/route handlers.
 export default async function ProjectsPage() {
   const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
 
   // Same access gate as "Heute"/"Historie" — reused verbatim, not
   // reimplemented.
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return <AccessGate title="Projekte" status={subscription.status} />;
+    return (
+      <AccessGate title={t(lang, i18nProjects.pageTitle)} status={subscription.status} lang={lang} />
+    );
   }
 
   const projects = await listProjects(repos);
 
   return (
     <main className="flex flex-col gap-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Projekte</h1>
-      <ProjectsClient initialProjects={projects} />
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, i18nProjects.pageTitle)}</h1>
+      <ProjectsClient initialProjects={projects} lang={lang} />
     </main>
   );
 }

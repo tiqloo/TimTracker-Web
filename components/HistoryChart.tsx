@@ -31,6 +31,13 @@
 // it's empty" visually distinct from "there is no data point here".
 import type { ChartBar, ChartGranularity } from "@/lib/format";
 import { formatDuration } from "@/lib/format";
+import {
+  historyChart,
+  historyChartAriaLabel,
+  historyChartTooltip,
+  t,
+  type Lang,
+} from "@/lib/i18n";
 
 const CHART_HEIGHT = 160;
 const BAR_WIDTH = 18;
@@ -48,9 +55,11 @@ const MAX_VISIBLE_LABELS = 20;
 export function HistoryChart({
   bars,
   granularity,
+  lang,
 }: {
   bars: ChartBar[];
   granularity: ChartGranularity;
+  lang: Lang;
 }) {
   if (bars.length === 0) return null;
 
@@ -62,19 +71,17 @@ export function HistoryChart({
   return (
     <div className="rounded-xl border border-line p-4">
       <div className="mb-3 flex items-center gap-4 font-mono text-xs text-foreground/60">
-        <Legend swatchClassName="bg-chart-standard" label="Automatikzeit" />
-        <Legend swatchClassName="bg-chart-project" label="Projektzeit" />
+        <Legend swatchClassName="bg-chart-standard" label={t(lang, historyChart.automaticTime)} />
+        <Legend swatchClassName="bg-chart-project" label={t(lang, historyChart.projectTime)} />
         <span className="ml-auto">
-          {granularity === "day" ? "Tageswerte" : "Monatswerte (aggregiert)"}
+          {granularity === "day" ? t(lang, historyChart.dailyValues) : t(lang, historyChart.monthlyValues)}
         </span>
       </div>
 
       <div className="overflow-x-auto">
         <svg
           role="img"
-          aria-label={`Balkendiagramm Automatikzeit vs. Projektzeit, ${
-            granularity === "day" ? "pro Tag" : "pro Monat"
-          }`}
+          aria-label={historyChartAriaLabel(lang, granularity)}
           width={svgWidth}
           height={CHART_HEIGHT + 20}
           viewBox={`0 0 ${svgWidth} ${CHART_HEIGHT + 20}`}
@@ -97,9 +104,12 @@ export function HistoryChart({
             const hasBothSegments = bar.standardSeconds > 0 && bar.projectSeconds > 0;
             const gap = hasBothSegments ? SEGMENT_GAP : 0;
 
-            const tooltip = `${bar.label}: Automatik ${formatDuration(
-              bar.standardSeconds,
-            )}, Projekt ${formatDuration(bar.projectSeconds)}`;
+            const tooltip = historyChartTooltip(
+              lang,
+              bar.label,
+              formatDuration(bar.standardSeconds),
+              formatDuration(bar.projectSeconds),
+            );
 
             return (
               <g key={bar.key}>

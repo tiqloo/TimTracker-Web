@@ -6,19 +6,17 @@
 // Locale.preferredLanguages); "de"/"en" are explicit, persisted overrides
 // that always win once set.
 //
-// SCOPE NOTE (Ticket 018, Phase 1e): this is the language SETTING only —
-// storage, resolution, <html lang>, and this app's own new date/number
-// formatting. It deliberately does NOT translate the existing German-only
-// UI strings across app/(dashboard)/* and app/(auth)/* (15+ pages built in
-// Phases 1a-1d). Full bilingual UI text is a separate, much larger
-// undertaking (every string in every page would need an EN variant plus a
-// lookup mechanism, mirroring Resources/Localizable.xcstrings on the
-// native side) that was explicitly out of scope for "implement the
-// settings page" — see the Phase 1e section of
-// TimTracker-Starter/docs/tickets/018-account-website.md for the full
-// reasoning. What IS real here: the preference is stored, visible, and
-// drives the actual <html lang> attribute (app/layout.tsx) and this
-// phase's own date formatting (Settings/Billing pages) via Intl.
+// This is the language SETTING itself — storage and resolution to a
+// concrete "de" | "en" code. It drives <html lang> (app/layout.tsx),
+// Intl-based date/number formatting (lib/format.ts), AND, as of Ticket
+// 022, the actual translated UI text across every page/component (see
+// lib/i18n.ts — a small own key-value dictionary, deliberately not a
+// dependency like next-intl, resolved server-side the same
+// getEffectiveLanguageCode() way everywhere). Formerly (Ticket 018, Phase
+// 1e) this file's SCOPE NOTE documented UI text as an explicit, known gap
+// — Ticket 022 closed it; see lib/i18n.ts's own module comment for the
+// full reasoning and Resources/Localizable.xcstrings for the native-app
+// terminology it stays consistent with.
 export type AppLanguage = "system" | "de" | "en";
 
 export const APP_LANGUAGES: AppLanguage[] = ["system", "de", "en"];

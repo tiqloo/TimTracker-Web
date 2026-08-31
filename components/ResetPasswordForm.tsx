@@ -1,0 +1,188 @@
+"use client";
+
+// Interactive half of "Passwort zurücksetzen" / "Neues Passwort setzen" —
+// split out of app/(auth)/reset-password/page.tsx (Ticket 022), same
+// reasoning as components/LoginForm.tsx's module comment.
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  onAuthStateChange,
+  requestPasswordReset,
+  updatePassword,
+} from "@/lib/application/auth";
+import { getRepositories } from "@/lib/application/client";
+import {
+  AuthCard,
+  authButtonClass,
+  authErrorClass,
+  authInputClass,
+  authSuccessClass,
+} from "@/components/AuthCard";
+import { common, resetPassword as i18n, t, type Lang } from "@/lib/i18n";
+
+// This page (closing Ticket 009's last gap, per TimTracker-Starter) has
+// two jobs depending on how it's reached:
+//  a) Directly, e.g. from the "Passwort vergessen?" link on /login — show
+//     a form asking for an email, then a generic anti-enumeration success
+//     message (never confirms/denies whether that address is registered).
+//  b) Via the actual link from the reset email — Supabase's browser
+//     client establishes a temporary recovery session and fires a
+//     PASSWORD_RECOVERY auth event, which is the ONLY reliable way to
+//     detect this case (there's no query param to read — Supabase's
+//     tokens are consumed automatically into a session before this code
+//     ever runs). Switch to a "set new password" form when that fires.
+type Mode = "requestReset" | "setNewPassword";
+
+export function ResetPasswordForm({ lang }: { lang: Lang }) {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("requestReset");
+
+  useEffect(() => {
+    const repos = getRepositories();
+    const unsubscribe = onAuthStateChange(repos, (event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setMode("setNewPassword");
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // --- Mode a: request a reset link ---
+  const [email, setEmail] = useState("");
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
+  const [requestPending, setRequestPending] = useState(false);
+
+  async function handleRequestSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setRequestError(null);
+    setRequestPending(true);
+    try {
+      const repos = getRepositories();
+      await requestPasswordReset(repos, email);
+      // Always the same message on success, regardless of whether the
+      // address is actually registered — Supabase's API itself already
+      // behaves this way (verified against the real backend on
+      // 2026-08-25: an unknown address gets an identical 200 response).
+      setRequestSent(true);
+    } catch (err) {
+      // A genuine error here (rate limit, network, malformed address)
+      // doesn't leak whether the email exists, so it's safe to show
+      // as-is — only the SUCCESS path is deliberately made generic.
+      setRequestError(err instanceof Error ? err.message : t(lang, i18n.requestGenericError));
+    } finally {
+      setRequestPending(false);
+    }
+  }
+
+  // --- Mode b: set a new password ---
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updatePending, setUpdatePending] = useState(false);
+
+  async function handleUpdateSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUpdateError(null);
+
+    if (newPassword !== confirmNewPassword) {
+      setUpdateError(t(lang, i18n.passwordMismatchError));
+      return;
+    }
+
+    setUpdatePending(true);
+    try {
+      const repos = getRepositories();
+      await updatePassword(repos, newPassword);
+      // Supabase's recovery session becomes a normal authenticated
+      // session once the password is updated — go straight to the
+      // dashboard, same as a successful login. Old sessions/tokens are
+      // invalidated server-side by Supabase (already confirmed for the
+      // native apps, Ticket 009).
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : t(lang, i18n.updateGenericError));
+      setUpdatePending(false);
+    }
+  }
+
+  if (mode === "setNewPassword") {
+    return (
+      <AuthCard title={t(lang, i18n.setNewTitle)}>
+        <form onSubmit={handleUpdateSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="newPassword" className="text-sm font-medium">
+              {t(lang, i18n.newPassword)}
+            </label>
+            <input
+              id="newPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              disabled={updatePending}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={authInputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="confirmNewPassword" className="text-sm font-medium">
+              {t(lang, i18n.newPasswordConfirm)}
+            </label>
+            <input
+              id="confirmNewPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              disabled={updatePending}
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              className={authInputClass}
+            />
+          </div>
+          {updateError && <p className={authErrorClass}>{updateError}</p>}
+          <button type="submit" disabled={updatePending} className={authButtonClass}>
+            {updatePending ? t(lang, i18n.savingPassword) : t(lang, i18n.savePassword)}
+          </button>
+        </form>
+      </AuthCard>
+    );
+  }
+
+  return (
+    <AuthCard title={t(lang, i18n.requestTitle)}>
+      {requestSent ? (
+        <p className={authSuccessClass}>{t(lang, i18n.requestSuccess)}</p>
+      ) : (
+        <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="email" className="text-sm font-medium">
+              {t(lang, common.email)}
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              disabled={requestPending}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={authInputClass}
+            />
+          </div>
+          {requestError && <p className={authErrorClass}>{requestError}</p>}
+          <button type="submit" disabled={requestPending} className={authButtonClass}>
+            {requestPending ? t(lang, i18n.sending) : t(lang, i18n.sendLink)}
+          </button>
+        </form>
+      )}
+      <p className="mt-6 text-sm">
+        <Link href="/login" className="underline">
+          {t(lang, i18n.backToLogin)}
+        </Link>
+      </p>
+    </AuthCard>
+  );
+}

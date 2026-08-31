@@ -18,12 +18,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
+import { nav, t, type Lang, type Translated } from "@/lib/i18n";
 
-const NAV_LINKS = [
-  { href: "/dashboard", label: "Heute" },
-  { href: "/dashboard/history", label: "Historie" },
-  { href: "/dashboard/projects", label: "Projekte" },
-  { href: "/dashboard/settings", label: "Einstellungen" },
+const NAV_LINKS: { href: string; label: Translated }[] = [
+  { href: "/dashboard", label: nav.today },
+  { href: "/dashboard/history", label: nav.history },
+  { href: "/dashboard/projects", label: nav.projects },
+  { href: "/dashboard/settings", label: nav.settings },
 ];
 
 function Mark() {
@@ -41,7 +42,7 @@ function Mark() {
   );
 }
 
-export function DashboardNav() {
+export function DashboardNav({ lang }: { lang: Lang }) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
@@ -83,7 +84,7 @@ export function DashboardNav() {
                       : "text-foreground/60 hover:text-foreground"
                   }`}
                 >
-                  {link.label}
+                  {t(lang, link.label)}
                 </Link>
               );
             })}
@@ -95,7 +96,7 @@ export function DashboardNav() {
           disabled={pending}
           className="text-sm text-foreground/70 hover:text-foreground disabled:opacity-50"
         >
-          {pending ? "Wird abgemeldet…" : "Logout"}
+          {pending ? t(lang, nav.loggingOut) : t(lang, nav.logout)}
         </button>
       </div>
     </header>

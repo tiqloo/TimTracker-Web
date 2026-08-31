@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getTodayBreakdown, getTodayEntries } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
+import { dayDetail, t, today } from "@/lib/i18n";
 
 // Wrapped so eslint's react-hooks/purity rule (which flags a direct
 // Date.now() call anywhere in a component body, Server Components
@@ -24,12 +27,14 @@ function currentTimeMs(): number {
 // stays in DailyBreakdown (lib/domain/time-entry.ts), not reimplemented.
 export default async function TodayPage() {
   const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
 
   // Access gate: mirrors the RLS policy via canUseApp() (see
   // lib/domain/subscription.ts).
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return <AccessGate title="Heute" status={subscription.status} />;
+    return <AccessGate title={t(lang, today.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
   const [breakdown, entries] = await Promise.all([
@@ -40,17 +45,18 @@ export default async function TodayPage() {
 
   return (
     <main className="flex flex-col gap-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Heute</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, today.pageTitle)}</h1>
 
       <DayDetail
         breakdown={breakdown}
         entries={entries}
         nowMs={nowMs}
-        emptyMessage="Noch keine Zeiteinträge für heute."
+        emptyMessage={t(lang, dayDetail.noEntriesToday)}
+        lang={lang}
       />
 
       <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
-        Zur Historie →
+        {t(lang, today.goToHistory)}
       </Link>
     </main>
   );

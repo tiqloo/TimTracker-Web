@@ -26,6 +26,7 @@ import {
   suggestedProjectColor,
   type Project,
 } from "@/lib/domain/project";
+import { common, projects as i18nProjects, t, type Lang } from "@/lib/i18n";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -55,13 +56,15 @@ function ColorPicker({
   value,
   onChange,
   disabled,
+  lang,
 }: {
   value: string;
   onChange: (colorHex: string) => void;
   disabled?: boolean;
+  lang: Lang;
 }) {
   return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Farbe">
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t(lang, common.color)}>
       {PROJECT_COLOR_PALETTE.map((colorHex) => (
         <button
           key={colorHex}
@@ -83,7 +86,13 @@ function ColorPicker({
   );
 }
 
-export function ProjectsClient({ initialProjects }: { initialProjects: Project[] }) {
+export function ProjectsClient({
+  initialProjects,
+  lang,
+}: {
+  initialProjects: Project[];
+  lang: Lang;
+}) {
   const [projects, setProjects] = useState(initialProjects);
   const active = projects.filter((project) => !project.isArchived);
   const archived = projects.filter((project) => project.isArchived);
@@ -93,12 +102,15 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
       <CreateProjectForm
         projects={projects}
         onCreated={(project) => setProjects((prev) => [project, ...prev])}
+        lang={lang}
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-foreground/70">Aktive Projekte</h2>
+        <h2 className="text-sm font-medium text-foreground/70">
+          {t(lang, i18nProjects.activeProjects)}
+        </h2>
         {active.length === 0 ? (
-          <p className="text-sm text-foreground/60">Noch keine Projekte angelegt.</p>
+          <p className="text-sm text-foreground/60">{t(lang, i18nProjects.noProjectsYet)}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-line border-t border-line">
             {active.map((project) => (
@@ -111,6 +123,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
                     prev.map((p) => (p.id === updated.id ? updated : p)),
                   )
                 }
+                lang={lang}
               />
             ))}
           </ul>
@@ -119,7 +132,9 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
 
       {archived.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-foreground/70">Archivierte Projekte</h2>
+          <h2 className="text-sm font-medium text-foreground/70">
+            {t(lang, i18nProjects.archivedProjects)}
+          </h2>
           <ul className="flex flex-col divide-y divide-line border-t border-line opacity-60">
             {archived.map((project) => (
               <ProjectRow
@@ -131,6 +146,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
                     prev.map((p) => (p.id === updated.id ? updated : p)),
                   )
                 }
+                lang={lang}
               />
             ))}
           </ul>
@@ -143,9 +159,11 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
 function CreateProjectForm({
   projects,
   onCreated,
+  lang,
 }: {
   projects: Project[];
   onCreated: (project: Project) => void;
+  lang: Lang;
 }) {
   const [name, setName] = useState("");
   const [customer, setCustomer] = useState("");
@@ -170,7 +188,7 @@ function CreateProjectForm({
     setError(null);
 
     if (!trimmedName) {
-      setError("Projektname darf nicht leer sein.");
+      setError(t(lang, i18nProjects.nameRequiredError));
       return;
     }
 
@@ -189,7 +207,7 @@ function CreateProjectForm({
       setNotes("");
       setColorHex(suggestedProjectColor(projects.length + 1));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Projekt konnte nicht angelegt werden.");
+      setError(err instanceof Error ? err.message : t(lang, i18nProjects.createError));
     } finally {
       setPending(false);
     }
@@ -200,10 +218,10 @@ function CreateProjectForm({
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 rounded-xl border border-line p-5"
     >
-      <h2 className="text-sm font-medium text-foreground/70">Neues Projekt</h2>
+      <h2 className="text-sm font-medium text-foreground/70">{t(lang, i18nProjects.newProject)}</h2>
       <div className="flex flex-col gap-1">
         <label htmlFor="new-project-name" className="text-sm font-medium">
-          Name
+          {t(lang, common.name)}
         </label>
         <input
           id="new-project-name"
@@ -215,15 +233,12 @@ function CreateProjectForm({
           className={inputClass}
         />
         {duplicateWarning && (
-          <p className={warningClass}>
-            Ein Projekt mit diesem Namen existiert bereits — Anlegen ist trotzdem
-            möglich (z. B. für unterschiedliche Kunden).
-          </p>
+          <p className={warningClass}>{t(lang, i18nProjects.createDuplicateWarning)}</p>
         )}
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor="new-project-customer" className="text-sm font-medium">
-          Kunde (optional)
+          {t(lang, i18nProjects.customerOptional)}
         </label>
         <input
           id="new-project-customer"
@@ -236,7 +251,7 @@ function CreateProjectForm({
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor="new-project-notes" className="text-sm font-medium">
-          Notiz (optional)
+          {t(lang, i18nProjects.noteOptional)}
         </label>
         <textarea
           id="new-project-notes"
@@ -248,13 +263,13 @@ function CreateProjectForm({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Farbe</span>
-        <ColorPicker value={colorHex} onChange={setColorHex} disabled={pending} />
+        <span className="text-sm font-medium">{t(lang, common.color)}</span>
+        <ColorPicker value={colorHex} onChange={setColorHex} disabled={pending} lang={lang} />
       </div>
       {error && <p className={errorClass}>{error}</p>}
       <div>
         <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? "Wird angelegt…" : "Projekt anlegen"}
+          {pending ? t(lang, i18nProjects.creating) : t(lang, i18nProjects.createProject)}
         </button>
       </div>
     </form>
@@ -265,10 +280,12 @@ function ProjectRow({
   project,
   allProjects,
   onChanged,
+  lang,
 }: {
   project: Project;
   allProjects: Project[];
   onChanged: (project: Project) => void;
+  lang: Lang;
 }) {
   const [editing, setEditing] = useState(false);
   const [archivePending, setArchivePending] = useState(false);
@@ -284,7 +301,7 @@ function ProjectRow({
       onChanged({ ...project, isArchived: nextArchived });
     } catch (err) {
       setArchiveError(
-        err instanceof Error ? err.message : "Status konnte nicht geändert werden.",
+        err instanceof Error ? err.message : t(lang, i18nProjects.archiveToggleError),
       );
     } finally {
       setArchivePending(false);
@@ -302,6 +319,7 @@ function ProjectRow({
             setEditing(false);
           }}
           onCancel={() => setEditing(false)}
+          lang={lang}
         />
       </li>
     );
@@ -317,7 +335,7 @@ function ProjectRow({
               {project.name}
               {project.isArchived && (
                 <span className="ml-2 rounded bg-paper px-1.5 py-0.5 text-xs font-normal text-foreground/60">
-                  Archiviert
+                  {t(lang, i18nProjects.archived)}
                 </span>
               )}
             </p>
@@ -328,7 +346,7 @@ function ProjectRow({
         </div>
         <div className="flex shrink-0 gap-2">
           <button type="button" onClick={() => setEditing(true)} className={buttonClass}>
-            Bearbeiten
+            {t(lang, i18nProjects.edit)}
           </button>
           <button
             type="button"
@@ -339,8 +357,8 @@ function ProjectRow({
             {archivePending
               ? "…"
               : project.isArchived
-                ? "Reaktivieren"
-                : "Archivieren"}
+                ? t(lang, i18nProjects.reactivate)
+                : t(lang, i18nProjects.archive)}
           </button>
         </div>
       </div>
@@ -361,11 +379,13 @@ function EditProjectForm({
   allProjects,
   onSaved,
   onCancel,
+  lang,
 }: {
   project: Project;
   allProjects: Project[];
   onSaved: (project: Project) => void;
   onCancel: () => void;
+  lang: Lang;
 }) {
   const [name, setName] = useState(project.name);
   const [notes, setNotes] = useState(project.notes);
@@ -382,7 +402,7 @@ function EditProjectForm({
     setError(null);
 
     if (!trimmedName) {
-      setError("Projektname darf nicht leer sein.");
+      setError(t(lang, i18nProjects.nameRequiredError));
       return;
     }
 
@@ -392,7 +412,7 @@ function EditProjectForm({
       const updated = await renameProject(repos, project.id, trimmedName, notes.trim());
       onSaved(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Projekt konnte nicht gespeichert werden.");
+      setError(err instanceof Error ? err.message : t(lang, i18nProjects.saveError));
     } finally {
       setPending(false);
     }
@@ -402,7 +422,7 @@ function EditProjectForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <label htmlFor={`edit-name-${project.id}`} className="text-sm font-medium">
-          Name
+          {t(lang, common.name)}
         </label>
         <input
           id={`edit-name-${project.id}`}
@@ -414,15 +434,12 @@ function EditProjectForm({
           className={inputClass}
         />
         {duplicateWarning && (
-          <p className={warningClass}>
-            Ein Projekt mit diesem Namen existiert bereits — Speichern ist trotzdem
-            möglich (z. B. für unterschiedliche Kunden).
-          </p>
+          <p className={warningClass}>{t(lang, i18nProjects.editDuplicateWarning)}</p>
         )}
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor={`edit-notes-${project.id}`} className="text-sm font-medium">
-          Notiz
+          {t(lang, common.note)}
         </label>
         <textarea
           id={`edit-notes-${project.id}`}
@@ -436,7 +453,7 @@ function EditProjectForm({
       {error && <p className={errorClass}>{error}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={primaryButtonClass}>
-          {pending ? "Wird gespeichert…" : "Speichern"}
+          {pending ? t(lang, common.saving) : t(lang, common.save)}
         </button>
         <button
           type="button"
@@ -444,7 +461,7 @@ function EditProjectForm({
           disabled={pending}
           className={buttonClass}
         >
-          Abbrechen
+          {t(lang, common.cancel)}
         </button>
       </div>
     </form>

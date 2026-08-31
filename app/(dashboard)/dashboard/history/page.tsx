@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getHistory, isoToday } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { languageCodeToLocale } from "@/lib/domain/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import {
   addDaysIso,
@@ -16,6 +19,7 @@ import {
 } from "@/lib/format";
 import { HistoryChart } from "@/components/HistoryChart";
 import { AccessGate } from "@/components/AccessGate";
+import { history, t, type Translated } from "@/lib/i18n";
 
 // "Historie" — flat list of past days for a selectable period, plus CSV
 // export of the same period. Mirrors HistoryLogView.swift: flat rows, no
@@ -28,12 +32,15 @@ export default async function HistoryPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  const locale = languageCodeToLocale(lang);
 
   // Same access gate as "Heute" (app/(dashboard)/page.tsx) — reused
   // verbatim, not reimplemented.
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    return <AccessGate title="Historie" status={subscription.status} />;
+    return <AccessGate title={t(lang, history.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
   const today = isoToday();
@@ -51,33 +58,33 @@ export default async function HistoryPage({
   const granularity = resolveChartGranularity(from, to);
   const chartBars = buildChartBars(breakdowns, from, to, granularity);
 
-  const presets = [
-    { label: "Letzte 30 Tage", from: addDaysIso(today, -29), to: today },
-    { label: "Diese Woche", from: startOfWeekIso(today), to: today },
-    { label: "Dieser Monat", from: startOfMonthIso(today), to: today },
-    { label: "Dieses Jahr", from: startOfYearIso(today), to: today },
+  const presets: { label: Translated; from: string; to: string }[] = [
+    { label: history.last30Days, from: addDaysIso(today, -29), to: today },
+    { label: history.thisWeek, from: startOfWeekIso(today), to: today },
+    { label: history.thisMonth, from: startOfMonthIso(today), to: today },
+    { label: history.thisYear, from: startOfYearIso(today), to: today },
   ];
 
   return (
     <main className="flex flex-col gap-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Historie</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, history.pageTitle)}</h1>
 
       <div className="flex flex-wrap items-center gap-4">
         <nav className="flex flex-wrap gap-1">
           {presets.map((preset) => (
             <Link
-              key={preset.label}
+              key={preset.label.de}
               href={`/dashboard/history?from=${preset.from}&to=${preset.to}`}
               className="rounded-md px-2.5 py-1 text-sm text-foreground/70 hover:text-foreground"
             >
-              {preset.label}
+              {t(lang, preset.label)}
             </Link>
           ))}
         </nav>
 
         <form action="/dashboard/history" className="flex flex-wrap items-end gap-2 text-sm">
           <label className="flex flex-col gap-1">
-            Von
+            {t(lang, history.from)}
             <input
               type="date"
               name="from"
@@ -86,7 +93,7 @@ export default async function HistoryPage({
             />
           </label>
           <label className="flex flex-col gap-1">
-            Bis
+            {t(lang, history.to)}
             <input
               type="date"
               name="to"
@@ -95,7 +102,7 @@ export default async function HistoryPage({
             />
           </label>
           <button type="submit" className="rounded-md border border-line px-3 py-1">
-            Anwenden
+            {t(lang, history.apply)}
           </button>
         </form>
 
@@ -103,26 +110,26 @@ export default async function HistoryPage({
           href={`/dashboard/history/export?from=${from}&to=${to}`}
           className="text-sm text-foreground/70 hover:text-foreground"
         >
-          Als CSV exportieren
+          {t(lang, history.exportCsv)}
         </a>
         <a
           href={`/dashboard/history/export/pdf?from=${from}&to=${to}`}
           className="text-sm text-foreground/70 hover:text-foreground"
         >
-          Als PDF exportieren
+          {t(lang, history.exportPdf)}
         </a>
       </div>
 
       <p>
         <span className="font-mono text-xs tabular-nums text-foreground/50">
-          {formatDayLabel(from)} – {formatDayLabel(to)}
+          {formatDayLabel(from, locale)} – {formatDayLabel(to, locale)}
         </span>
       </p>
 
-      <HistoryChart bars={chartBars} granularity={granularity} />
+      <HistoryChart bars={chartBars} granularity={granularity} lang={lang} />
 
       {days.length === 0 ? (
-        <p className="text-sm text-foreground/60">Keine Aktivität in diesem Zeitraum.</p>
+        <p className="text-sm text-foreground/60">{t(lang, history.noActivity)}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-line border-t border-line">
           {days.map((day) => (
@@ -131,11 +138,11 @@ export default async function HistoryPage({
                 href={`/dashboard/history/${day.day}`}
                 className="flex items-center justify-between gap-4 py-3 text-sm hover:bg-paper"
               >
-                <span className="w-36 shrink-0">{formatDayLabel(day.day)}</span>
+                <span className="w-36 shrink-0">{formatDayLabel(day.day, locale)}</span>
                 <span className="flex flex-1 justify-end gap-6 font-mono tabular-nums text-foreground/70">
-                  <DayValue label="Automatik" seconds={day.standardSeconds} />
-                  <DayValue label="Projekt" seconds={day.projectSeconds} />
-                  <DayValue label="Nicht zugeordnet" seconds={day.unassignedSeconds} />
+                  <DayValue label={t(lang, history.automatic)} seconds={day.standardSeconds} />
+                  <DayValue label={t(lang, history.project)} seconds={day.projectSeconds} />
+                  <DayValue label={t(lang, history.unassigned)} seconds={day.unassignedSeconds} />
                 </span>
               </Link>
             </li>
