@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuthChangeEvent, AuthRepository } from "../auth.repository";
+import { invokeAuthenticated } from "./invoke-authenticated";
 
 export function createSupabaseAuthRepository(
   client: SupabaseClient,
@@ -79,7 +80,13 @@ export function createSupabaseAuthRepository(
       // success; functions.invoke() surfaces a non-2xx response as
       // `error` rather than throwing itself, so it must be checked
       // explicitly like every other Supabase call in this file.
-      const { error } = await client.functions.invoke("delete-account");
+      //
+      // invokeAuthenticated(), not client.functions.invoke() directly —
+      // see that helper's own comment: SupabaseClient.functions sends a
+      // static publishable-key bearer token by default, never the
+      // signed-in user's JWT, which this auth:"user"-gated function
+      // rejects with a 401 that looks like an auth bug but isn't one.
+      const { error } = await invokeAuthenticated(client, "delete-account");
       if (error) throw error;
     },
   };

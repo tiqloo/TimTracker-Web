@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubscriptionRepository } from "../subscription.repository";
 import type { Subscription, SubscriptionStatus } from "@/lib/domain/subscription";
+import { invokeAuthenticated } from "./invoke-authenticated";
 
 interface SubscriptionRow {
   status: SubscriptionStatus;
@@ -32,7 +33,16 @@ export function createSupabaseSubscriptionRepository(
       // Calls the SAME create-portal-session Edge Function already
       // deployed for Ticket 007 (supabase/functions/create-portal-session
       // in TimTracker-Starter) — no new backend endpoint for this.
-      const { data, error } = await client.functions.invoke<{ url: string }>(
+      //
+      // invokeAuthenticated(), not client.functions.invoke() directly —
+      // see that helper's own comment: SupabaseClient.functions sends a
+      // static publishable-key bearer token by default, never the
+      // signed-in user's JWT, which this auth:"user"-gated function
+      // rejects with a 401 that looks like an auth bug but isn't one
+      // (real production incident, 2026-08-31, see
+      // docs/audit-findings.md in TimTracker-Starter).
+      const { data, error } = await invokeAuthenticated<{ url: string }>(
+        client,
         "create-portal-session",
       );
       if (error) throw error;
