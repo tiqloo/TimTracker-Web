@@ -100,3 +100,22 @@ export async function changeEmail(
 ): Promise<void> {
   return repos.auth.changeEmail(newEmail.trim(), currentPassword);
 }
+
+// Ticket 026 (TimTracker-Starter repo) — "Passwort ändern" action in the
+// Profil section, the logged-in counterpart to the existing
+// updatePassword() use-case above (which only runs inside a password-
+// recovery session). Deliberately does NOT trim either password argument
+// (unlike changeEmail's email above) — a password is an opaque secret, not
+// user-facing text to normalize, and trimming could silently turn a
+// deliberately-chosen leading/trailing-space password into a different one.
+// New/confirm matching is validated client-side before this is ever called
+// (see components/SettingsClient.tsx's PasswordChangeAction) — the re-auth
+// check and the actual update are the business logic that belongs on the
+// port, see lib/repositories/auth.repository.ts#changePassword's own doc.
+export async function changePassword(
+  repos: Repositories,
+  newPassword: string,
+  currentPassword: string,
+): Promise<void> {
+  return repos.auth.changePassword(newPassword, currentPassword);
+}

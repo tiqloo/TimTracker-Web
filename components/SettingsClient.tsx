@@ -14,6 +14,7 @@ import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
 import {
   changeEmail,
+  changePassword,
   deleteAccount,
   logout,
   updateDisplayName,
@@ -154,6 +155,7 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
         </div>
       </dl>
       <EmailChangeAction profile={profile} lang={lang} />
+      <PasswordChangeAction lang={lang} />
     </section>
   );
 }
@@ -287,6 +289,159 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
       {sentTo && !changing && (
         <p className="text-sm text-foreground/70">
           {emailChangeSuccessMessage(lang, sentTo.oldEmail, sentTo.newEmail)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// "Passwort ändern" (Ticket 026, TimTracker-Starter repo — final ticket in
+// the "Profil verwalten" series). Same two-step-reveal convention and own-
+// state-per-action shape as EmailChangeAction just above (a button first,
+// the form only after it's clicked, its own state so it doesn't tangle with
+// the other forms in this section).
+//
+// Unlike EmailChangeAction, a successful change here takes effect
+// immediately (no email confirmation step) and the AK explicitly requires
+// no forced logout — Supabase's own updateUser({ password }) keeps the
+// current session valid, which is left as-is rather than "fixed". The form
+// collapses back to the button + a plain success message on success, same
+// shape as EmailChangeAction's sentTo confirmation.
+function PasswordChangeAction({ lang }: { lang: Lang }) {
+  const [changing, setChanging] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [succeeded, setSucceeded] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    // Client-side only, no server roundtrip for this case — AK requirement.
+    if (newPassword !== confirmNewPassword) {
+      setError(t(lang, i18nProfile.passwordChangeMismatchError));
+      return;
+    }
+
+    setPending(true);
+    try {
+      const repos = getRepositories();
+      await changePassword(repos, newPassword, currentPassword);
+      setSucceeded(true);
+      setChanging(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err) {
+      // Same re-auth error type changeEmail() throws — see
+      // ReauthenticationFailedError's own comment for why it's shared
+      // rather than a second, near-identical type. Any current-password
+      // failure here is deliberately non-blocking otherwise: no logout, no
+      // client-side retry limit (Supabase's own rate-limiting on
+      // signInWithPassword is sufficient per the ticket's AK).
+      if (err instanceof ReauthenticationFailedError) {
+        setError(t(lang, i18nProfile.passwordChangeWrongPasswordError));
+      } else {
+        setError(t(lang, i18nProfile.passwordChangeGenericError));
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-4">
+      {!changing ? (
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setChanging(true);
+              setError(null);
+              setSucceeded(false);
+            }}
+            className={buttonClass}
+          >
+            {t(lang, i18nProfile.passwordChangeButton)}
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="password-change-current" className="text-sm font-medium">
+              {t(lang, i18nProfile.passwordChangeCurrentPasswordLabel)}
+            </label>
+            <input
+              id="password-change-current"
+              type="password"
+              autoComplete="current-password"
+              required
+              disabled={pending}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="password-change-new" className="text-sm font-medium">
+              {t(lang, i18nProfile.passwordChangeNewPasswordLabel)}
+            </label>
+            <input
+              id="password-change-new"
+              type="password"
+              autoComplete="new-password"
+              required
+              disabled={pending}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="password-change-confirm" className="text-sm font-medium">
+              {t(lang, i18nProfile.passwordChangeConfirmLabel)}
+            </label>
+            <input
+              id="password-change-confirm"
+              type="password"
+              autoComplete="new-password"
+              required
+              disabled={pending}
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          {error && <p className={errorClass}>{error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={pending} className={primaryButtonClass}>
+              {pending
+                ? t(lang, i18nProfile.passwordChangeSending)
+                : t(lang, i18nProfile.passwordChangeSubmit)}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setChanging(false);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmNewPassword("");
+                setError(null);
+              }}
+              disabled={pending}
+              className={buttonClass}
+            >
+              {t(lang, common.cancel)}
+            </button>
+          </div>
+        </form>
+      )}
+      {succeeded && !changing && (
+        <p className="text-sm text-foreground/70">
+          {t(lang, i18nProfile.passwordChangeSuccess)}
         </p>
       )}
     </div>

@@ -168,5 +168,34 @@ export function createSupabaseAuthRepository(
         throw isEmailAlreadyInUse ? new EmailAlreadyInUseError() : updateError;
       }
     },
+
+    async changePassword(newPassword: string, currentPassword: string) {
+      // getUser() (not getSession()), same reasoning as changeEmail() above
+      // — revalidates against the Auth server rather than trusting a
+      // possibly-stale local JWT for the email this re-auth check hinges on.
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      const currentEmail = userData.user.email;
+      if (!currentEmail) {
+        throw new Error("Current session has no email address on file.");
+      }
+
+      // Re-authentication: signInWithPassword against the session's OWN
+      // email with the CALLER-supplied current password — this is the
+      // security check the ticket's AK requires and that plain
+      // `updateUser({ password })` does not perform on its own (a valid
+      // session alone would otherwise be enough). A failure here is always
+      // "wrong current password" from the caller's perspective (the email
+      // is already known-correct), never "unknown account". Nothing is
+      // changed when this fails.
+      const { error: reauthError } = await client.auth.signInWithPassword({
+        email: currentEmail,
+        password: currentPassword,
+      });
+      if (reauthError) throw new ReauthenticationFailedError();
+
+      const { error: updateError } = await client.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+    },
   };
 }

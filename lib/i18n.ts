@@ -258,6 +258,41 @@ export const profile = {
     de: "E-Mail-Adresse konnte nicht geändert werden.",
     en: "Email address could not be changed.",
   },
+  // --- PasswordChangeAction (Ticket 026, follow-up to 024/025) ---------
+  passwordChangeButton: { de: "Passwort ändern…", en: "Change Password…" },
+  passwordChangeCurrentPasswordLabel: { de: "Aktuelles Passwort", en: "Current Password" },
+  passwordChangeNewPasswordLabel: { de: "Neues Passwort", en: "New Password" },
+  passwordChangeConfirmLabel: {
+    de: "Neues Passwort bestätigen",
+    en: "Confirm New Password",
+  },
+  passwordChangeSubmit: { de: "Passwort ändern", en: "Change Password" },
+  passwordChangeSending: { de: "Wird geändert…", en: "Changing…" },
+  // Client-side only (no server roundtrip) — checked before changePassword()
+  // is ever called, same text as resetPassword.passwordMismatchError below
+  // but its own key since this namespace already keeps every profile-form
+  // string self-contained (see emailChange* above, which duplicates rather
+  // than reaches into other namespaces).
+  passwordChangeMismatchError: {
+    de: "Die Passwörter stimmen nicht überein.",
+    en: "The passwords do not match.",
+  },
+  // Deliberately says "current password" (unlike
+  // emailChangeWrongPasswordError's plain "Passwort ist falsch.") — this
+  // form has two password fields, so the generic phrasing would be
+  // ambiguous about which one was wrong.
+  passwordChangeWrongPasswordError: {
+    de: "Aktuelles Passwort ist falsch.",
+    en: "Current password is incorrect.",
+  },
+  passwordChangeGenericError: {
+    de: "Passwort konnte nicht geändert werden.",
+    en: "Password could not be changed.",
+  },
+  passwordChangeSuccess: {
+    de: "Passwort erfolgreich geändert.",
+    en: "Password changed successfully.",
+  },
 } satisfies Record<string, Translated>;
 
 // Ticket 025: the AK's required success copy — "Bestätigungs-E-Mails an

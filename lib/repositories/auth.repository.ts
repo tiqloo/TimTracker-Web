@@ -24,10 +24,16 @@ export class EmailAlreadyInUseError extends Error {
   }
 }
 
-// Thrown by changeEmail() when the supplied password confirmation doesn't
-// match the CURRENT session's own account. Kept distinct from
-// EmailAlreadyInUseError so the UI can show the right one of the two
-// different messages the ticket's form can fail with.
+// Thrown by changeEmail() (Ticket 025) and changePassword() (Ticket 026)
+// when the supplied password confirmation doesn't match the CURRENT
+// session's own account — the same underlying failure mode (wrong password
+// during a re-authentication check) in both flows, so a single shared type
+// is reused rather than a second, near-identical one. The message is kept
+// generic ("Password confirmation failed.") for exactly this reason: it
+// doesn't say "email" or "current password" specifically, so it reads
+// correctly regardless of which flow's re-auth check threw it. Kept
+// distinct from EmailAlreadyInUseError so the UI can show the right one of
+// the different messages a given form can fail with.
 export class ReauthenticationFailedError extends Error {
   constructor() {
     super("Password confirmation failed.");
@@ -127,4 +133,24 @@ export interface AuthRepository {
   // to any account — see that error's own comment for why it's a distinct
   // type rather than the raw Supabase error.
   changeEmail(newEmail: string, currentPassword: string): Promise<void>;
+  // Ticket 026 (TimTracker-Starter repo, follow-up to 024/025): changes the
+  // CURRENT session's password from the settings page — the logged-IN
+  // counterpart to updatePassword() above (which only ever runs inside a
+  // Supabase password-RECOVERY session reached via an emailed link, where
+  // the link itself is the proof of identity). Here there is no such link,
+  // so `client.auth.updateUser({ password })` alone would accept the change
+  // on nothing but a valid session — a real gap on a briefly-unattended
+  // logged-in machine (the ticket's own AK calls this out explicitly).
+  //
+  // Re-authenticates FIRST via `currentPassword`, same pattern as
+  // changeEmail() just above: `client.auth.signInWithPassword()` against the
+  // session's OWN current email (read server-side by the adapter, never
+  // trusted from the caller), throwing ReauthenticationFailedError if that
+  // fails — nothing is changed in that case. Only on success does it call
+  // `client.auth.updateUser({ password: newPassword })`.
+  //
+  // Deliberately reuses updatePassword()'s own underlying Supabase call
+  // rather than introducing a third one — the only difference from that
+  // method is the re-auth check that runs first.
+  changePassword(newPassword: string, currentPassword: string): Promise<void>;
 }
