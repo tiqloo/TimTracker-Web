@@ -10,6 +10,7 @@
 // lib/repositories/* directly.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
 import {
@@ -70,23 +71,28 @@ export function SettingsClient({
 // "Profil" (Ticket 024, TimTracker-Starter repo) — editable display name
 // plus the two read-only account fields (email, account-creation date).
 // Placed above LanguageSection per the ticket's AK. Same Client Component
-// + pending/error state shape as LanguageSection/DeleteAccountSection
-// below: optimistic local state update on success, then router.refresh()
-// so DashboardNav (which resolves the profile server-side in
+// + pending state shape as LanguageSection/DeleteAccountSection below:
+// optimistic local state update on success, then router.refresh() so
+// DashboardNav (which resolves the profile server-side in
 // app/(dashboard)/layout.tsx) picks up the new value too — same reasoning
 // LanguageSection's own comment gives for why it calls router.refresh()
 // after already updating its own state locally.
+//
+// Ticket 042: used to show `saved && ...` as inline text next to the
+// button (the ticket's own motivating example of the old ad hoc pattern)
+// and an inline errorClass block below the field. Both now go through
+// useToast() instead — success auto-dismisses, error stays until closed.
+// There's no separate blocking field validation here (display name is
+// optional, no client-side format check), so unlike ProjectsClient.tsx's
+// forms there's no inline error case left at all.
 function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
   const router = useRouter();
+  const { showSuccess, showError } = useToast();
   const [displayName, setDisplayName] = useState(profile.displayName ?? "");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setSaved(false);
     setPending(true);
     try {
       const repos = getRepositories();
@@ -95,10 +101,10 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
       // than re-fetching — same optimistic-update pattern LanguageSection
       // uses, see its own comment.
       setDisplayName(normalizeDisplayNameInput(displayName) ?? "");
-      setSaved(true);
+      showSuccess(t(lang, common.saved));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(lang, i18nProfile.displayNameSaveError));
+      showError(err instanceof Error ? err.message : t(lang, i18nProfile.displayNameSaveError));
     } finally {
       setPending(false);
     }
@@ -123,23 +129,14 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
             autoComplete="name"
             disabled={pending}
             value={displayName}
-            onChange={(e) => {
-              setDisplayName(e.target.value);
-              setSaved(false);
-            }}
+            onChange={(e) => setDisplayName(e.target.value)}
             className={inputClass}
           />
         </div>
-        {error && <p className={errorClass}>{error}</p>}
         <div className="flex items-center gap-3">
           <button type="submit" disabled={pending} className={primaryButtonClass}>
             {pending ? t(lang, common.saving) : t(lang, common.save)}
           </button>
-          {saved && !pending && !error && (
-            <span className="text-sm text-foreground/60">
-              {t(lang, i18nProfile.displayNameSaved)}
-            </span>
-          )}
         </div>
       </form>
       <dl className="flex flex-col gap-2 border-t border-line pt-4 text-sm">
@@ -189,6 +186,30 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
 // optimistically showing the new address here would show a change that
 // hasn't actually happened yet. Only a persistent text confirmation is
 // shown instead — see `sentTo` below.
+//
+// Ticket 042 explicitly left this success message (and PasswordChangeAction's
+// below) as a persistent inline block, NOT a toast, despite converting
+// every other success message in this file. Reasoning: a toast is
+// transient by design — it auto-dismisses in a few seconds and is gone.
+// `sentTo`'s message names the exact old/new addresses and says the
+// change only takes effect once BOTH confirmation emails are clicked —
+// exactly the "would a toast lose important context" case the ticket
+// calls out, and Ticket 025's own reasoning (this comment block above)
+// already established that this message needs to survive the form
+// collapsing back down, i.e. outlive a single render pass, let alone a
+// 4-second auto-dismiss timer. A user who glances away for a moment and
+// looks back at Settings later should still see it. PasswordChangeAction's
+// `succeeded` message is kept consistent with this same treatment even
+// though its own action does take effect immediately (no email
+// confirmation) — both live inside the same "Sicherheit" box, and having
+// one security action confirm via toast and the other via a persistent
+// block would reintroduce exactly the kind of per-component inconsistency
+// this ticket exists to remove. Blocking field validation (e.g.
+// PasswordChangeAction's "Passwörter stimmen nicht überein" mismatch
+// check) and request-failure errors on both actions also stay inline via
+// errorClass, unchanged — same call, since a wrong-password/already-
+// registered error is exactly the kind of message a user re-reads while
+// fixing the form, not a fire-and-forget confirmation.
 function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) {
   const [changing, setChanging] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -467,6 +488,11 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
   );
 }
 
+// Ticket 042: previously had no success feedback at all (only the ever-
+// present language-change effect itself) and an inline errorClass block
+// on failure. Now fires a toast either way, same as ProfileSection above
+// — reuses common.saved for the success text rather than adding a new,
+// near-identical "Sprache gespeichert" string.
 function LanguageSection({
   initialLanguage,
   lang,
@@ -475,17 +501,17 @@ function LanguageSection({
   lang: Lang;
 }) {
   const router = useRouter();
+  const { showSuccess, showError } = useToast();
   const [language, setLanguage] = useState(initialLanguage);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleChange(next: AppLanguage) {
-    setError(null);
     setPending(true);
     try {
       const repos = getRepositories();
       await setLanguagePreference(repos, next);
       setLanguage(next);
+      showSuccess(t(lang, common.saved));
       // Refetches the current route's Server Component tree (root layout
       // included) against the now-updated cookie — this is what moves
       // <html lang>, this app's own Intl-based date formatting, AND (as
@@ -494,7 +520,7 @@ function LanguageSection({
       // on that refetch.
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(lang, settings.languageSaveError));
+      showError(err instanceof Error ? err.message : t(lang, settings.languageSaveError));
     } finally {
       setPending(false);
     }
@@ -532,7 +558,6 @@ function LanguageSection({
         <code>&lt;html lang&gt;</code>
         {t(lang, settings.languageInfoSuffix)}
       </p>
-      {error && <p className={errorClass}>{error}</p>}
     </section>
   );
 }

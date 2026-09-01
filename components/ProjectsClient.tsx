@@ -20,6 +20,7 @@ import {
   renameProject,
 } from "@/lib/application/projects";
 import { getRepositories } from "@/lib/application/client";
+import { useToast } from "@/components/ToastProvider";
 import {
   PROJECT_COLOR_PALETTE,
   projectNameExists,
@@ -165,12 +166,17 @@ function CreateProjectForm({
   onCreated: (project: Project) => void;
   lang: Lang;
 }) {
+  const { showSuccess, showError } = useToast();
   const [name, setName] = useState("");
   const [customer, setCustomer] = useState("");
   const [notes, setNotes] = useState("");
   const [colorHex, setColorHex] = useState(
     suggestedProjectColor(projects.length),
   );
+  // Only ever holds the synchronous, blocking "name required" validation
+  // error (Ticket 042 AK: blocking form validation errors stay inline,
+  // right at the field). A createProject() request failure below now goes
+  // through showError() (a toast) instead of this state.
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -206,8 +212,9 @@ function CreateProjectForm({
       setCustomer("");
       setNotes("");
       setColorHex(suggestedProjectColor(projects.length + 1));
+      showSuccess(t(lang, i18nProjects.createSuccess));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(lang, i18nProjects.createError));
+      showError(err instanceof Error ? err.message : t(lang, i18nProjects.createError));
     } finally {
       setPending(false);
     }
@@ -287,22 +294,27 @@ function ProjectRow({
   onChanged: (project: Project) => void;
   lang: Lang;
 }) {
+  const { showSuccess, showError } = useToast();
   const [editing, setEditing] = useState(false);
   const [archivePending, setArchivePending] = useState(false);
-  const [archiveError, setArchiveError] = useState<string | null>(null);
 
+  // Ticket 042: this action previously had NO success feedback at all
+  // (the ticket's own motivating example) — both outcomes now go through
+  // the toast pattern, success auto-dismissing, error staying until
+  // closed. Nothing about this action is a field-level validation error,
+  // so unlike the create/rename forms below there's no inline case left.
   async function handleArchiveToggle() {
-    setArchiveError(null);
     setArchivePending(true);
     try {
       const repos = getRepositories();
       const nextArchived = !project.isArchived;
       await archiveProject(repos, project.id, nextArchived);
       onChanged({ ...project, isArchived: nextArchived });
-    } catch (err) {
-      setArchiveError(
-        err instanceof Error ? err.message : t(lang, i18nProjects.archiveToggleError),
+      showSuccess(
+        t(lang, nextArchived ? i18nProjects.archiveSuccess : i18nProjects.reactivateSuccess),
       );
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, i18nProjects.archiveToggleError));
     } finally {
       setArchivePending(false);
     }
@@ -365,7 +377,6 @@ function ProjectRow({
       {project.notes && (
         <p className="truncate text-xs text-foreground/60">{project.notes}</p>
       )}
-      {archiveError && <p className={errorClass}>{archiveError}</p>}
     </li>
   );
 }
@@ -387,8 +398,12 @@ function EditProjectForm({
   onCancel: () => void;
   lang: Lang;
 }) {
+  const { showSuccess, showError } = useToast();
   const [name, setName] = useState(project.name);
   const [notes, setNotes] = useState(project.notes);
+  // Same split as CreateProjectForm above: only the blocking "name
+  // required" validation stays here; a renameProject() request failure
+  // goes to a toast instead.
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -411,8 +426,9 @@ function EditProjectForm({
       const repos = getRepositories();
       const updated = await renameProject(repos, project.id, trimmedName, notes.trim());
       onSaved(updated);
+      showSuccess(t(lang, i18nProjects.saveSuccess));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(lang, i18nProjects.saveError));
+      showError(err instanceof Error ? err.message : t(lang, i18nProjects.saveError));
     } finally {
       setPending(false);
     }

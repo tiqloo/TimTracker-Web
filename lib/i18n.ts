@@ -48,6 +48,16 @@ export const common = {
   cancel: { de: "Abbrechen", en: "Cancel" },
   save: { de: "Speichern", en: "Save" },
   saving: { de: "Wird gespeichert…", en: "Saving…" },
+  // Generic "action succeeded" confirmation (Ticket 042) — reused as the
+  // toast message for any plain save action (display name, language
+  // preference) instead of each one duplicating its own near-identical
+  // "Saved." string. Was previously duplicated as profile.displayNameSaved
+  // (same exact text) before this ticket unified it here.
+  saved: { de: "Gespeichert.", en: "Saved." },
+  // aria-label for a toast's manual-dismiss button (Ticket 042) — error
+  // toasts stay until closed, success toasts auto-dismiss and never show
+  // this button.
+  close: { de: "Schließen", en: "Close" },
   color: { de: "Farbe", en: "Color" },
   name: { de: "Name", en: "Name" },
   note: { de: "Notiz", en: "Note" },
@@ -195,6 +205,14 @@ export const projects = {
     de: "Projekt konnte nicht gespeichert werden.",
     en: "Project could not be saved.",
   },
+  // Ticket 042 toast success copy — createProject/renameProject already had
+  // an *Error counterpart above; archive/unarchive previously had no
+  // success feedback at all (the ticket's whole reason for existing), so
+  // these two are genuinely new rather than a duplicate of anything.
+  createSuccess: { de: "Projekt wurde angelegt.", en: "Project was created." },
+  saveSuccess: { de: "Projekt wurde gespeichert.", en: "Project was saved." },
+  archiveSuccess: { de: "Projekt wurde archiviert.", en: "Project was archived." },
+  reactivateSuccess: { de: "Projekt wurde reaktiviert.", en: "Project was reactivated." },
 } satisfies Record<string, Translated>;
 
 // --- app/(dashboard)/dashboard/page.tsx ("Heute") --------------------
@@ -237,7 +255,9 @@ export const profile = {
     de: "Anzeigename konnte nicht gespeichert werden.",
     en: "Display name could not be saved.",
   },
-  displayNameSaved: { de: "Gespeichert.", en: "Saved." },
+  // Toast success text for a display-name save now reuses common.saved
+  // (Ticket 042) — this used to have its own identical "Gespeichert."/
+  // "Saved." entry here, removed as a duplicate.
   emailLabel: { de: "E-Mail-Adresse", en: "Email Address" },
   createdAtLabel: { de: "Konto erstellt am", en: "Account Created" },
   // Ticket 032: small subtitle above EmailChangeAction/PasswordChangeAction,

@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { DashboardNav } from "@/components/DashboardNav";
+import { ToastProvider } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getProfile } from "@/lib/application/auth";
@@ -46,9 +47,17 @@ export default async function DashboardLayout({
   const displayName = displayNameOrFallback(profile);
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
-      <DashboardNav lang={lang} displayName={displayName} />
-      <div className="mx-auto w-full max-w-5xl flex-1 px-6 sm:px-8">{children}</div>
-    </div>
+    // ToastProvider (Ticket 042) mounts here, once, wrapping the whole
+    // dashboard shell — not inside individual pages — so every
+    // (dashboard)/* Client Component can call useToast() and so a toast's
+    // own dismiss timer survives client-side navigation between pages in
+    // this route group (this layout doesn't remount on those navigations;
+    // see ToastProvider.tsx's own comment for the full reasoning).
+    <ToastProvider lang={lang}>
+      <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
+        <DashboardNav lang={lang} displayName={displayName} />
+        <div className="mx-auto w-full max-w-5xl flex-1 px-6 sm:px-8">{children}</div>
+      </div>
+    </ToastProvider>
   );
 }
