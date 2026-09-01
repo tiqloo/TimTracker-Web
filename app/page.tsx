@@ -241,7 +241,14 @@ function Hero({ lang }: { lang: Lang }) {
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
             {t(lang, home.heroEyebrow)}
           </p>
-          <h1 className="mt-3 max-w-xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+          {/* Ticket 048: font-display (Schibsted Grotesk, app/layout.tsx) —
+              the one place on the whole site this ticket's second typeface
+              appears, exactly wohnu.de's own Hero-only --land-display
+              usage. Size bumped from the old text-4xl/sm:text-5xl (36/48px)
+              to the ticket's "Hero Website 64–72px" scale entry — 48px on
+              mobile (unchanged start point, 72px here would overflow a
+              small viewport) up to the spec's exact top value at sm+. */}
+          <h1 className="mt-3 max-w-xl font-display text-5xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-7xl">
             {t(lang, home.heroTitle)}
           </h1>
           <p className="mt-5 max-w-md text-base text-foreground/65 sm:text-lg">
@@ -288,7 +295,7 @@ function HowItWorks({ lang }: { lang: Lang }) {
   return (
     <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {t(lang, home.howItWorksTitle)}
         </h2>
         <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-10">
@@ -381,7 +388,7 @@ function Features({ lang }: { lang: Lang }) {
   return (
     <section id="features" className="scroll-mt-14 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {t(lang, home.featuresTitle)}
         </h2>
         <div className="mt-8 grid grid-cols-1 divide-y divide-line border-t border-line sm:grid-cols-2">
@@ -434,7 +441,7 @@ function Pricing({ lang }: { lang: Lang }) {
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
             {t(lang, home.pricingEyebrow)}
           </p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
             {t(lang, home.pricingTitle)}
           </h2>
           <p className="mt-3 text-sm text-foreground/65 sm:text-base">

@@ -67,7 +67,7 @@ export default async function HistoryDayPage({
         <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
           {t(lang, history.backToHistory)}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+        <h1 className="mt-2 text-[34px] font-semibold tracking-tight">
           {formatDayLabel(day, locale)}
         </h1>
       </div>

@@ -61,7 +61,7 @@ export default async function BillingSettingsPage() {
 
   return (
     <main className="flex flex-col gap-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">{t(languageCode, billing.pageTitle)}</h1>
+      <h1 className="text-[34px] font-semibold tracking-tight">{t(languageCode, billing.pageTitle)}</h1>
 
       <section className="flex max-w-md flex-col gap-2 rounded-xl border border-line p-5">
         <p className="text-sm">

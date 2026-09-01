@@ -23,7 +23,7 @@ export default async function HelpcenterPage() {
         {t(lang, helpcenter.backToSupport)}
       </Link>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t(lang, helpcenter.pageTitle)}</h1>
+        <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, helpcenter.pageTitle)}</h1>
         <p className="mt-1 text-sm text-foreground/70">{t(lang, helpcenter.intro)}</p>
       </div>
       <dl className="flex flex-col divide-y divide-line border-t border-line">

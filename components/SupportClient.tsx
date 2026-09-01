@@ -66,7 +66,7 @@ export function SupportClient({ lang, displayName }: { lang: Lang; displayName: 
 // just inside a flex heading instead of a flex header row.
 function Greeting({ lang, displayName }: { lang: Lang; displayName: string }) {
   return (
-    <h1 className="flex min-w-0 items-baseline gap-1 text-2xl font-semibold tracking-tight">
+    <h1 className="flex min-w-0 items-baseline gap-1 text-[34px] font-semibold tracking-tight">
       <span className="min-w-0 truncate" title={displayName}>
         {displayName}
       </span>
