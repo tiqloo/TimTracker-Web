@@ -10,7 +10,7 @@ import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import {
   buildDailyBreakdowns,
   timeEntryDurationSeconds,
-} from "@/lib/domain/time-entry-aggregation";
+} from "../domain/time-entry-aggregation.ts";
 
 // The two system pseudo-projects (see Domain/Models/Project.swift's
 // standardProjectID/pauseProjectID and the matching constants in

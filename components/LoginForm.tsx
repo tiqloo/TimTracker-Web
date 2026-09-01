@@ -21,6 +21,7 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
+import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 import { common, login as i18nLogin, t, type Lang } from "@/lib/i18n";
 import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
 
@@ -106,7 +107,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
   return (
     <AuthCard title={t(lang, i18nLogin.title)}>
       {accountDeleted && (
-        <p className={`${authSuccessClass} mb-4`}>
+        <p {...successFeedbackProps} className={`${authSuccessClass} mb-4`}>
           {t(lang, i18nLogin.accountDeleted)}
         </p>
       )}
@@ -146,7 +147,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
             className={authInputClass}
           />
         </div>
-        {error && <p className={authErrorClass}>{error}</p>}
+        {error && <p {...errorFeedbackProps} className={authErrorClass}>{error}</p>}
         <button type="submit" disabled={pending} className={authButtonClass}>
           {pending ? t(lang, i18nLogin.signingIn) : t(lang, i18nLogin.submit)}
         </button>

@@ -4,7 +4,7 @@
 // (pages) call these functions, never a repository directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { NewProject, Project } from "@/lib/domain/project";
-import { ValidationError } from "@/lib/domain/application-error";
+import { ValidationError } from "../domain/application-error.ts";
 
 // Excludes the two system pseudo-projects ("Arbeitszeit"/"Pause",
 // is_default = true) — they're FK targets for automatically-tracked time,

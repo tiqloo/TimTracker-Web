@@ -3,8 +3,8 @@
 // functions, never lib/repositories/* directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
-import { calendarDayInTimeZone } from "@/lib/domain/calendar-day";
-import { ValidationError } from "@/lib/domain/application-error";
+import { calendarDayInTimeZone } from "../domain/calendar-day.ts";
+import { ValidationError } from "../domain/application-error.ts";
 
 // Exported (not just an internal helper) so app/* pages that need "today"
 // as a plain ISO string for their own purposes (e.g. building default

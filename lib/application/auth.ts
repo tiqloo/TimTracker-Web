@@ -4,8 +4,8 @@
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
 import type { Profile } from "@/lib/domain/profile";
-import { normalizeDisplayNameInput } from "@/lib/domain/profile";
-import { UnauthorizedError } from "@/lib/domain/application-error";
+import { normalizeDisplayNameInput } from "../domain/profile.ts";
+import { UnauthorizedError } from "../domain/application-error.ts";
 // Type-only re-export so app/* can name this type without importing
 // lib/repositories/* directly (blocked by eslint.config.mjs) — same
 // pattern lib/composition-root.ts uses for `Repositories` itself.
@@ -14,9 +14,9 @@ export type { Profile } from "@/lib/domain/profile";
 // Value re-export (not type-only): app/* needs `instanceof` checks against
 // these to show the right error message — same reasoning as re-exporting
 // the port's types above, just for runtime-checkable classes instead.
-export { EmailAlreadyInUseError, ReauthenticationFailedError } from "@/lib/repositories/auth.repository";
+export { EmailAlreadyInUseError, ReauthenticationFailedError } from "../repositories/auth.repository.ts";
 
-export { UnauthorizedError } from "@/lib/domain/application-error";
+export { UnauthorizedError } from "../domain/application-error.ts";
 
 export async function requireUser(repos: Repositories): Promise<string> {
   const userId = await repos.auth.getAuthenticatedUserId();

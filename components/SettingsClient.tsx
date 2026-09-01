@@ -49,6 +49,7 @@ import {
   secondaryButtonClass,
 } from "@/lib/ui/button-styles";
 import { errorMessageClass } from "@/lib/ui/status-styles";
+import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -467,6 +468,7 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
             </label>
             <input
               id="email-change-new-email"
+              autoFocus
               type="email"
               autoComplete="email"
               required
@@ -491,7 +493,7 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
               className={inputClass}
             />
           </div>
-          {error && <p className={errorClass}>{error}</p>}
+          {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className={primaryButtonClass}>
               {pending
@@ -515,7 +517,7 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
         </form>
       )}
       {sentTo && !changing && (
-        <p className="text-sm text-foreground/70">
+        <p {...successFeedbackProps} className="text-sm text-foreground/70">
           {emailChangeSuccessMessage(lang, sentTo.oldEmail, sentTo.newEmail)}
         </p>
       )}
@@ -606,6 +608,7 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
             </label>
             <input
               id="password-change-current"
+              autoFocus
               type="password"
               autoComplete="current-password"
               required
@@ -645,7 +648,7 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
               className={inputClass}
             />
           </div>
-          {error && <p className={errorClass}>{error}</p>}
+          {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className={primaryButtonClass}>
               {pending
@@ -670,7 +673,7 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
         </form>
       )}
       {succeeded && !changing && (
-        <p className="text-sm text-foreground/70">
+        <p {...successFeedbackProps} className="text-sm text-foreground/70">
           {t(lang, i18nProfile.passwordChangeSuccess)}
         </p>
       )}
@@ -923,6 +926,7 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
           </label>
           <input
             id="delete-confirm"
+            autoFocus
             type="text"
             disabled={pending}
             value={confirmationText}
@@ -930,7 +934,7 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
             className={inputClass}
             autoComplete="off"
           />
-          {error && <p className={errorClass}>{error}</p>}
+          {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"

@@ -19,6 +19,7 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
+import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 import { common, resetPassword as i18n, t, type Lang } from "@/lib/i18n";
 
 // This page (closing Ticket 009's last gap, per TimTracker-Starter) has
@@ -118,6 +119,7 @@ export function ResetPasswordForm({ lang }: { lang: Lang }) {
             </label>
             <input
               id="newPassword"
+              autoFocus
               type="password"
               autoComplete="new-password"
               required
@@ -142,7 +144,7 @@ export function ResetPasswordForm({ lang }: { lang: Lang }) {
               className={authInputClass}
             />
           </div>
-          {updateError && <p className={authErrorClass}>{updateError}</p>}
+          {updateError && <p {...errorFeedbackProps} className={authErrorClass}>{updateError}</p>}
           <button type="submit" disabled={updatePending} className={authButtonClass}>
             {updatePending ? t(lang, i18n.savingPassword) : t(lang, i18n.savePassword)}
           </button>
@@ -154,7 +156,7 @@ export function ResetPasswordForm({ lang }: { lang: Lang }) {
   return (
     <AuthCard title={t(lang, i18n.requestTitle)}>
       {requestSent ? (
-        <p className={authSuccessClass}>{t(lang, i18n.requestSuccess)}</p>
+        <p {...successFeedbackProps} className={authSuccessClass}>{t(lang, i18n.requestSuccess)}</p>
       ) : (
         <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -172,7 +174,7 @@ export function ResetPasswordForm({ lang }: { lang: Lang }) {
               className={authInputClass}
             />
           </div>
-          {requestError && <p className={authErrorClass}>{requestError}</p>}
+          {requestError && <p {...errorFeedbackProps} className={authErrorClass}>{requestError}</p>}
           <button type="submit" disabled={requestPending} className={authButtonClass}>
             {requestPending ? t(lang, i18n.sending) : t(lang, i18n.sendLink)}
           </button>

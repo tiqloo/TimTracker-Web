@@ -15,6 +15,7 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
+import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 import { common, register as i18nRegister, t, type Lang } from "@/lib/i18n";
 
 // A 7-day trial starts server-side automatically on signup (DB trigger,
@@ -67,7 +68,7 @@ export function RegisterForm({ lang }: { lang: Lang }) {
   if (confirmationPending) {
     return (
       <AuthCard title={t(lang, i18nRegister.almostDoneTitle)}>
-        <p className={authSuccessClass}>{t(lang, i18nRegister.confirmationSentBody)}</p>
+        <p {...successFeedbackProps} className={authSuccessClass}>{t(lang, i18nRegister.confirmationSentBody)}</p>
         <p className="mt-4 text-sm">
           <Link href="/login" className="underline">
             {t(lang, i18nRegister.goToLogin)}
@@ -125,7 +126,7 @@ export function RegisterForm({ lang }: { lang: Lang }) {
             className={authInputClass}
           />
         </div>
-        {error && <p className={authErrorClass}>{error}</p>}
+        {error && <p {...errorFeedbackProps} className={authErrorClass}>{error}</p>}
         <button type="submit" disabled={pending} className={authButtonClass}>
           {pending ? t(lang, i18nRegister.creating) : t(lang, i18nRegister.submit)}
         </button>
