@@ -155,9 +155,13 @@ function UserMenu({
 
   // Background highlight (hover + focus-visible) plus the shared ring —
   // menu items are its own little list, not full-width nav links, so a
-  // bg-paper highlight reads better here than the nav links' bg-brand/10
+  // bg-paper highlight reads better here than the nav links' bg-brand-soft
   // pill would (that pill is reserved for "this is the current page").
-  const itemClass = `block rounded-md px-3 py-2 text-sm text-foreground/80 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground ${focusRingClass}`;
+  // Ticket 048: added transition-colors duration-150 — this menu's own
+  // hover/focus states previously snapped instantly, unlike some other
+  // interactive surfaces in this file; now every one of them uses the same
+  // 120-150ms transition, per the ticket's animation AK.
+  const itemClass = `block rounded-md px-3 py-2 text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground ${focusRingClass}`;
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -167,7 +171,7 @@ function UserMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="dashboard-user-menu"
-        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-foreground/70 hover:text-foreground ${focusRingClass}`}
+        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground ${focusRingClass}`}
       >
         {/* Ticket 024's truncate rule, reused verbatim per this ticket's
             own Edge Cases section rather than reinvented. */}
@@ -181,7 +185,14 @@ function UserMenu({
           id="dashboard-user-menu"
           role="menu"
           aria-label={displayName}
-          className="absolute right-0 top-full z-10 mt-2 w-48 rounded-md border border-line bg-background py-1 shadow-lg"
+          // Ticket 048: bg-background -> bg-surface (this dropdown is a
+          // floating card, same token as every other card). shadow-lg ->
+          // the same softer, warm-tinted custom shadow used for
+          // HistoryDateRangePicker's popover and ToastProvider's toast —
+          // one consistent "floating surface" shadow instead of three
+          // different ad hoc ones. See HistoryDateRangePicker.tsx's own
+          // comment for the full reasoning.
+          className="absolute right-0 top-full z-10 mt-2 w-48 rounded-md border border-line bg-surface py-1 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
         >
           <Link href="/dashboard/settings" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             {t(lang, nav.settings)}
@@ -260,17 +271,24 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
                   : pathname.startsWith(link.href);
               const Icon = link.icon;
               // Active state (Ticket 036): a --brand-tinted background pill
-              // (bg-brand/10) in addition to the text-brand + font-medium
-              // Ticket 037 already added — per the AK, plain font-weight/
-              // color wasn't a strong enough signal on its own.
+              // in addition to the text-brand + font-medium Ticket 037
+              // already added — per the AK, plain font-weight/color wasn't
+              // a strong enough signal on its own. Ticket 048: bg-brand/10
+              // -> bg-brand-soft, the real named token now that one exists
+              // (see globals.css) instead of an ad hoc opacity value, and
+              // both branches get the same transition-colors duration-150
+              // — one consistent hover pattern for both states, not a
+              // static active pill next to an instantly-snapping inactive
+              // hover (the ticket's own "nicht fünf verschieden starke
+              // Hover-/Shadow-Effekte" note).
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${focusRingClass} ${
+                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ${focusRingClass} ${
                     active
-                      ? "bg-brand/10 font-medium text-brand"
+                      ? "bg-brand-soft font-medium text-brand"
                       : "text-foreground/60 hover:text-foreground"
                   }`}
                 >
