@@ -35,6 +35,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, CircleHelp, Clock } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
@@ -60,57 +61,32 @@ const NAV_LINKS: { href: string; label: Translated; icon?: React.ComponentType }
   { href: "/dashboard/settings", label: nav.settings },
 ];
 
+// Ticket 048: hand-drawn Mark()/SupportIcon()/ChevronIcon() SVGs replaced
+// with lucide-react (new dependency, see package.json) — "einfache
+// Outline-Icons, 1.5-2px Strichstärke, 18-20px" per the ticket AK, which
+// explicitly names "Uhr/Zeit" (clock/time) as an example equivalent for a
+// brand mark exactly like this one. Kept as thin local wrapper functions
+// (not inlined at each call site) so NAV_LINKS's `icon?: ComponentType`
+// shape below still works unchanged, and so the size/stroke choice stays
+// in one place per icon.
+//
+// Sizes are context-appropriate rather than a flat 18-20px everywhere:
+// the brand mark next to the "TimTracker" wordmark and the small Support
+// nav-link icon are both inline WITH text at text-sm (14px) — forcing
+// them up to the spec's full 18-20px would visually overpower that text.
+// The spec's literal 18-20px band is applied to this ticket's standalone,
+// non-inline icons instead (see app/page.tsx's Features section). Stroke
+// width (1.5-1.75px) stays within the spec's 1.5-2px band in every case.
 function Mark() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      <path
-        d="M10 5.5V10l3 2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Clock size={18} strokeWidth={1.5} aria-hidden="true" />;
 }
 
-// Same stroke-only, currentColor visual language as Mark() above (no new
-// icon style introduced) — a question mark in a circle, the conventional
-// "help" glyph the Personio reference itself uses.
 function SupportIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      <path
-        d="M7.7 7.8a2.3 2.3 0 1 1 3.5 1.95c-.65.4-1.2.8-1.2 1.65"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <circle cx="10" cy="14" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <CircleHelp size={16} strokeWidth={1.75} aria-hidden="true" />;
 }
 
-// Same stroke-only, currentColor visual language again — a plain down
-// chevron marking the account-menu trigger as a disclosure control (not
-// just a link), the conventional dropdown affordance.
 function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-3 w-3 shrink-0" aria-hidden="true">
-      <path
-        d="M6 8.5 10 12.5 14 8.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
+  return <ChevronDown size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" />;
 }
 
 // Ticket 036: display name + Settings/Billing/Logout collapsed into one
@@ -155,9 +131,13 @@ function UserMenu({
 
   // Background highlight (hover + focus-visible) plus the shared ring —
   // menu items are its own little list, not full-width nav links, so a
-  // bg-paper highlight reads better here than the nav links' bg-brand/10
+  // bg-paper highlight reads better here than the nav links' bg-brand-soft
   // pill would (that pill is reserved for "this is the current page").
-  const itemClass = `block rounded-md px-3 py-2 text-sm text-foreground/80 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground ${focusRingClass}`;
+  // Ticket 048: added transition-colors duration-150 — this menu's own
+  // hover/focus states previously snapped instantly, unlike some other
+  // interactive surfaces in this file; now every one of them uses the same
+  // 120-150ms transition, per the ticket's animation AK.
+  const itemClass = `block rounded-md px-3 py-2 text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground ${focusRingClass}`;
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -167,7 +147,7 @@ function UserMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="dashboard-user-menu"
-        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-foreground/70 hover:text-foreground ${focusRingClass}`}
+        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground ${focusRingClass}`}
       >
         {/* Ticket 024's truncate rule, reused verbatim per this ticket's
             own Edge Cases section rather than reinvented. */}
@@ -181,7 +161,17 @@ function UserMenu({
           id="dashboard-user-menu"
           role="menu"
           aria-label={displayName}
-          className="absolute right-0 top-full z-10 mt-2 w-48 rounded-md border border-line bg-background py-1 shadow-lg"
+          // Ticket 048: bg-background -> bg-surface (this dropdown is a
+          // floating card, same token as every other card). shadow-lg ->
+          // the same softer, warm-tinted custom shadow used for
+          // HistoryDateRangePicker's popover and ToastProvider's toast —
+          // one consistent "floating surface" shadow instead of three
+          // different ad hoc ones. See HistoryDateRangePicker.tsx's own
+          // comment for the full reasoning. animate-dropdown-in
+          // (globals.css) is the ticket's explicit "Dropdown Fade +
+          // translateY(4px)" animation requirement — this menu previously
+          // appeared with a hard cut, no animation at all.
+          className="absolute right-0 top-full z-10 mt-2 w-48 animate-dropdown-in rounded-md border border-line bg-surface py-1 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
         >
           <Link href="/dashboard/settings" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             {t(lang, nav.settings)}
@@ -260,17 +250,24 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
                   : pathname.startsWith(link.href);
               const Icon = link.icon;
               // Active state (Ticket 036): a --brand-tinted background pill
-              // (bg-brand/10) in addition to the text-brand + font-medium
-              // Ticket 037 already added — per the AK, plain font-weight/
-              // color wasn't a strong enough signal on its own.
+              // in addition to the text-brand + font-medium Ticket 037
+              // already added — per the AK, plain font-weight/color wasn't
+              // a strong enough signal on its own. Ticket 048: bg-brand/10
+              // -> bg-brand-soft, the real named token now that one exists
+              // (see globals.css) instead of an ad hoc opacity value, and
+              // both branches get the same transition-colors duration-150
+              // — one consistent hover pattern for both states, not a
+              // static active pill next to an instantly-snapping inactive
+              // hover (the ticket's own "nicht fünf verschieden starke
+              // Hover-/Shadow-Effekte" note).
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${focusRingClass} ${
+                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ${focusRingClass} ${
                     active
-                      ? "bg-brand/10 font-medium text-brand"
+                      ? "bg-brand-soft font-medium text-brand"
                       : "text-foreground/60 hover:text-foreground"
                   }`}
                 >

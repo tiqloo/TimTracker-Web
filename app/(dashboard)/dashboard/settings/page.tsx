@@ -38,8 +38,8 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <main className="flex flex-col gap-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, settings.pageTitle)}</h1>
+    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
+      <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, settings.pageTitle)}</h1>
       <SettingsClient
         initialLanguage={language}
         profile={profile}

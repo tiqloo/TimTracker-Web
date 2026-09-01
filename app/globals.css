@@ -1,8 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Ticket 048 ("warm, minimal design system" — Linear/Raycast structure,
+     Notion calm, wohnu.de marketing warmth): refines/unifies the existing
+     token system onto the user's exact prescribed hex values rather than
+     rebuilding from scratch. --background/--surface split is NEW here —
+     previously card backgrounds fell through to plain --background
+     (pure white). The user's brief gives two off-white options for
+     --background (#FAFAF8 or #FCFCFB); #FAFAF8 chosen (the first-listed
+     option, and the warmer/more visibly off-white of the two — the whole
+     point of this token is to read as "not pure white" against the new,
+     genuinely-pure-white --surface next to it, and #FAFAF8 makes that
+     distinction slightly more perceptible than #FCFCFB would).
+  */
+  --background: #fafaf8;
+  /* NEW: card/surface background, split out from --background per the
+     ticket's explicit two-value color system (Background vs. Surface).
+     Pure white — every existing `rounded-xl border border-line p-5` card
+     (Settings sections, "Heute" hero card, Support cards, etc.) moves onto
+     this token instead of implicitly matching the page background. */
+  --surface: #ffffff;
+  --foreground: #181817;
+  /* NEW: Text Secondary — previously every "muted" text used ad hoc
+     text-foreground/NN opacity modifiers (/70, /60, /50 all over the
+     codebase). The user's brief specifies a fixed second text tone
+     instead of an opacity trick. Contrast (relative-luminance formula,
+     same methodology as Ticket 037/scripts/validate_palette.js):
+       - #74746F vs --surface (#ffffff)    = 4.698:1 — passes AA (4.5:1)
+       - #74746F vs --background (#fafaf8) = 4.495:1 — misses AA by 0.005
+     Independent review found two problems with merely documenting that
+     miss: the token was not used anywhere, and the first real use on the
+     page canvas would knowingly fail AA. Use the smallest possible neutral
+     adjustment (#73736E, one RGB step darker per channel):
+       - #73736E vs --background (#fafaf8) = 4.560:1 — passes AA
+       - #73736E vs --surface (#ffffff)    = 4.766:1 — passes AA
+     This is visually indistinguishable from the requested #74746F while
+     making the named token safe on both supported light surfaces.
+     text-foreground/NN opacity classes are NOT removed by this ticket —
+     both idioms now coexist (this ticket adds the fixed token where the
+     user's spec calls for one; a full sweep replacing every remaining
+     opacity usage is exactly the "line by line redesign of every
+     component" the ticket's own "Bewusst außerhalb" section rules out). */
+  --text-secondary: #73736e;
   /* "Historie" bar chart (Ticket 002) — categorical slots 1 (blue) and 2
      (orange) from the dataviz palette, validated together with
      scripts/validate_palette.js (CVD-safe adjacent pair in both light and
@@ -12,69 +51,177 @@
      not coincidentally) as the marketing homepage's only accent colors —
      see app/page.tsx's DayTimeline — so the public site and the real
      product never show two different color languages for the same
-     "automatic vs. assigned" distinction. */
+     "automatic vs. assigned" distinction.
+     Ticket 048 edge case: deliberately UNCHANGED by this ticket — these
+     stay independent of --brand below, they codify "automatic vs. project
+     time" wherever that distinction needs to be seen (timeline, bar
+     chart), not a UI accent. */
   --chart-standard: #2a78d6;
   --chart-project: #eb6834;
-  /* Homepage-only tokens: a slightly-off-white section background distinct
-     from the pure-white --background (used to alternate sections without
-     a hard edge) and a low-contrast hairline rule color, replacing the
-     borrow-everything border-black/10 opacity trick used before. */
-  --paper: #f5f4f0;
-  --line: #e3e1d9;
-  /* Brand accent (Ticket 037): one dedicated token for primary CTAs, the
-     active nav-link state (components/DashboardNav.tsx), and
-     focus-visible rings — "90% neutral, 10% Brand" per the ticket, so
-     these stop being plain bg-foreground/text-background (black-on-white
-     / white-on-black) like every other neutral surface.
-     Deliberately the SAME blue family as --chart-standard above (already
-     the homepage's "signature element", see app/page.tsx's DayTimeline
-     comment) rather than a second, competing accent — the edge case this
-     ticket explicitly calls out. Not the literal identical hex though:
-     --chart-standard's light value (#2a78d6) is only 4.415:1 against
-     white, just under WCAG AA's 4.5:1 for normal text — fine for a chart
-     fill, not fine for real text (button label color via text-background,
-     the active nav-link's own text color). --brand is a ~5% darkened
-     version of that same blue, chosen to clear 4.5:1 with headroom:
-       - #2772cb vs #ffffff (button/nav text on light bg) = 4.821:1
-     Dark mode below reuses --chart-standard's dark-mode hex verbatim
-     (#3987e5) rather than inventing a third value — it already clears AA
-     against both the dark page background (nav-link/ring use) and the
-     near-black var(--background) a brand button uses as its text color
-     in dark mode (bg-brand + text-background, same pairing pattern as
-     the bg-foreground/text-background buttons this replaces):
-       - #3987e5 vs #0a0a0a (button/nav text on dark bg) = 5.441:1
-     Both checked with the same relative-luminance formula
-     scripts/validate_palette.js uses for --chart-*; full numbers and the
-     button/dark-mode text-contrast reasoning are in Ticket 037's writeup
-     (TimTracker-Starter/docs/tickets/037-brand-accent-color.md).
-     Focus rings only need 3:1 (WCAG 1.4.11, non-text UI) and clear it by
-     a wide margin either way — the AA-for-text bar above is the binding
-     constraint, not the ring. */
-  --brand: #2772cb;
+  /* Homepage/hover "next surface" tint — distinct from both the page
+     --background and the pure-white --surface, used for hover states
+     (nav dropdown items, list rows, project-row actions) and alternating
+     marketing-page sections. Predates this ticket and isn't part of the
+     user's fixed color table, but still earns its keep now that
+     --background/--surface exist as two separate, more specific tokens:
+     --paper is the "one step further" tint neither of those two names
+     covers (a hover/alternate-surface wash, not the base page canvas and
+     not a card face). Value re-tuned to sit visually between the new
+     --background and --line (previously tuned against the old pure-white
+     --background, which no longer applies now that --background itself is
+     off-white). */
+  --paper: #f1f0eb;
+  --line: #e8e8e3;
+  /* Brand accent (Ticket 037, refined by Ticket 048). User's exact
+     Farb-System hex is #5B6CFF — verified against wohnu.de's own real
+     brand color (#5560CF, from its <meta name="theme-color">, Tailwind v4
+     oklch hue ~276-277) during this ticket's research pass: the two are
+     close enough that no discrepancy needed resolving, the user's own
+     value stands.
+     Kontrast-Pflicht (same relative-luminance-formula methodology as
+     Ticket 037, re-run for real, not eyeballed):
+       - #5B6CFF (literal user hex) vs #ffffff        = 4.172:1 — FAILS AA text (4.5:1)
+       - #5B6CFF (literal user hex) vs #fafaf8 (--background) = 3.992:1 — FAILS AA text (4.5:1)
+       - #5B6CFF as UI/focus-ring (3:1 bar) vs either  = PASSES (same two ratios above, well over 3:1)
+     The literal hex only fails the *text* bar (button labels via
+     text-background on a bg-brand button, text-brand active nav/links) —
+     it already clears the 3:1 non-text/focus-ring bar with room. Same
+     "knapp durchfällt bei Text-auf-Brand" case the ticket itself
+     anticipated. Per Ticket 037's exact methodology: derive the smallest
+     hue-preserving darkening that clears AA, not a different color.
+     Uniform-scaled the literal hex toward black in 1% steps (preserves
+     hue/saturation exactly — see the ticket write-up's derivation script)
+     until both pairs cleared 4.5:1, then took a value with comfortable
+     margin above the crossover (not shaved to the exact boundary, same
+     spirit as Ticket 037's own ~5%-darkened pick):
+       - #5261E6 (~10% darkened from #5B6CFF, same hue/saturation family)
+         vs #ffffff = 4.987:1 — passes
+         vs #fafaf8 (--background) = 4.772:1 — passes
+     Visually indistinguishable from the user's own #5B6CFF at a glance
+     (same periwinkle/indigo blue, one step darker) — not a "second,
+     competing accent," the same brand color the user specified, adjusted
+     the minimum necessary amount for real text legibility. */
+  --brand: #5261e6;
+  /* NEW: Brand Soft — replaces the previous undocumented bg-brand/10
+     opacity trick used for the active nav-link background (Ticket 036)
+     with a real, named token, per the user's exact Farb-System value. */
+  --brand-soft: #eef0ff;
+  /* NEW: status tokens (Ticket 048's Farb-System). Literal user hexes as
+     specified. Deliberately used as DECORATIVE/accent tone (small status
+     dots, left-accent borders, tinted backgrounds/icons) rather than as
+     the sole color of small error/warning/success BODY TEXT — same
+     "chart fill is decorative, not a text-contrast case" precedent
+     Ticket 037 already established for --chart-standard/--chart-project.
+     Checked for real (same formula):
+       - #2F9E66 (success) vs #fafaf8 = 3.239:1 — well under AA text (4.5:1)
+       - #E59A29 (warning) vs #fafaf8 = 2.236:1 — well under AA text (4.5:1)
+       - #D94C4C (danger)  vs #fafaf8 = 3.949:1 — under AA text (4.5:1)
+     None of the three literal hexes clear 4.5:1 as light-mode BODY TEXT
+     against --background — expected for mid-saturation status hues on a
+     near-white canvas, and not unique to this palette (Tailwind's own
+     amber-500/emerald-500 etc. have the same property). This ticket does
+     NOT force these three into text-color duty: the existing, already
+     AA-passing text-red-700/dark:text-red-400 idiom (errorClass across
+     every Client Component) stays exactly as-is for actual error MESSAGE
+     text. The new tokens are applied where the ticket names them
+     (DeleteAccountSection, ToastProvider, general status indicators) as
+     borders/background tints/icon color — never as the only-color of a
+     line of small body text — so no real AA regression is introduced. */
+  --success: #2f9e66;
+  --warning: #e59a29;
+  --danger: #d94c4c;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-text-secondary: var(--text-secondary);
   --color-chart-standard: var(--chart-standard);
   --color-chart-project: var(--chart-project);
   --color-paper: var(--paper);
   --color-line: var(--line);
   --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Ticket 048: second font family, Hero/Display headings only (marketing
+     homepage) — see app/layout.tsx's Schibsted_Grotesk import. Generates
+     the `font-display` Tailwind utility, same auto-generation Tailwind v4
+     already does for --font-sans/--font-mono above. */
+  --font-display: var(--font-schibsted-grotesk);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Ticket 048 edge case: dark mode isn't given by the user's brief (it
+       only specifies light values) but every token still needs a
+       consciously derived dark counterpart, not an automatic inversion.
+       Warmer off-black (not pure #000) in the same direction as the new
+       light --background's warm off-white, mirroring how --foreground's
+       light/dark pair already works. */
+    --background: #161513;
+    /* Elevated card surface — a touch lighter than --background, same
+       "surface sits above the page" relationship --surface has to
+       --background in light mode (there --surface is lighter/whiter than
+       --background; here it's the same direction, just starting from a
+       near-black base). */
+    --surface: #1e1d1a;
+    --foreground: #f2f1ed;
+    /* #A6A29A vs #161513 (--background) = 7.174:1, vs #1e1d1a (--surface)
+       = 6.627:1 — both comfortably pass AA text, no adjustment needed
+       (unlike light mode's razor-thin miss above). */
+    --text-secondary: #a6a29a;
     --chart-standard: #3987e5;
     --chart-project: #d95926;
-    --paper: #131419;
-    --line: #24262c;
-    /* Same value as --chart-standard above, see the :root comment. */
-    --brand: #3987e5;
+    --paper: #1a1815;
+    --line: #312e29;
+    /* Brand (dark): the literal user hex #5B6CFF and even the light-mode-
+       adjusted #5261E6 both fail AA text against the new dark background/
+       surface (checked for real):
+         - #5B6CFF vs #161513 (--background) = 4.374:1 — FAILS (need 4.5:1)
+         - #5B6CFF vs #1e1d1a (--surface)     = 4.040:1 — FAILS
+       Same derivation method as light mode, just lightening (mixing
+       toward white) instead of darkening — dark UIs need a LIGHTER accent
+       for the same reason light UIs need a darker one: legibility against
+       the opposite-direction background. Minimal lightening that clears
+       AA against BOTH dark --background and --surface, same hue family:
+         - #7482FF (~15% mixed toward white from #5B6CFF)
+           vs #161513 (--background) = 5.544:1 — passes
+           vs #1e1d1a (--surface)     = 5.121:1 — passes
+       Also re-verified as a UI element against its own --brand-soft
+       background below (active nav-link text on the tinted pill):
+         - #7482FF vs #23263D (--brand-soft dark) = 4.505:1 — passes (barely
+           over 4.5, comfortably over the 3:1 non-text bar that actually
+           applies to a background pill, text sitting on it is still the
+           binding case checked here). */
+    --brand: #7482ff;
+    /* Dark equivalent of the light-mode brand-soft pastel — a subtly
+       brand-tinted dark surface for the active nav-link pill, not a
+       literal alpha-blend of the two (a pastel like #EEF0FF has no
+       equivalent "just mix background and brand" dark construction, see
+       the ticket write-up) but a hand-picked value in the same
+       desaturated-indigo family, checked above for text-on-it contrast. */
+    --brand-soft: #23263d;
+    /* Success/warning literal user hexes already clear AA text against
+       the dark background for real (checked, not assumed):
+         - #2F9E66 vs #161513 = 5.391:1 — passes, kept as-is
+         - #E59A29 vs #161513 = 7.808:1 — passes, kept as-is
+       Danger's literal hex falls just short:
+         - #D94C4C vs #161513 = 4.422:1 — misses AA by a hair
+       Same minimal-adjustment methodology: lightened slightly within the
+       same red family rather than picked from scratch.
+         - #EF6F6F vs #161513 = 6.234:1 — passes with real margin
+       (Same caveat as the light-mode comment above: these three are for
+       decorative/accent use, not sole-color error body text — the
+       existing dark:text-red-400 idiom, already AA-passing, stays the
+       actual error-message color.) */
+    --success: #2f9e66;
+    --warning: #e59a29;
+    --danger: #ef6f6f;
   }
 }
 
@@ -87,4 +234,58 @@ body {
      never actually applied anywhere) — every page was rendering in the
      browser's default sans-serif fallback. */
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Ticket 048 — Animationen: the two "on mount" cases the ticket's AK
+   spells out that a plain Tailwind `transition-*` utility can't cover
+   (those only animate a CHANGE between two states of an already-mounted
+   element; a dropdown/card's very first appearance needs a real
+   animation that plays once on mount). Kept as two small named
+   keyframes/utilities here rather than a library — same "a small amount
+   of own CSS/code is enough" precedent this app already applies
+   elsewhere (HistoryChart's hand-rolled SVG, HistoryDateRangePicker's
+   hand-rolled calendar grid, both documented in their own files).
+   Durations stay inside the ticket's own 120-150ms band for the dropdown
+   (a quick, expected UI reveal) and a slightly longer 200ms for content
+   fade-in (page/card content appearing is a calmer, less frequent event
+   than a dropdown open, so a touch slower reads as more deliberate, not
+   sluggish) — neither is a bounce or a zoom, both explicitly ruled out
+   by the ticket. */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes content-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-dropdown-in {
+  animation: dropdown-in 150ms ease-out;
+}
+
+.animate-content-fade-in {
+  animation: content-fade-in 200ms ease-out;
+}
+
+/* Respect a user's reduced-motion preference — same spirit as the
+   ticket's own "sehr dezente" animation philosophy, taken to its logical
+   conclusion for anyone who has explicitly asked their OS for none at
+   all. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-dropdown-in,
+  .animate-content-fade-in {
+    animation: none;
+  }
 }

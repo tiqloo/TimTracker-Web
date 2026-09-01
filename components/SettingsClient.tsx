@@ -43,21 +43,28 @@ import {
   t,
   type Lang,
 } from "@/lib/i18n";
+import {
+  dangerButtonClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from "@/lib/ui/button-styles";
+import { errorMessageClass } from "@/lib/ui/status-styles";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
-const buttonClass =
-  "rounded-md border border-line px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
+// Ticket 048: Secondary tier (lib/ui/button-styles.ts) — was a locally
+// defined "buttonClass" (border-line, no fill) before this ticket's button
+// consolidation pass; primaryButtonClass/dangerButtonClass below are now
+// imported the same way rather than locally defined (dangerButtonClass
+// previously used a raw bg-red-600/text-white pair with no dark-mode
+// variant at all — the shared module's bg-danger/text-white now at least
+// carries a conscious, documented dark value, see globals.css).
+const buttonClass = secondaryButtonClass;
 
-const primaryButtonClass =
-  "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
-
-const dangerButtonClass =
-  "rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50";
-
-const errorClass =
-  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
+// Ticket 048: lib/ui/status-styles.ts (--danger token) — was locally
+// defined before this ticket's status-token consolidation pass.
+const errorClass = errorMessageClass;
 
 // Ticket 041: main settings page now groups into clearly named, generously
 // spaced sections (AK) rather than one flat list — Profil (incl. 032's
@@ -137,7 +144,7 @@ function SubscriptionSection({
         : billing.accessEndedOn;
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-line p-5">
+    <section className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-5">
       <h2 className="text-sm font-medium text-foreground/70">
         {t(lang, settings.subscriptionSectionTitle)}
       </h2>
@@ -227,7 +234,7 @@ function DataExportSection({ lang }: { lang: Lang }) {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line p-5">
+    <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5">
       <h2 className="text-sm font-medium text-foreground/70">
         {t(lang, settings.dataExportTitle)}
       </h2>
@@ -289,7 +296,7 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-line p-5">
+    <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5">
       <h2 className="text-sm font-medium text-foreground/70">
         {t(lang, i18nProfile.sectionTitle)}
       </h2>
@@ -337,7 +344,12 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
           Deliberately NOT red/destructive styling: that stays exclusive to
           DeleteAccountSection below, see this component's Ticket 032
           comment there for why. */}
-      <div className="flex flex-col gap-3 rounded-lg border border-line bg-paper p-4">
+      {/* Ticket 048: rounded-lg (8px) bumped to rounded-xl (12px) — the
+          ticket's radius AK asks for cards/larger containers to land in
+          the 10-14px band; this nested "Sicherheit" box is a card-within-
+          a-card, same treatment as every other card container in this
+          file. */}
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
           {t(lang, i18nProfile.securitySectionTitle)}
         </h3>
@@ -873,8 +885,16 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
 
   return (
     <section
-      className={`flex flex-col gap-3 rounded-xl border p-5 ${
-        confirming ? "border-red-600/30" : "border-line"
+      // Ticket 048: border-red-600/30 -> border-danger/30 (the new status
+      // token, used here for its intended decorative/accent role — an
+      // outline, not body text — see globals.css's --danger comment). The
+      // heading text just below deliberately KEEPS text-red-700/
+      // dark:text-red-400 rather than switching to --danger: that pair
+      // already clears AA text contrast (unlike the literal --danger hex
+      // as text, see globals.css), and this ticket's token pass is
+      // explicit about not regressing real error-message legibility.
+      className={`flex flex-col gap-3 rounded-xl border bg-surface p-5 transition-colors duration-150 ${
+        confirming ? "border-danger/30" : "border-line"
       }`}
     >
       <h2

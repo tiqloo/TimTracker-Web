@@ -17,6 +17,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { support, t, type Lang } from "@/lib/i18n";
+import { primaryButtonClass } from "@/lib/ui/button-styles";
 
 // Placeholder support mailbox — tiqloo.com is the real production domain
 // (TimTracker-Web/README.md's "Produktions-Deployment"-Abschnitt), but
@@ -33,9 +34,6 @@ const SUPPORT_EMAIL = "support@tiqloo.com";
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
-const primaryButtonClass =
-  "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
-
 // RFC 6068 mailto: URIs use percent-encoding directly in the query part,
 // NOT application/x-www-form-urlencoded (which URLSearchParams produces,
 // encoding spaces as "+" — technically wrong here, some mail clients
@@ -51,7 +49,7 @@ function buildMailto(subject: string, body: string): string {
 
 export function SupportClient({ lang, displayName }: { lang: Lang; displayName: string }) {
   return (
-    <div className="flex flex-col gap-10 py-8">
+    <div className="flex animate-content-fade-in flex-col gap-10 py-8">
       <Greeting lang={lang} displayName={displayName} />
       <RequestBox lang={lang} />
       <QuickLinks lang={lang} />
@@ -66,7 +64,7 @@ export function SupportClient({ lang, displayName }: { lang: Lang; displayName: 
 // just inside a flex heading instead of a flex header row.
 function Greeting({ lang, displayName }: { lang: Lang; displayName: string }) {
   return (
-    <h1 className="flex min-w-0 items-baseline gap-1 text-2xl font-semibold tracking-tight">
+    <h1 className="flex min-w-0 items-baseline gap-1 text-[34px] font-semibold tracking-tight">
       <span className="min-w-0 truncate" title={displayName}>
         {displayName}
       </span>
@@ -87,7 +85,7 @@ function RequestBox({ lang }: { lang: Lang }) {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line p-5">
+    <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5">
       <h2 className="text-sm font-medium text-foreground/70">{t(lang, support.requestTitle)}</h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
@@ -136,14 +134,14 @@ function QuickLinks({ lang }: { lang: Lang }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <a
           href={buildMailto(t(lang, support.feedbackMailSubject), "")}
-          className="flex flex-col gap-1 rounded-xl border border-line p-4 text-left hover:bg-paper"
+          className="flex flex-col gap-1 rounded-xl border border-line bg-surface p-4 text-left transition-colors duration-150 hover:bg-paper"
         >
           <span className="text-sm font-medium">{t(lang, support.feedbackTitle)}</span>
           <span className="text-sm text-foreground/60">{t(lang, support.feedbackBody)}</span>
         </a>
         <Link
           href="/dashboard/settings"
-          className="flex flex-col gap-1 rounded-xl border border-line p-4 hover:bg-paper"
+          className="flex flex-col gap-1 rounded-xl border border-line bg-surface p-4 transition-colors duration-150 hover:bg-paper"
         >
           <span className="text-sm font-medium">{t(lang, support.settingsQuickLinkTitle)}</span>
           <span className="text-sm text-foreground/60">{t(lang, support.settingsQuickLinkBody)}</span>
@@ -156,10 +154,16 @@ function QuickLinks({ lang }: { lang: Lang }) {
 function SupportFooter({ lang }: { lang: Lang }) {
   return (
     <footer className="flex flex-wrap gap-4 border-t border-line pt-4 text-sm text-foreground/70">
-      <Link href="/dashboard/support/helpcenter" className="hover:text-foreground">
+      <Link
+        href="/dashboard/support/helpcenter"
+        className="transition-colors duration-150 hover:text-foreground"
+      >
         {t(lang, support.footerHelpcenter)}
       </Link>
-      <Link href="/dashboard/support/changelog" className="hover:text-foreground">
+      <Link
+        href="/dashboard/support/changelog"
+        className="transition-colors duration-150 hover:text-foreground"
+      >
         {t(lang, support.footerChangelog)}
       </Link>
     </footer>

@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import {
+  ArrowRight,
+  AppWindow,
+  CircleCheck,
+  Clock,
+  Download,
+  Tag,
+} from "lucide-react";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { home, t, type Lang } from "@/lib/i18n";
@@ -49,28 +57,18 @@ export default async function HomePage() {
   );
 }
 
-// Small literal mark (a clock face, not an abstract logo) — the one place
-// on the page a "brand symbol" appears, kept tiny and quiet on purpose.
+// Ticket 048: hand-drawn Mark() SVG replaced with lucide-react's Clock —
+// same "literal clock face, not an abstract logo" reasoning as before,
+// now via the shared icon library instead of a bespoke SVG (see
+// DashboardNav.tsx's own Ticket 048 comment for the full reasoning; this
+// is the same brand mark, independently defined here since this file and
+// DashboardNav.tsx are two different route trees with no shared
+// component between them). Kept small (18px, the bottom of the ticket's
+// 18-20px icon-size band) — inline with the "TimTracker" wordmark at
+// text-sm, the same "don't overpower the adjacent text" reasoning
+// DashboardNav.tsx's Mark()/SupportIcon() sizing comment gives.
 function Mark() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
-      <circle
-        cx="10"
-        cy="10"
-        r="8.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        fill="none"
-      />
-      <path
-        d="M10 5.5V10l3 2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Clock size={18} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function SiteNav({ lang }: { lang: Lang }) {
@@ -87,25 +85,25 @@ function SiteNav({ lang }: { lang: Lang }) {
         <nav className="flex items-center gap-1">
           <Link
             href="#features"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground sm:inline-block"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground sm:inline-block"
           >
             {t(lang, home.navFeatures)}
           </Link>
           <Link
             href="#pricing"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground sm:inline-block"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground sm:inline-block"
           >
             {t(lang, home.navPricing)}
           </Link>
           <Link
             href="/login"
-            className="rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground"
+            className="rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground"
           >
             {t(lang, home.navSignIn)}
           </Link>
           <Link
             href="/register"
-            className="rounded-md bg-brand px-3.5 py-1.5 text-sm font-medium text-background"
+            className="rounded-md bg-brand px-3.5 py-1.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
           >
             {t(lang, home.navSignUp)}
           </Link>
@@ -126,23 +124,13 @@ function TimeLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Ticket 048: hand-drawn arrow SVG replaced with lucide-react's ArrowRight
+// — used inline inside CTA button labels (text-sm), so kept at the same
+// compact 14px it was before rather than the spec's full 18-20px "icon"
+// band (same "don't overpower the adjacent label text" reasoning as
+// Mark() above).
 function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      className="h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      <path
-        d="M3.5 8h9M8.5 3.5 13 8l-4.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <ArrowRight size={14} strokeWidth={1.75} aria-hidden="true" />;
 }
 
 // The signature element: one realistic workday, rendered as the exact
@@ -180,7 +168,7 @@ function toMinutes(hhmm: string): number {
 function DayTimeline({ lang }: { lang: Lang }) {
   const segments = daySegments(lang);
   return (
-    <div className="w-full max-w-md rounded-xl border border-line bg-background shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:max-w-none">
+    <div className="w-full max-w-md rounded-xl border border-line bg-surface shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:max-w-none">
       <div className="flex items-center gap-1.5 border-b border-line px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full border border-line" />
         <span className="h-2.5 w-2.5 rounded-full border border-line" />
@@ -219,11 +207,11 @@ function DayTimeline({ lang }: { lang: Lang }) {
           <TimeLabel>{t(lang, home.timelineSleepTime)}</TimeLabel>
         </div>
         <div className="mt-5 flex items-center gap-4 border-t border-line pt-4">
-          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
+          <span className="flex items-center gap-1.5 text-xs text-text-secondary">
             <span className="h-2 w-2 rounded-full bg-[var(--chart-standard)]" />
             {t(lang, home.timelineLegendAuto)}
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
+          <span className="flex items-center gap-1.5 text-xs text-text-secondary">
             <span className="h-2 w-2 rounded-full bg-[var(--chart-project)]" />
             {t(lang, home.timelineLegendProject)}
           </span>
@@ -241,7 +229,14 @@ function Hero({ lang }: { lang: Lang }) {
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
             {t(lang, home.heroEyebrow)}
           </p>
-          <h1 className="mt-3 max-w-xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+          {/* Ticket 048: font-display (Schibsted Grotesk, app/layout.tsx) —
+              the one place on the whole site this ticket's second typeface
+              appears, exactly wohnu.de's own Hero-only --land-display
+              usage. Size bumped from the old text-4xl/sm:text-5xl (36/48px)
+              to the ticket's "Hero Website 64–72px" scale entry — 48px on
+              mobile (unchanged start point, 72px here would overflow a
+              small viewport) up to the spec's exact top value at sm+. */}
+          <h1 className="mt-3 max-w-xl font-display text-5xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-7xl">
             {t(lang, home.heroTitle)}
           </h1>
           <p className="mt-5 max-w-md text-base text-foreground/65 sm:text-lg">
@@ -250,14 +245,14 @@ function Hero({ lang }: { lang: Lang }) {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background"
+              className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
             >
               {t(lang, home.heroCtaStart)}
               <ArrowIcon />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium"
+              className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium transition-colors duration-150 hover:bg-paper"
             >
               {t(lang, home.heroCtaLogin)}
             </Link>
@@ -288,7 +283,7 @@ function HowItWorks({ lang }: { lang: Lang }) {
   return (
     <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {t(lang, home.howItWorksTitle)}
         </h2>
         <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-10">
@@ -305,62 +300,29 @@ function HowItWorks({ lang }: { lang: Lang }) {
   );
 }
 
+// Ticket 048: the five hand-drawn Features-section icons replaced with
+// their lucide-react equivalents — standalone, not inline with any text
+// (each sits above its own heading/description), so these get the
+// ticket's literal 18-20px/1.5-2px band in full, unlike the smaller
+// inline icons above (Mark/ArrowIcon) or in DashboardNav.tsx.
 function IconClock() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path d="M10 6v4l2.5 1.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <Clock size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconTag() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M11.2 3.5H5.8a2.3 2.3 0 0 0-2.3 2.3v5.4c0 .3.1.6.3.8l6.3 6.3c.5.5 1.4.5 1.9 0l4.9-4.9c.5-.5.5-1.4 0-1.9L10.6 5.2c-.2-.2-.5-.3-.8-.3"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <circle cx="7.6" cy="7.6" r="1" fill="currentColor" />
-    </svg>
-  );
+  return <Tag size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconExport() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M10 3v9m0 0-3-3m3 3 3-3M4 13.5v1.8c0 .9.7 1.7 1.7 1.7h8.6c.9 0 1.7-.8 1.7-1.7v-1.8"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
+  return <Download size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconWindow() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <rect x="3" y="4" width="14" height="12" rx="1.6" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path d="M3 7.4h14" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
+  return <AppWindow size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconCheck() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path d="M6.8 10.2 9 12.4l4.2-4.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
+  return <CircleCheck size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function features(lang: Lang): {
@@ -381,7 +343,7 @@ function Features({ lang }: { lang: Lang }) {
   return (
     <section id="features" className="scroll-mt-14 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {t(lang, home.featuresTitle)}
         </h2>
         <div className="mt-8 grid grid-cols-1 divide-y divide-line border-t border-line sm:grid-cols-2">
@@ -434,7 +396,7 @@ function Pricing({ lang }: { lang: Lang }) {
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
             {t(lang, home.pricingEyebrow)}
           </p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
             {t(lang, home.pricingTitle)}
           </h2>
           <p className="mt-3 text-sm text-foreground/65 sm:text-base">
@@ -442,7 +404,13 @@ function Pricing({ lang }: { lang: Lang }) {
           </p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-sm rounded-2xl border border-line bg-paper p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)]">
+          {/* Ticket 048: rounded-2xl (16px) -> rounded-xl (12px), the
+              ticket's radius AK band for "Karten/größere Container"
+              (10-14px). This card keeps its own bg-paper/shadow treatment
+              per its module comment above — deliberately the one heavier-
+              weight card on the page — the radius unification still
+              applies to it like every other card in the app. */}
+        <div className="mx-auto mt-10 max-w-sm rounded-xl border border-line bg-paper p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)]">
           <div className="flex items-baseline gap-1.5">
             <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
               {t(lang, home.pricingAmount)}
@@ -466,7 +434,7 @@ function Pricing({ lang }: { lang: Lang }) {
 
           <Link
             href="/register"
-            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background"
+            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
           >
             {t(lang, home.pricingCta)}
             <ArrowIcon />
@@ -536,10 +504,10 @@ function SiteFooter({ lang }: { lang: Lang }) {
           </p>
         </div>
         <div className="flex items-center gap-5 text-sm">
-          <Link href="/login" className="text-foreground/70 hover:text-foreground">
+          <Link href="/login" className="text-text-secondary transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignIn)}
           </Link>
-          <Link href="/register" className="text-foreground/70 hover:text-foreground">
+          <Link href="/register" className="text-text-secondary transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignUp)}
           </Link>
         </div>
