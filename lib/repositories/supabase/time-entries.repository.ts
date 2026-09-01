@@ -92,18 +92,27 @@ function buildBreakdown(day: string, entries: TimeEntry[], now: Date): DailyBrea
   };
 }
 
+// `projectId` (Ticket 043): optional server-side filter for the "Historie"
+// project dropdown — narrows the same range query to one project's rows
+// instead of fetching everything and filtering in JS, so getBreakdown's
+// buildBreakdown below never needs to know about the filter at all (it
+// just aggregates whatever fetchRange handed it, same as before).
 async function fetchRange(
   client: SupabaseClient,
   fromDay: string,
   toDay: string,
+  projectId?: string,
 ): Promise<TimeEntry[]> {
-  const { data, error } = await client
+  let query = client
     .from("time_entries")
     .select("*")
     .gte("day", fromDay)
     .lte("day", toDay)
-    .is("deleted_at", null)
-    .order("start_time", { ascending: true });
+    .is("deleted_at", null);
+  if (projectId) {
+    query = query.eq("project_id", projectId);
+  }
+  const { data, error } = await query.order("start_time", { ascending: true });
   if (error) throw error;
   return (data as TimeEntryRow[]).map(toDomain);
 }
@@ -123,12 +132,12 @@ export function createSupabaseTimeEntriesRepository(
       return (data as TimeEntryRow[]).map(toDomain);
     },
 
-    async getForRange(fromDay: string, toDay: string) {
-      return fetchRange(client, fromDay, toDay);
+    async getForRange(fromDay: string, toDay: string, projectId?: string) {
+      return fetchRange(client, fromDay, toDay, projectId);
     },
 
-    async getBreakdown(fromDay: string, toDay: string) {
-      const entries = await fetchRange(client, fromDay, toDay);
+    async getBreakdown(fromDay: string, toDay: string, projectId?: string) {
+      const entries = await fetchRange(client, fromDay, toDay, projectId);
 
       const now = new Date();
       const byDay = new Map<string, TimeEntry[]>();

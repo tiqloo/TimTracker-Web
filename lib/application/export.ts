@@ -31,13 +31,18 @@ const SYSTEM_PROJECT_NAMES: Record<string, string> = {
   "00000000-0000-0000-0000-000000000002": "Pause",
 };
 
+// `projectId` (Ticket 043): optional, narrows the export to a single
+// project's sessions — the CSV/PDF export routes pass through whatever
+// filter is active on the "Historie" page so an export always matches
+// what's currently on screen, instead of always exporting everything.
 export async function getExportRows(
   repos: Repositories,
   fromDay: string,
   toDay: string,
+  projectId?: string,
 ): Promise<ExportRow[]> {
   const [entries, projects] = await Promise.all([
-    repos.timeEntries.getForRange(fromDay, toDay),
+    repos.timeEntries.getForRange(fromDay, toDay, projectId),
     repos.projects.getAll(),
   ]);
 

@@ -174,6 +174,12 @@ export const historyChart = {
     de: "Monatswerte (aggregiert)",
     en: "Monthly values (aggregated)",
   },
+  // Ticket 043: shown next to the granularity label when the "Historie"
+  // project filter is active, so the chart itself makes clear it's
+  // showing one project's bars, not the whole period's activity — not
+  // just a silent difference in bar height a user might mistake for a
+  // quiet day.
+  filteredByProjectPrefix: { de: "Projekt:", en: "Project:" },
 } satisfies Record<string, Translated>;
 
 export function historyChartAriaLabel(lang: Lang, granularity: "day" | "month"): string {
@@ -295,10 +301,24 @@ export const history = {
     de: "Keine Aktivität in diesem Zeitraum.",
     en: "No activity in this period.",
   },
+  // Ticket 043 edge case: project filter + period together yield zero
+  // days — shown INSTEAD of noActivity above whenever a project filter is
+  // active, so the empty state clearly says "this filter" rather than
+  // leaving the user wondering if the whole period is genuinely empty.
+  noActivityFiltered: {
+    de: "Keine Einträge für diesen Filter.",
+    en: "No entries for this filter.",
+  },
   automatic: { de: "Automatik", en: "Automatic" },
   project: { de: "Projekt", en: "Project" },
   unassigned: { de: "Nicht zugeordnet", en: "Unassigned" },
   backToHistory: { de: "← Zurück zur Historie", en: "← Back to History" },
+  // --- Ticket 043: calendar range picker + project filter ---------------
+  allProjects: { de: "Alle Projekte", en: "All Projects" },
+  chooseRange: { de: "Zeitraum wählen", en: "Choose period" },
+  previousMonth: { de: "Vorheriger Monat", en: "Previous month" },
+  nextMonth: { de: "Nächster Monat", en: "Next month" },
+  calendarLabel: { de: "Kalender", en: "Calendar" },
 } satisfies Record<string, Translated>;
 
 // --- components/SettingsClient.tsx: ProfileSection (Ticket 024) --------

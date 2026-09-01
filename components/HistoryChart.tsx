@@ -57,10 +57,18 @@ export function HistoryChart({
   bars,
   granularity,
   lang,
+  activeProjectName,
 }: {
   bars: ChartBar[];
   granularity: ChartGranularity;
   lang: Lang;
+  // Ticket 043: the "Historie" project filter's currently selected
+  // project name, if any — the bars themselves are already filtered
+  // upstream (history/page.tsx passes a filtered `bars` in either case,
+  // this component never filters anything itself), this is purely the
+  // visible "you're looking at one project, not the whole period"
+  // indicator so a shorter bar doesn't read as "a quiet day".
+  activeProjectName?: string;
 }) {
   if (bars.length === 0) return null;
 
@@ -79,8 +87,15 @@ export function HistoryChart({
       <div className="mb-3 flex items-center gap-4 font-mono text-xs text-foreground/60">
         <Legend swatchClassName="bg-chart-standard" label={t(lang, historyChart.automaticTime)} />
         <Legend swatchClassName="bg-chart-project" label={t(lang, historyChart.projectTime)} />
-        <span className="ml-auto">
-          {granularity === "day" ? t(lang, historyChart.dailyValues) : t(lang, historyChart.monthlyValues)}
+        <span className="ml-auto flex items-center gap-2">
+          {activeProjectName && (
+            <span>
+              {t(lang, historyChart.filteredByProjectPrefix)} {activeProjectName}
+            </span>
+          )}
+          <span>
+            {granularity === "day" ? t(lang, historyChart.dailyValues) : t(lang, historyChart.monthlyValues)}
+          </span>
         </span>
       </div>
 

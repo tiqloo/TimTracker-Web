@@ -58,10 +58,16 @@ export async function getTodayEntries(
   return getEntriesForDay(repos, isoToday());
 }
 
+// `projectId` (Ticket 043 — Historie calendar + project filter): optional,
+// narrows the breakdown to a single project's entries. Threaded straight
+// through to the port — see TimeEntriesRepository.getBreakdown's own
+// comment for why the aggregation math (buildBreakdown in the Supabase
+// adapter) doesn't need to change at all for this.
 export async function getHistory(
   repos: Repositories,
   fromDay: string,
   toDay: string,
+  projectId?: string,
 ): Promise<DailyBreakdown[]> {
-  return repos.timeEntries.getBreakdown(fromDay, toDay);
+  return repos.timeEntries.getBreakdown(fromDay, toDay, projectId);
 }
