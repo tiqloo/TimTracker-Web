@@ -1,3 +1,5 @@
+"use client";
+
 // Shared day-detail rendering — hero automatic-time number, a visual
 // day-timeline, and the flat chronological entry list. Used by both
 // app/(dashboard)/dashboard/page.tsx ("Heute") and
@@ -5,10 +7,12 @@
 // the spec (Ticket 001/003 in TimTracker-Starter, Ticket 018 itself) says a
 // past day should render in the SAME layout as "Heute", not a separate
 // design.
-// Deliberately a plain presentational component — it takes already-fetched
-// data, not a Repositories instance, so it stays usable from any Server
-// Component regardless of which application function fetched the data
-// (getTodayBreakdown/getTodayEntries vs. getBreakdownForDay/getEntriesForDay).
+// Takes already-fetched data as props (not a Repositories instance), so it
+// stays usable from any Server Component regardless of which application
+// function fetched the initial data (getTodayBreakdown/getTodayEntries vs.
+// getBreakdownForDay/getEntriesForDay) — a Server Component can render a
+// Client Component directly with serializable props, which is all
+// breakdown/entries/nowMs/lang are.
 //
 // Redesigned for Ticket 033 (TimTracker-Starter repo): previously three
 // equal-weight SummaryTiles (grid-cols-3, identical typography) followed by
@@ -19,9 +23,23 @@
 // (breakdown.totalSeconds/projectSeconds/unassignedSeconds) and the entry
 // list's data (entries, formatTime/formatDuration) are UNCHANGED — this is
 // a pure display restructuring, no new formulas.
+//
+// Promoted from a plain presentational (Server-renderable) component to a
+// Client Component for Ticket 034 ("Nicht zugeordnete Zeit" -> Projekt
+// zuordnen): the AK requires the timeline AND the hero/secondary numbers to
+// update immediately after a successful assign, without a full page
+// reload — that needs local React state (entries/breakdown), which needs
+// "use client". The `breakdown`/`entries` props below are now only the
+// INITIAL server-fetched values (still fetched exactly as before by each
+// caller's Server Component) — see the useState calls below.
+import { useEffect, useState } from "react";
 import { formatDuration, formatTime } from "@/lib/format";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
+import type { Project } from "@/lib/domain/project";
 import { languageCodeToLocale } from "@/lib/domain/language";
+import { getRepositories } from "@/lib/application/client";
+import { listProjects } from "@/lib/application/projects";
+import { AssignTimeAction } from "@/components/AssignTimeAction";
 import { dayDetail, dayDetailSegmentTooltip, t, type Lang } from "@/lib/i18n";
 
 // The two system pseudo-projects seeded by supabase/migrations/0001_init.sql
@@ -133,9 +151,47 @@ function buildTimeline(entries: TimeEntry[], nowMs: number): TimelineSegment[] {
   return segments;
 }
 
+// Ticket 034: recomputes a DailyBreakdown from an up-to-date entries array
+// after a successful assign — same formula, same field-by-field meaning as
+// buildBreakdown() in lib/repositories/supabase/time-entries.repository.ts
+// (standardSeconds/projectSeconds/pauseSeconds from segmentKind() above,
+// totalSeconds excludes pause, unassignedSeconds = max(0, total -
+// project)). Deliberately duplicated here rather than imported — same
+// precedent and same reasoning as STANDARD_PROJECT_ID/PAUSE_PROJECT_ID at
+// the top of this file: components/ sits one layer above
+// lib/application/*, and the Hexagonal boundary means it must never reach
+// into lib/repositories/supabase/* (an adapter) directly. Keep in sync if
+// the formula ever changes — same "single formula, three call sites"
+// obligation the adapter's own comment already documents.
+function computeBreakdown(day: string, entries: TimeEntry[], nowMs: number): DailyBreakdown {
+  let standardSeconds = 0;
+  let projectSeconds = 0;
+  let pauseSeconds = 0;
+
+  for (const entry of entries) {
+    const start = new Date(entry.startTime).getTime();
+    const end = entry.endTime ? new Date(entry.endTime).getTime() : nowMs;
+    const seconds = Math.max(0, Math.round((end - start) / 1000));
+    const kind = segmentKind(entry);
+    if (kind === "pause") pauseSeconds += seconds;
+    else if (kind === "auto") standardSeconds += seconds;
+    else projectSeconds += seconds;
+  }
+
+  const totalSeconds = standardSeconds + projectSeconds;
+  return {
+    day,
+    standardSeconds,
+    projectSeconds,
+    pauseSeconds,
+    totalSeconds,
+    unassignedSeconds: Math.max(0, totalSeconds - projectSeconds),
+  };
+}
+
 export function DayDetail({
-  breakdown,
-  entries,
+  breakdown: initialBreakdown,
+  entries: initialEntries,
   nowMs,
   emptyMessage,
   emptyMessageDetail,
@@ -148,6 +204,54 @@ export function DayDetail({
   emptyMessageDetail: string;
   lang: Lang;
 }) {
+  // Ticket 034: local, client-side copies of the server-fetched initial
+  // props — updated in place after a successful assign (see
+  // handleAssigned below) so the timeline and the hero/secondary numbers
+  // reflect the change immediately, without a router.refresh()/full page
+  // reload. On failure neither of these is ever touched (AssignTimeAction
+  // only calls onAssigned on success) — the AK's "Timeline/Kennzahlen
+  // bleiben im alten, korrekten Zustand" edge case falls out of that for
+  // free, no separate rollback logic needed.
+  const [entries, setEntries] = useState(initialEntries);
+  const [breakdown, setBreakdown] = useState(initialBreakdown);
+
+  // Real (non-system) projects for the assign dropdown, fetched once,
+  // lazily, and shared by every AssignTimeAction instance on this page —
+  // not per-row, so a day with several unassigned segments doesn't fire
+  // the same request once per segment. `hasUnassignedOnMount` is captured
+  // once via a lazy useState initializer specifically so it stays stable
+  // across the whole component lifetime even though `breakdown` itself
+  // changes after an assign (unassignedSeconds only ever goes down from
+  // an assign, never up, so "did this day start with something to
+  // assign" is the right, one-time gate for whether to fetch at all —
+  // most days have nothing unassigned, and those pay no extra request).
+  const [hasUnassignedOnMount] = useState(() => initialBreakdown.unassignedSeconds > 0);
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [projectsError, setProjectsError] = useState(false);
+
+  useEffect(() => {
+    if (!hasUnassignedOnMount) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const repos = getRepositories();
+        const list = await listProjects(repos);
+        if (!cancelled) setProjects(list);
+      } catch {
+        if (!cancelled) setProjectsError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasUnassignedOnMount]);
+
+  function handleAssigned(updated: TimeEntry) {
+    const nextEntries = entries.map((entry) => (entry.id === updated.id ? updated : entry));
+    setEntries(nextEntries);
+    setBreakdown(computeBreakdown(initialBreakdown.day, nextEntries, nowMs));
+  }
+
   // Ticket 038: formatDuration/formatTime now take the same locale
   // convention as formatDayLabel/formatFullDate (lib/format.ts) — derived
   // once here from the `lang` prop this component already receives from
@@ -268,33 +372,50 @@ export function DayDetail({
           {timeline
             .filter((segment): segment is EntrySegment => segment.type === "entry")
             .map((segment) => (
-              <li
-                key={segment.key}
-                className="flex items-center justify-between gap-4 py-2.5 text-sm"
-              >
-                <span className="flex items-center gap-2">
-                  {/* --line is a light hairline token — plenty visible as a
-                      wide timeline fill above, but nearly invisible as an
-                      8px dot on --background. The neutral border (already
-                      the established text-foreground/NN opacity idiom used
-                      throughout this codebase) keeps the pause dot readable
-                      as "a third, distinct marker" without introducing a
-                      new named color. */}
-                  <span
-                    aria-hidden="true"
-                    className="h-2 w-2 shrink-0 rounded-full border border-foreground/15"
-                    style={{ backgroundColor: segmentColorVar(segment.kind) }}
-                  />
-                  <span className="font-mono tabular-nums">
-                    {formatTime(segment.entry.startTime, locale)} –{" "}
-                    {segment.entry.endTime
-                      ? formatTime(segment.entry.endTime, locale)
-                      : t(lang, dayDetail.running)}
+              <li key={segment.key} className="flex flex-col gap-1.5 py-2.5 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="flex items-center gap-2">
+                    {/* --line is a light hairline token — plenty visible as a
+                        wide timeline fill above, but nearly invisible as an
+                        8px dot on --background. The neutral border (already
+                        the established text-foreground/NN opacity idiom used
+                        throughout this codebase) keeps the pause dot readable
+                        as "a third, distinct marker" without introducing a
+                        new named color. */}
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 shrink-0 rounded-full border border-foreground/15"
+                      style={{ backgroundColor: segmentColorVar(segment.kind) }}
+                    />
+                    <span className="font-mono tabular-nums">
+                      {formatTime(segment.entry.startTime, locale)} –{" "}
+                      {segment.entry.endTime
+                        ? formatTime(segment.entry.endTime, locale)
+                        : t(lang, dayDetail.running)}
+                    </span>
                   </span>
-                </span>
-                <span className="font-mono tabular-nums text-foreground/70">
-                  {formatDuration((segment.endMs - segment.startMs) / 1000, locale)}
-                </span>
+                  <span className="font-mono tabular-nums text-foreground/70">
+                    {formatDuration((segment.endMs - segment.startMs) / 1000, locale)}
+                  </span>
+                </div>
+                {/* Ticket 034: the "Jetzt zuordnen" action, one per
+                    unassigned (kind "auto" — see this file's own top
+                    comment: unassigned currently equals all automatic
+                    time) entry — placed right at its own row per the
+                    ticket's edge case (several non-contiguous unassigned
+                    segments on the same day must each be assignable
+                    independently, not as one all-or-nothing action). */}
+                {segment.kind === "auto" && (
+                  <div className="pl-4">
+                    <AssignTimeAction
+                      entry={segment.entry}
+                      projects={projects}
+                      projectsError={projectsError}
+                      lang={lang}
+                      onAssigned={handleAssigned}
+                    />
+                  </div>
+                )}
               </li>
             ))}
         </ul>

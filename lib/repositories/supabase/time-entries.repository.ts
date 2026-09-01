@@ -136,6 +136,25 @@ export function createSupabaseTimeEntriesRepository(
       return fetchRange(client, fromDay, toDay, projectId);
     },
 
+    // Ticket 034: reassigns one entry's project_id. `updated_at` has no DB
+    // trigger (0001_init.sql only defaults it on INSERT) — same finding
+    // projects.repository.ts's rename()/setArchived() already documented
+    // for the `projects` table: SyncEngine.swift uses `updatedAt` for
+    // last-write-wins conflict resolution, so leaving it stale here would
+    // both mis-order any future "most recently touched" listing and risk a
+    // later native-app sync treating this web edit as older than a stale
+    // local copy. Same explicit-set fix applied here.
+    async updateProject(entryId: string, projectId: string) {
+      const { data, error } = await client
+        .from("time_entries")
+        .update({ project_id: projectId, updated_at: new Date().toISOString() })
+        .eq("id", entryId)
+        .select()
+        .single();
+      if (error) throw error;
+      return toDomain(data as TimeEntryRow);
+    },
+
     async getBreakdown(fromDay: string, toDay: string, projectId?: string) {
       const entries = await fetchRange(client, fromDay, toDay, projectId);
 
