@@ -9,6 +9,7 @@
 // lib/application/language.ts / lib/application/auth.ts — never
 // lib/repositories/* directly.
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/client";
@@ -25,8 +26,10 @@ import {
 } from "@/lib/application/auth";
 import { APP_LANGUAGES, languageCodeToLocale, languageDisplayName } from "@/lib/domain/language";
 import { normalizeDisplayNameInput } from "@/lib/domain/profile";
+import type { Subscription } from "@/lib/domain/subscription";
 import { formatFullDate } from "@/lib/format";
 import {
+  billing,
   common,
   emailChangeSuccessMessage,
   profile as i18nProfile,
@@ -50,22 +53,105 @@ const dangerButtonClass =
 const errorClass =
   "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
 
+// Ticket 041: main settings page now groups into clearly named, generously
+// spaced sections (AK) rather than one flat list — Profil (incl. 032's
+// "Sicherheit" subsection), Sprache, Abo, then the two GDPR "Konto-
+// Grundrechte" actions (046's data export, then the danger zone) last, in
+// ascending order of how rarely/carefully a user should reach for them.
+// `gap-10` (unchanged from before this ticket) already gives every section
+// its own clear visual break — the AK explicitly allows this ("Abschnitts-
+// Überschriften mit ausreichend visuellem Abstand"), no tabs/wizard needed.
 export function SettingsClient({
   initialLanguage,
   profile,
+  subscription,
   lang,
 }: {
   initialLanguage: AppLanguage;
   profile: Profile;
+  subscription: Subscription;
   lang: Lang;
 }) {
   return (
     <div className="flex flex-col gap-10">
       <ProfileSection profile={profile} lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
+      <SubscriptionSection subscription={subscription} lang={lang} />
       <DataExportSection lang={lang} />
       <DeleteAccountSection lang={lang} />
     </div>
+  );
+}
+
+// "Abo" (Ticket 041) — compact subscription overview card that replaces
+// the previous bare "Abo verwalten →" text link
+// (app/(dashboard)/dashboard/settings/page.tsx used to render this itself,
+// outside SettingsClient entirely — see this ticket's "Ausgangslage").
+// `subscription` is fetched server-side in page.tsx via the exact same
+// getSubscriptionStatus() call billing/page.tsx already uses (no second
+// code path, no client-side Repositories call here), so this stays a
+// plain presentational piece despite living in this "use client" file.
+//
+// Deliberately a SUBSET of billing/page.tsx's own card: status + the
+// relevant renewal/end date only, no trial-days-remaining countdown and
+// no customer-portal button — full management (incl. the Stripe portal,
+// which must not be duplicated here per the AK) stays exclusively on
+// /dashboard/settings/billing, this card only orients the user and links
+// there via the same manageSubscriptionLink text the old standalone link
+// used.
+//
+// Edge case (AK): a `status: "none"` user (no trial/subscription on
+// file) gets billing.noSubscriptionOnFile instead of a blank-looking date
+// row — same fallback billing/page.tsx already uses for the identical
+// case, reused rather than reinvented.
+function SubscriptionSection({
+  subscription,
+  lang,
+}: {
+  subscription: Subscription;
+  lang: Lang;
+}) {
+  const locale = languageCodeToLocale(lang);
+  const periodEndLabel =
+    subscription.status === "trialing"
+      ? billing.trialEndsOn
+      : subscription.status === "active"
+        ? billing.nextRenewalOn
+        : billing.accessEndedOn;
+
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border border-line p-5">
+      <h2 className="text-sm font-medium text-foreground/70">
+        {t(lang, settings.subscriptionSectionTitle)}
+      </h2>
+      <p className="text-sm">
+        {t(lang, billing.statusPrefix)}{" "}
+        <span className="font-medium">
+          {t(lang, billing.statusLabels[subscription.status])}
+        </span>
+      </p>
+      {subscription.currentPeriodEnd ? (
+        <p className="text-sm text-foreground/70">
+          {t(lang, periodEndLabel)}{" "}
+          <span className="font-mono tabular-nums">
+            {formatFullDate(subscription.currentPeriodEnd, locale)}
+          </span>
+          .
+        </p>
+      ) : (
+        subscription.status === "none" && (
+          <p className="text-sm text-foreground/70">{t(lang, billing.noSubscriptionOnFile)}</p>
+        )
+      )}
+      <div>
+        <Link
+          href="/dashboard/settings/billing"
+          className="text-sm text-foreground/70 hover:text-foreground"
+        >
+          {t(lang, settings.manageSubscriptionLink)}
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -637,12 +723,25 @@ function LanguageSection({
   );
 }
 
-// Its red-tinted treatment (border-red-600/30, red heading below) stays
-// exclusive to this destructive/unrecoverable action — Ticket 032 gave
-// EmailChangeAction/PasswordChangeAction in ProfileSection above their own
-// distinct-but-not-red "Sicherheit" tint (bg-paper/border-line) precisely so
-// this red styling keeps its own, stronger meaning instead of being diluted
-// across every security-adjacent action.
+// Ticket 041: pulled down in visual weight — the AK's own feedback quote
+// ("eine destruktive Aktion sollte klar als gefährlich erkennbar sein,
+// aber nicht das prominenteste Element einer normalen Settings-Seite")
+// meant the red `border-red-600/30` card that used to be always-on (same
+// as every other card's rounded-xl border, just red) had to stop being
+// the loudest thing on the page. Now: a neutral `border-line` card titled
+// "Gefahrenbereich" with one plain sentence + a plain (non-danger) button
+// by default — the red treatment (border, heading color, dangerButtonClass
+// on the actual delete button) only kicks in once `confirming` is true,
+// i.e. exactly "beim eigentlichen Löschen-Vorgang" (AK) so the warning
+// isn't lost at the moment it matters. Still positioned LAST among the
+// page's sections (unchanged from before this ticket) — least frequently
+// needed, most dangerous, read last.
+//
+// Ticket 032 gave EmailChangeAction/PasswordChangeAction in ProfileSection
+// their own distinct-but-not-red "Sicherheit" tint (bg-paper/border-line)
+// precisely so red stays exclusive to this action's actual confirm step —
+// this ticket's change keeps that same principle, just narrows red down
+// further to only the confirm step itself rather than the whole card.
 function DeleteAccountSection({ lang }: { lang: Lang }) {
   const router = useRouter();
   const [confirmationText, setConfirmationText] = useState("");
@@ -676,19 +775,25 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-red-600/30 p-5">
-      <h2 className="text-sm font-medium text-red-700 dark:text-red-400">
-        {t(lang, settings.deleteAccountTitle)}
+    <section
+      className={`flex flex-col gap-3 rounded-xl border p-5 ${
+        confirming ? "border-red-600/30" : "border-line"
+      }`}
+    >
+      <h2
+        className={`text-sm font-medium ${
+          confirming ? "text-red-700 dark:text-red-400" : "text-foreground/70"
+        }`}
+      >
+        {t(lang, settings.dangerZoneTitle)}
       </h2>
-      <p className="text-sm text-foreground/70">{t(lang, settings.deleteAccountBody)}</p>
+      <p className="text-sm text-foreground/70">
+        {t(lang, confirming ? settings.deleteAccountBody : settings.dangerZoneIntro)}
+      </p>
 
       {!confirming ? (
         <div>
-          <button
-            type="button"
-            onClick={() => setConfirming(true)}
-            className={dangerButtonClass}
-          >
+          <button type="button" onClick={() => setConfirming(true)} className={buttonClass}>
             {t(lang, settings.deleteAccountButton)}
           </button>
         </div>

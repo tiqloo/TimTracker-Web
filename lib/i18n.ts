@@ -455,6 +455,10 @@ export function emailChangeSuccessMessage(
 export const settings = {
   pageTitle: { de: "Einstellungen", en: "Settings" },
   manageSubscriptionLink: { de: "Abo verwalten →", en: "Manage Subscription →" },
+  // Ticket 041: heading for the new compact subscription overview card
+  // that replaces the previous bare manageSubscriptionLink text link on
+  // the main settings page — see SettingsClient.tsx's SubscriptionSection.
+  subscriptionSectionTitle: { de: "Abo", en: "Subscription" },
   languageSectionTitle: { de: "Sprache", en: "Language" },
   // Split around the <code>&lt;html lang&gt;</code> markup the component
   // renders inline — see SettingsClient.tsx's LanguageSection.
@@ -487,7 +491,19 @@ export const settings = {
     de: "Datenexport fehlgeschlagen.",
     en: "Data export failed.",
   },
-  deleteAccountTitle: { de: "Account löschen", en: "Delete Account" },
+  // Ticket 041: replaces the old, always-red "Account löschen" heading —
+  // the section itself is now titled neutrally as a "Gefahrenbereich"
+  // (danger zone) so it no longer reads as more prominent/alarming than
+  // any other card until the user actually starts the delete flow. See
+  // SettingsClient.tsx's DeleteAccountSection.
+  dangerZoneTitle: { de: "Gefahrenbereich", en: "Danger Zone" },
+  // One-sentence explanation shown in the collapsed/default state (AK,
+  // Ticket 041) — the fuller deleteAccountBody text below is only shown
+  // once the user has clicked through to the actual confirmation step.
+  dangerZoneIntro: {
+    de: "Unwiderrufliche Kontoaktion.",
+    en: "An irreversible account action.",
+  },
   deleteAccountBody: {
     de: "Löscht deinen Account unwiderruflich, inklusive aller Cloud-Daten (Projekte, Zeiteinträge, Abo). Lokale Daten auf deinen Geräten bleiben unangetastet. Diese Aktion kann nicht rückgängig gemacht werden.",
     en: "Permanently deletes your account, including all cloud data (projects, time entries, subscription). Local data on your devices stays untouched. This action cannot be undone.",
