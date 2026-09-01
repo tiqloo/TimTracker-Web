@@ -105,7 +105,7 @@ function SiteNav({ lang }: { lang: Lang }) {
           </Link>
           <Link
             href="/register"
-            className="rounded-md bg-foreground px-3.5 py-1.5 text-sm font-medium text-background"
+            className="rounded-md bg-brand px-3.5 py-1.5 text-sm font-medium text-background"
           >
             {t(lang, home.navSignUp)}
           </Link>
@@ -250,7 +250,7 @@ function Hero({ lang }: { lang: Lang }) {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background"
+              className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background"
             >
               {t(lang, home.heroCtaStart)}
               <ArrowIcon />
@@ -466,7 +466,7 @@ function Pricing({ lang }: { lang: Lang }) {
 
           <Link
             href="/register"
-            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background"
+            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background"
           >
             {t(lang, home.pricingCta)}
             <ArrowIcon />

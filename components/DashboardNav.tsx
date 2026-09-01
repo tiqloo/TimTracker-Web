@@ -101,6 +101,11 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
                   ? pathname === "/dashboard"
                   : pathname.startsWith(link.href);
               const Icon = link.icon;
+              // Active state uses --color-brand (Ticket 037) instead of
+              // plain text-foreground, so the current page reads via the
+              // product's actual accent color, not just font-weight.
+              // Full active-nav redesign (pill/underline indicator etc.)
+              // stays Ticket 036's scope — this only recolors what's here.
               return (
                 <Link
                   key={link.href}
@@ -108,7 +113,7 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
                   aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${
                     active
-                      ? "font-medium text-foreground"
+                      ? "font-medium text-brand"
                       : "text-foreground/60 hover:text-foreground"
                   }`}
                 >

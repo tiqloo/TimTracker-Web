@@ -21,6 +21,36 @@
      borrow-everything border-black/10 opacity trick used before. */
   --paper: #f5f4f0;
   --line: #e3e1d9;
+  /* Brand accent (Ticket 037): one dedicated token for primary CTAs, the
+     active nav-link state (components/DashboardNav.tsx), and
+     focus-visible rings — "90% neutral, 10% Brand" per the ticket, so
+     these stop being plain bg-foreground/text-background (black-on-white
+     / white-on-black) like every other neutral surface.
+     Deliberately the SAME blue family as --chart-standard above (already
+     the homepage's "signature element", see app/page.tsx's DayTimeline
+     comment) rather than a second, competing accent — the edge case this
+     ticket explicitly calls out. Not the literal identical hex though:
+     --chart-standard's light value (#2a78d6) is only 4.415:1 against
+     white, just under WCAG AA's 4.5:1 for normal text — fine for a chart
+     fill, not fine for real text (button label color via text-background,
+     the active nav-link's own text color). --brand is a ~5% darkened
+     version of that same blue, chosen to clear 4.5:1 with headroom:
+       - #2772cb vs #ffffff (button/nav text on light bg) = 4.821:1
+     Dark mode below reuses --chart-standard's dark-mode hex verbatim
+     (#3987e5) rather than inventing a third value — it already clears AA
+     against both the dark page background (nav-link/ring use) and the
+     near-black var(--background) a brand button uses as its text color
+     in dark mode (bg-brand + text-background, same pairing pattern as
+     the bg-foreground/text-background buttons this replaces):
+       - #3987e5 vs #0a0a0a (button/nav text on dark bg) = 5.441:1
+     Both checked with the same relative-luminance formula
+     scripts/validate_palette.js uses for --chart-*; full numbers and the
+     button/dark-mode text-contrast reasoning are in Ticket 037's writeup
+     (TimTracker-Starter/docs/tickets/037-brand-accent-color.md).
+     Focus rings only need 3:1 (WCAG 1.4.11, non-text UI) and clear it by
+     a wide margin either way — the AA-for-text bar above is the binding
+     constraint, not the ring. */
+  --brand: #2772cb;
 }
 
 @theme inline {
@@ -30,6 +60,7 @@
   --color-chart-project: var(--chart-project);
   --color-paper: var(--paper);
   --color-line: var(--line);
+  --color-brand: var(--brand);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -42,6 +73,8 @@
     --chart-project: #d95926;
     --paper: #131419;
     --line: #24262c;
+    /* Same value as --chart-standard above, see the :root comment. */
+    --brand: #3987e5;
   }
 }
 

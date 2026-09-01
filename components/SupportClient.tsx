@@ -31,10 +31,10 @@ const SUPPORT_EMAIL = "support@tiqloo.com";
 // every Client Component that needs them redefines the exact same
 // strings locally).
 const inputClass =
-  "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-foreground/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
+  "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
 const primaryButtonClass =
-  "rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
 
 // RFC 6068 mailto: URIs use percent-encoding directly in the query part,
 // NOT application/x-www-form-urlencoded (which URLSearchParams produces,
