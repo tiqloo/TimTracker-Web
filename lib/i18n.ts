@@ -240,6 +240,11 @@ export const profile = {
   displayNameSaved: { de: "Gespeichert.", en: "Saved." },
   emailLabel: { de: "E-Mail-Adresse", en: "Email Address" },
   createdAtLabel: { de: "Konto erstellt am", en: "Account Created" },
+  // Ticket 032: small subtitle above EmailChangeAction/PasswordChangeAction,
+  // marking that sub-section as security-sensitive (visually via
+  // bg-paper/border-line, see SettingsClient.tsx) without red/destructive
+  // styling — that stays reserved for DeleteAccountSection below.
+  securitySectionTitle: { de: "Sicherheit", en: "Security" },
   // --- EmailChangeSection (Ticket 025, follow-up to 024) ---------------
   emailChangeButton: { de: "E-Mail-Adresse ändern…", en: "Change Email Address…" },
   emailChangeIntro: {

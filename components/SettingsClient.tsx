@@ -154,8 +154,21 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
           </dd>
         </div>
       </dl>
-      <EmailChangeAction profile={profile} lang={lang} />
-      <PasswordChangeAction lang={lang} />
+      {/* Ticket 032: EmailChangeAction/PasswordChangeAction get a visually
+          distinct "security-sensitive" treatment — a subtle --paper-token
+          background tint plus a small "Sicherheit"/"Security" subtitle —
+          so a routine display-name edit above no longer reads with the
+          same visual weight as changing account email/password.
+          Deliberately NOT red/destructive styling: that stays exclusive to
+          DeleteAccountSection below, see this component's Ticket 032
+          comment there for why. */}
+      <div className="flex flex-col gap-3 rounded-lg border border-line bg-paper p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+          {t(lang, i18nProfile.securitySectionTitle)}
+        </h3>
+        <EmailChangeAction profile={profile} lang={lang} />
+        <PasswordChangeAction lang={lang} />
+      </div>
     </section>
   );
 }
@@ -216,7 +229,11 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-line pt-4">
+    // No top border/padding here (unlike PasswordChangeAction below) — this
+    // is now the first item inside ProfileSection's Ticket 032 "Sicherheit"
+    // box, directly under its subtitle, so the box's own border/padding
+    // already separates it from the display-name form above.
+    <div className="flex flex-col gap-3">
       {!changing ? (
         <div>
           <button
@@ -353,6 +370,8 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
   }
 
   return (
+    // Keeps its top border/padding — separates it from EmailChangeAction
+    // just above it inside the Ticket 032 "Sicherheit" box.
     <div className="flex flex-col gap-3 border-t border-line pt-4">
       {!changing ? (
         <div>
@@ -518,6 +537,12 @@ function LanguageSection({
   );
 }
 
+// Its red-tinted treatment (border-red-600/30, red heading below) stays
+// exclusive to this destructive/unrecoverable action — Ticket 032 gave
+// EmailChangeAction/PasswordChangeAction in ProfileSection above their own
+// distinct-but-not-red "Sicherheit" tint (bg-paper/border-line) precisely so
+// this red styling keeps its own, stronger meaning instead of being diluted
+// across every security-adjacent action.
 function DeleteAccountSection({ lang }: { lang: Lang }) {
   const router = useRouter();
   const [confirmationText, setConfirmationText] = useState("");
