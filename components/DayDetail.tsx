@@ -330,7 +330,7 @@ export function DayDetail({
   // avoid a crash, it's a pure display choice.
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col gap-1 rounded-xl border border-line p-4">
+      <div className="flex flex-col gap-1 rounded-xl border border-line bg-surface p-4">
         <p className="text-sm text-foreground/80">{emptyMessage}</p>
         <p className="text-sm text-foreground/60">{emptyMessageDetail}</p>
       </div>
