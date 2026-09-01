@@ -29,6 +29,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { common, history, t, type Lang } from "@/lib/i18n";
+import { primaryButtonSmallClass, secondaryButtonSmallClass } from "@/lib/ui/button-styles";
 
 interface HistoryDateRangePickerProps {
   from: string;
@@ -189,7 +190,7 @@ export function HistoryDateRangePicker({
         type="button"
         onClick={() => (open ? setOpen(false) : openPicker())}
         aria-expanded={open}
-        className="rounded-md border border-line px-3 py-1 text-sm text-foreground/70 hover:text-foreground"
+        className="rounded-md border border-line px-3 py-1 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground"
       >
         {t(lang, history.chooseRange)}
       </button>
@@ -198,14 +199,26 @@ export function HistoryDateRangePicker({
         <div
           role="dialog"
           aria-label={t(lang, history.calendarLabel)}
-          className="absolute z-10 mt-2 w-72 rounded-xl border border-line bg-background p-3 shadow-lg"
+          // Ticket 048: bg-background -> bg-surface (this is a floating
+          // card, same token every other card in the app now uses).
+          // shadow-lg -> a softer, warmer-tinted custom shadow — floating
+          // overlays are the one place this ticket's "kaum Schatten" rule
+          // doesn't mean NO shadow (an overlay needs some visual lift off
+          // the page to read as "floating," unlike a flat in-page card),
+          // but shadow-lg's default cool-black shadow was heavier than the
+          // ticket's "keine übertriebenen 3D-Effekte" spirit wants. Same
+          // value reused verbatim in DashboardNav.tsx's UserMenu dropdown
+          // and ToastProvider.tsx's toast for one consistent "floating
+          // surface" shadow across the app instead of three slightly
+          // different ad hoc ones.
+          className="absolute z-10 mt-2 w-72 rounded-xl border border-line bg-surface p-3 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
         >
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
               onClick={() => changeMonth(-1)}
               aria-label={t(lang, history.previousMonth)}
-              className="rounded-md px-2 py-1 text-sm hover:bg-paper"
+              className="rounded-md px-2 py-1 text-sm transition-colors duration-150 hover:bg-paper"
             >
               ‹
             </button>
@@ -214,7 +227,7 @@ export function HistoryDateRangePicker({
               type="button"
               onClick={() => changeMonth(1)}
               aria-label={t(lang, history.nextMonth)}
-              className="rounded-md px-2 py-1 text-sm hover:bg-paper"
+              className="rounded-md px-2 py-1 text-sm transition-colors duration-150 hover:bg-paper"
             >
               ›
             </button>
@@ -244,12 +257,12 @@ export function HistoryDateRangePicker({
                   aria-current={isToday ? "date" : undefined}
                   aria-pressed={isRangeEdge}
                   className={[
-                    "rounded-md py-1 text-xs tabular-nums",
+                    "rounded-md py-1 text-xs tabular-nums transition-colors duration-150",
                     inMonth ? "text-foreground" : "text-foreground/30",
                     isRangeEdge
                       ? "bg-brand text-background"
                       : inRange
-                        ? "bg-paper"
+                        ? "bg-brand-soft"
                         : "hover:bg-paper",
                     isToday && !isRangeEdge ? "ring-1 ring-inset ring-brand" : "",
                   ]
@@ -267,17 +280,13 @@ export function HistoryDateRangePicker({
           </p>
 
           <div className="mt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md border border-line px-2 py-1 text-xs"
-            >
+            <button type="button" onClick={() => setOpen(false)} className={secondaryButtonSmallClass}>
               {t(lang, common.cancel)}
             </button>
             <button
               type="button"
               onClick={() => navigateTo(pendingFrom, pendingTo)}
-              className="rounded-md border border-line bg-brand px-2 py-1 text-xs text-background"
+              className={primaryButtonSmallClass}
             >
               {t(lang, history.apply)}
             </button>
