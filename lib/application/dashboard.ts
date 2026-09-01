@@ -3,6 +3,7 @@
 // functions, never lib/repositories/* directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
+import { calendarDayInTimeZone } from "@/lib/domain/calendar-day";
 
 // Exported (not just an internal helper) so app/* pages that need "today"
 // as a plain ISO string for their own purposes (e.g. building default
@@ -11,8 +12,8 @@ import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 // need a direct `new Date()` call in a component body (flagged by
 // eslint's react-hooks/purity rule — see the currentTimeMs() comment in
 // app/(dashboard)/page.tsx for the same workaround pattern).
-export function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
+export function isoToday(now: Date = new Date()): string {
+  return calendarDayInTimeZone(now);
 }
 
 const EMPTY_BREAKDOWN = (day: string): DailyBreakdown => ({
