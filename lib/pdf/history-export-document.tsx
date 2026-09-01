@@ -22,6 +22,17 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { ExportRow } from "@/lib/domain/export-row";
 import type { DailyBreakdown } from "@/lib/domain/time-entry";
+// formatDuration/formatTime gained a `locale` parameter in Ticket 038;
+// every call below now passes "de-DE" explicitly rather than relying on
+// the default. Unlike lib/format.ts#formatHistoryCsv (which this ticket
+// deliberately does NOT touch, per its AK), this document IS affected:
+// formatDuration previously always rendered the English "h"/"m"
+// abbreviation ("6h 42m") here, even though every other label on this
+// page is German (per this file's header comment, "German-only
+// throughout"). Ticket 038 fixes that inconsistency too — this document
+// now renders the same "6 h 42 min" German duration format the (already
+// bilingual) web UI uses in its German locale, still hardcoded to "de-DE"
+// since this export has no per-request language input, same as before.
 import { formatDuration, formatTime } from "@/lib/format";
 import { paginateHistoryExport, type HistoryExportDayChunk } from "./history-export-paginator";
 
@@ -88,7 +99,7 @@ function TotalTile({ label, seconds }: { label: string; seconds: number }) {
   return (
     <View>
       <Text style={styles.totalLabel}>{label}</Text>
-      <Text style={styles.totalValue}>{formatDuration(seconds)}</Text>
+      <Text style={styles.totalValue}>{formatDuration(seconds, "de-DE")}</Text>
     </View>
   );
 }
@@ -109,15 +120,15 @@ function SessionRow({ row }: { row: ExportRow }) {
   const endText = row.isRunning
     ? "läuft noch"
     : row.endTime
-      ? formatTime(row.endTime)
+      ? formatTime(row.endTime, "de-DE")
       : "";
   return (
     <View style={styles.sessionRow}>
       <Text style={styles.colProject}>{row.projectName}</Text>
       <Text style={styles.colCustomer}>{row.customerName}</Text>
-      <Text style={styles.colStart}>{formatTime(row.startTime)}</Text>
+      <Text style={styles.colStart}>{formatTime(row.startTime, "de-DE")}</Text>
       <Text style={styles.colEnd}>{endText}</Text>
-      <Text style={styles.colDuration}>{formatDuration(row.durationSeconds)}</Text>
+      <Text style={styles.colDuration}>{formatDuration(row.durationSeconds, "de-DE")}</Text>
     </View>
   );
 }
@@ -130,7 +141,7 @@ function SummaryRow({ day }: { day: DailyBreakdown }) {
       <Text style={styles.colStart} />
       <Text style={styles.colEnd} />
       <Text style={{ width: "18%", textAlign: "right" }}>
-        {`A: ${formatDuration(day.standardSeconds)}  P: ${formatDuration(day.projectSeconds)}  N: ${formatDuration(day.unassignedSeconds)}`}
+        {`A: ${formatDuration(day.standardSeconds, "de-DE")}  P: ${formatDuration(day.projectSeconds, "de-DE")}  N: ${formatDuration(day.unassignedSeconds, "de-DE")}`}
       </Text>
     </View>
   );

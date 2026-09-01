@@ -140,9 +140,9 @@ export default async function HistoryPage({
               >
                 <span className="w-36 shrink-0">{formatDayLabel(day.day, locale)}</span>
                 <span className="flex flex-1 justify-end gap-6 font-mono tabular-nums text-foreground/70">
-                  <DayValue label={t(lang, history.automatic)} seconds={day.standardSeconds} />
-                  <DayValue label={t(lang, history.project)} seconds={day.projectSeconds} />
-                  <DayValue label={t(lang, history.unassigned)} seconds={day.unassignedSeconds} />
+                  <DayValue label={t(lang, history.automatic)} seconds={day.standardSeconds} locale={locale} />
+                  <DayValue label={t(lang, history.project)} seconds={day.projectSeconds} locale={locale} />
+                  <DayValue label={t(lang, history.unassigned)} seconds={day.unassignedSeconds} locale={locale} />
                 </span>
               </Link>
             </li>
@@ -153,11 +153,19 @@ export default async function HistoryPage({
   );
 }
 
-function DayValue({ label, seconds }: { label: string; seconds: number }) {
+function DayValue({
+  label,
+  seconds,
+  locale,
+}: {
+  label: string;
+  seconds: number;
+  locale: string;
+}) {
   return (
     <span className="flex w-28 flex-col items-end">
       <span className="font-sans text-xs text-foreground/50">{label}</span>
-      <span>{formatDuration(seconds)}</span>
+      <span>{formatDuration(seconds, locale)}</span>
     </span>
   );
 }

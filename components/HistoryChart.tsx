@@ -31,6 +31,7 @@
 // it's empty" visually distinct from "there is no data point here".
 import type { ChartBar, ChartGranularity } from "@/lib/format";
 import { formatDuration } from "@/lib/format";
+import { languageCodeToLocale } from "@/lib/domain/language";
 import {
   historyChart,
   historyChartAriaLabel,
@@ -63,6 +64,11 @@ export function HistoryChart({
 }) {
   if (bars.length === 0) return null;
 
+  // Ticket 038: same locale derivation as DayDetail.tsx — the tooltip
+  // text below (a11y/hover, not a visible label) uses formatDuration's
+  // new locale-aware format instead of always rendering the English
+  // "h"/"m" suffixes under a German UI.
+  const locale = languageCodeToLocale(lang);
   const maxTotal = Math.max(1, ...bars.map((b) => b.standardSeconds + b.projectSeconds));
   const scale = (CHART_HEIGHT - ZERO_SLIVER_HEIGHT) / maxTotal;
   const labelStep = Math.max(1, Math.ceil(bars.length / MAX_VISIBLE_LABELS));
@@ -107,8 +113,8 @@ export function HistoryChart({
             const tooltip = historyChartTooltip(
               lang,
               bar.label,
-              formatDuration(bar.standardSeconds),
-              formatDuration(bar.projectSeconds),
+              formatDuration(bar.standardSeconds, locale),
+              formatDuration(bar.projectSeconds, locale),
             );
 
             return (

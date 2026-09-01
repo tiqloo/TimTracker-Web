@@ -8,19 +8,38 @@ import type { DailyBreakdown } from "@/lib/domain/time-entry";
 
 // Mirrors TimeFormatter.shortDurationString(from:) in
 // Shared/Helpers/TimeFormatter.swift (TimTracker-Starter) — same
-// "Xh Ym" / "Ym" shape, so the web and native apps show duration
-// identically for the same underlying seconds value.
-export function formatDuration(seconds: number): string {
+// underlying Math.floor/Math.max Xh Ym / Ym shape and value for the EN
+// case (English keeps the compact native-app-matching form), so the web
+// and native apps show duration identically for the same underlying
+// seconds value in English. `locale` defaults to "de-DE", same convention
+// and default as formatDayLabel/formatFullDate below (this call site's
+// existing behavior for every current caller, unchanged) — added as a
+// parameter, not hardcoded, because unlike those two this function used
+// to have no language awareness at all (Ticket 038): it always rendered
+// the English "h"/"m" suffixes even under a German locale. A German
+// locale now renders "6 h 42 min" instead of "6h 42m" — spaced-out
+// unit words, the conventional German duration notation (vs. the
+// terse English abbreviation directly against the number) — while every
+// other locale keeps the original compact EN shape unchanged.
+export function formatDuration(seconds: number, locale: string = "de-DE"): string {
   const totalMinutes = Math.floor(Math.max(0, seconds) / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
+  if (locale.startsWith("de")) {
+    return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+  }
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
 // "14:32" in the viewer's local time zone — used for time-entry start/end
-// times in the flat "Heute" list.
-export function formatTime(isoDateTime: string): string {
-  return new Date(isoDateTime).toLocaleTimeString("de-DE", {
+// times in the flat "Heute" list. `locale` defaults to "de-DE" (this call
+// site's existing behavior for every current caller, unchanged) — added
+// as a parameter instead of the previously hardcoded "de-DE" (Ticket 038)
+// so a caller resolving the visitor's language preference can render
+// English-locale time formatting too, same pattern as formatDayLabel/
+// formatFullDate below.
+export function formatTime(isoDateTime: string, locale: string = "de-DE"): string {
+  return new Date(isoDateTime).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -260,6 +279,15 @@ export function buildChartBars(
 // user comparing an export from the web app and the native app sees the
 // same thing. Pure (rows/summaries already fetched by the caller), so it
 // lives here rather than in lib/application/*.
+//
+// Below, formatTime() is deliberately called with NO locale argument
+// (keeping its "de-DE" default) even after Ticket 038 added the
+// parameter — export CONTENT stays German-only regardless of UI language,
+// same scope precedent as the native app's Ticket 004/015 ("läuft noch",
+// the German column headers below, etc. don't switch with the language
+// picker either). Threading the UI locale through here would make this
+// one row's start/end time formatting inconsistent with every other
+// German-fixed label in this function.
 const CSV_DELIMITER = ";";
 
 function escapeCsvField(field: string): string {

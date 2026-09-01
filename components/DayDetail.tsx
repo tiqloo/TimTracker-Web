@@ -9,6 +9,7 @@
 // (getTodayBreakdown/getTodayEntries vs. getBreakdownForDay/getEntriesForDay).
 import { formatDuration, formatTime } from "@/lib/format";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
+import { languageCodeToLocale } from "@/lib/domain/language";
 import { dayDetail, t, type Lang } from "@/lib/i18n";
 
 export function DayDetail({
@@ -24,20 +25,27 @@ export function DayDetail({
   emptyMessage: string;
   lang: Lang;
 }) {
+  // Ticket 038: formatDuration/formatTime now take the same locale
+  // convention as formatDayLabel/formatFullDate (lib/format.ts) — derived
+  // once here from the `lang` prop this component already receives from
+  // both callers ("Heute" and the "Historie" day-detail page), same
+  // languageCodeToLocale() helper those pages already use for
+  // formatDayLabel/formatFullDate.
+  const locale = languageCodeToLocale(lang);
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryTile
           label={t(lang, dayDetail.totalAutomaticTime)}
-          value={formatDuration(breakdown.totalSeconds)}
+          value={formatDuration(breakdown.totalSeconds, locale)}
         />
         <SummaryTile
           label={t(lang, dayDetail.projectTime)}
-          value={formatDuration(breakdown.projectSeconds)}
+          value={formatDuration(breakdown.projectSeconds, locale)}
         />
         <SummaryTile
           label={t(lang, dayDetail.unassignedTime)}
-          value={formatDuration(breakdown.unassignedSeconds)}
+          value={formatDuration(breakdown.unassignedSeconds, locale)}
         />
       </div>
 
@@ -56,11 +64,11 @@ export function DayDetail({
                   className="flex items-center justify-between gap-4 py-2.5 text-sm"
                 >
                   <span className="font-mono tabular-nums">
-                    {formatTime(entry.startTime)} –{" "}
-                    {entry.endTime ? formatTime(entry.endTime) : t(lang, dayDetail.running)}
+                    {formatTime(entry.startTime, locale)} –{" "}
+                    {entry.endTime ? formatTime(entry.endTime, locale) : t(lang, dayDetail.running)}
                   </span>
                   <span className="font-mono tabular-nums text-foreground/70">
-                    {formatDuration((endMs - startMs) / 1000)}
+                    {formatDuration((endMs - startMs) / 1000, locale)}
                   </span>
                 </li>
               );
