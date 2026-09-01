@@ -6,6 +6,7 @@ import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatHistoryCsv, resolveHistoryRange } from "@/lib/format";
 import { exportGate, t } from "@/lib/i18n";
+import { requireUser, UnauthorizedError } from "@/lib/application/auth";
 
 // CSV export for "Historie" — same column structure as CSVExporter.swift
 // (Datum, Projekt, Kunde, Start, Ende, Dauer (h) per session, plus a daily
@@ -20,6 +21,15 @@ import { exportGate, t } from "@/lib/i18n";
 // `?format=pdf` branch here so each handler stays a single content type.
 export async function GET(request: Request) {
   const repos = await getRepositories();
+
+  try {
+    await requireUser(repos);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    throw error;
+  }
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {

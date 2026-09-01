@@ -15,6 +15,19 @@ export type { Profile } from "@/lib/domain/profile";
 // the port's types above, just for runtime-checkable classes instead.
 export { EmailAlreadyInUseError, ReauthenticationFailedError } from "@/lib/repositories/auth.repository";
 
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("Authentication required.");
+    this.name = "UnauthorizedError";
+  }
+}
+
+export async function requireUser(repos: Repositories): Promise<string> {
+  const userId = await repos.auth.getAuthenticatedUserId();
+  if (!userId) throw new UnauthorizedError();
+  return userId;
+}
+
 export async function register(
   repos: Repositories,
   email: string,

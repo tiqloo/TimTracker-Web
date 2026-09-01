@@ -58,6 +58,7 @@ export type AuthChangeEvent =
   | "USER_UPDATED";
 
 export interface AuthRepository {
+  getAuthenticatedUserId(): Promise<string | null>;
   // Returns whether Supabase requires email confirmation before a session
   // exists (real-backend testing on 2026-08-25 found the production
   // project has `mailer_autoconfirm: false` — signUp succeeds but returns

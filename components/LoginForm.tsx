@@ -9,7 +9,7 @@
 // module comment). Same split rationale as components/SettingsClient.tsx/
 // ProjectsClient.tsx: a Server Component does the fetch, a Client
 // Component does the interactivity.
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login, onAuthStateChange } from "@/lib/application/auth";
@@ -22,6 +22,7 @@ import {
   authSuccessClass,
 } from "@/components/AuthCard";
 import { common, login as i18nLogin, t, type Lang } from "@/lib/i18n";
+import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
 
 // useSearchParams() (for ?redirectTo=) requires a Suspense boundary
 // around it for Next.js's static-render bailout, hence the wrapper below.
@@ -36,7 +37,10 @@ export function LoginForm({ lang }: { lang: Lang }) {
 function LoginFormInner({ lang }: { lang: Lang }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+  const redirectTo = useMemo(
+    () => normalizeDashboardRedirect(searchParams.get("redirectTo")),
+    [searchParams],
+  );
   // Set by components/SettingsClient.tsx after a successful "Account
   // löschen" (Ticket 018, Phase 1e) — confirms the deletion actually
   // happened rather than silently landing back on an unremarkable login
@@ -65,8 +69,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
       }
     });
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [redirectTo, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

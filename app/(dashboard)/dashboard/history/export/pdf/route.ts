@@ -7,6 +7,7 @@ import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel, resolveHistoryRange } from "@/lib/format";
 import { renderHistoryExportPdf } from "@/lib/pdf/history-export-document";
 import { exportGate, t } from "@/lib/i18n";
+import { requireUser, UnauthorizedError } from "@/lib/application/auth";
 
 // PDF export for "Historie" — sibling of ../route.ts's CSV export, same
 // access gate, same date-range resolution, same ExportRow/DailyBreakdown
@@ -24,6 +25,15 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const repos = await getRepositories();
+
+  try {
+    await requireUser(repos);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    throw error;
+  }
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
