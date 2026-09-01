@@ -76,6 +76,12 @@ export const nav = {
   // as every other entry in NAV_LINKS.
   support: { de: "Support", en: "Support" },
   settings: { de: "Einstellungen", en: "Settings" },
+  // Ticket 036: short label for the account-menu entry linking to
+  // /dashboard/settings/billing — deliberately shorter than
+  // billing.pageTitle ("Abo verwalten") / settings.manageSubscriptionLink
+  // ("Abo verwalten →"), which both carry a trailing verb/arrow meant for
+  // a full page title or an in-page link, not a compact dropdown item.
+  billing: { de: "Abo", en: "Subscription" },
   logout: { de: "Logout", en: "Log Out" },
   loggingOut: { de: "Wird abgemeldet…", en: "Logging out…" },
 } satisfies Record<string, Translated>;
