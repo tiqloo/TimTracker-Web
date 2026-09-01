@@ -3,6 +3,7 @@ import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode, getLanguagePreference } from "@/lib/application/language";
 import { getProfile } from "@/lib/application/auth";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getDailyGoalHours } from "@/lib/application/daily-goal";
 import { SettingsClient } from "@/components/SettingsClient";
 import { settings, t } from "@/lib/i18n";
 
@@ -28,11 +29,12 @@ import { settings, t } from "@/lib/i18n";
 export default async function SettingsPage() {
   const repos = await getRepositories();
   const headerList = await headers();
-  const [language, lang, profile, subscription] = await Promise.all([
+  const [language, lang, profile, subscription, dailyGoalHours] = await Promise.all([
     getLanguagePreference(repos),
     getEffectiveLanguageCode(repos, headerList.get("accept-language")),
     getProfile(repos),
     getSubscriptionStatus(repos),
+    getDailyGoalHours(repos),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function SettingsPage() {
         profile={profile}
         subscription={subscription}
         lang={lang}
+        initialDailyGoalHours={dailyGoalHours}
       />
     </main>
   );

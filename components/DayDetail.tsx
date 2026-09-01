@@ -39,6 +39,12 @@
 // "use client". The `breakdown`/`entries` props below are now only the
 // INITIAL server-fetched values (still fetched exactly as before by each
 // caller's Server Component) — see the useState calls below.
+//
+// Ticket 044 (follow-up to 033): adds an OPTIONAL goal-progress caption +
+// thin bar directly under the hero number, driven by the new
+// `dailyGoalHours` prop — only "Heute" passes it (see that prop's own
+// comment below for why), everything else about this component's shape
+// is unchanged.
 import { useEffect, useState } from "react";
 import { formatDuration, formatTime } from "@/lib/format";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
@@ -47,7 +53,14 @@ import { languageCodeToLocale } from "@/lib/domain/language";
 import { getRepositories } from "@/lib/application/client";
 import { listProjects } from "@/lib/application/projects";
 import { AssignTimeAction } from "@/components/AssignTimeAction";
-import { dayDetail, dayDetailSegmentTooltip, t, type Lang } from "@/lib/i18n";
+import { computeDailyGoalProgress } from "@/lib/domain/daily-goal";
+import {
+  dayDetail,
+  dayDetailSegmentTooltip,
+  dailyGoalProgressLabel,
+  t,
+  type Lang,
+} from "@/lib/i18n";
 
 // The two system pseudo-projects seeded by supabase/migrations/0001_init.sql
 // / 0004_time_entries_project_fk.sql in TimTracker-Starter — every
@@ -217,6 +230,7 @@ export function DayDetail({
   emptyMessageDetail,
   lang,
   projectColors,
+  dailyGoalHours,
 }: {
   breakdown: DailyBreakdown;
   entries: TimeEntry[];
@@ -232,6 +246,15 @@ export function DayDetail({
   // Only entries whose segmentKind() is "project" ever look this up; the
   // two system pseudo-projects (auto/pause) never do.
   projectColors: Record<string, string>;
+  // Ticket 044 (follow-up to 033) — optional, only "Heute"
+  // (app/(dashboard)/dashboard/page.tsx) passes this today; the "Historie"
+  // day-detail page leaves it undefined on purpose (ticket's AK scopes the
+  // progress indicator to "Heute" specifically, see its "Bewusst außerhalb
+  // dieses Tickets" section for the related-but-separate history/period
+  // comparison idea). undefined/null/0 all mean "no goal set" — see
+  // lib/domain/daily-goal.ts#computeDailyGoalProgress, which is what
+  // actually decides whether any progress UI renders below.
+  dailyGoalHours?: number | null;
 }) {
   // Ticket 034: local, client-side copies of the server-fetched initial
   // props — updated in place after a successful assign (see
@@ -294,6 +317,17 @@ export function DayDetail({
   // Just the two-line explanation (headline + detail, both from the
   // dayDetail i18n namespace via each caller's emptyMessage/
   // emptyMessageDetail props).
+  //
+  // Ticket 044 edge case ("Ziel gesetzt, aber 0 Einträge heute ->
+  // Fortschrittsbalken zeigt 0%, kein Fehlerzustand, konsistent mit dem in
+  // Ticket 033 überarbeiteten Empty State"): deliberately does NOT grow a
+  // goal-progress bar into this branch. "Consistent with the Ticket 033
+  // empty state" means this exact two-line shape stays as-is; a 0%-filled
+  // bar under an otherwise-hidden hero number would look like a stray UI
+  // fragment, not a calmer empty state. computeDailyGoalProgress naturally
+  // returns a 0-ratio (not NaN/an error) for totalSeconds=0 if this branch
+  // is ever removed later — nothing here relies on entries.length===0 to
+  // avoid a crash, it's a pure display choice.
   if (entries.length === 0) {
     return (
       <div className="flex flex-col gap-1 rounded-xl border border-line p-4">
@@ -304,6 +338,16 @@ export function DayDetail({
   }
 
   const timeline = buildTimeline(entries, nowMs);
+
+  // Ticket 044: null whenever no goal is set (dailyGoalHours undefined/
+  // null/0) — see computeDailyGoalProgress's own doc. Kept out of the
+  // hero number itself (AK: "die Hero-Zahl selbst bleibt die dominante
+  // Aussage, der Fortschrittsbalken ist sekundär") — rendered as a small
+  // caption + thin bar right underneath it instead.
+  const goalProgress = computeDailyGoalProgress(
+    breakdown.totalSeconds,
+    dailyGoalHours ?? null,
+  );
 
   return (
     <>
@@ -317,6 +361,31 @@ export function DayDetail({
         <p className="font-mono text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl">
           {formatDuration(breakdown.totalSeconds, locale)}
         </p>
+        {goalProgress && (
+          <div className="mt-1 flex max-w-xs flex-col gap-1.5">
+            <p className="text-sm text-foreground/70">
+              {dailyGoalProgressLabel(
+                lang,
+                formatDuration(breakdown.totalSeconds, locale),
+                formatDuration(goalProgress.goalSeconds, locale),
+              )}
+              {goalProgress.reached && <> · {t(lang, dayDetail.goalReached)}</>}
+            </p>
+            <div
+              role="progressbar"
+              aria-label={t(lang, dayDetail.goalProgressAriaLabel)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(goalProgress.ratio * 100)}
+              className="h-1.5 w-full overflow-hidden rounded-full bg-line"
+            >
+              <div
+                className="h-full rounded-full bg-chart-standard"
+                style={{ width: `${goalProgress.ratio * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
           <SecondaryStat
             swatchClassName="bg-chart-project"

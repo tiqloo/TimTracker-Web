@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
+import { setDailyGoalHours } from "@/lib/application/daily-goal";
 import {
   changeEmail,
   changePassword,
@@ -27,6 +28,11 @@ import {
 import { APP_LANGUAGES, languageCodeToLocale, languageDisplayName } from "@/lib/domain/language";
 import { normalizeDisplayNameInput } from "@/lib/domain/profile";
 import type { Subscription } from "@/lib/domain/subscription";
+import {
+  normalizeDailyGoalHoursInput,
+  MIN_DAILY_GOAL_HOURS,
+  MAX_DAILY_GOAL_HOURS,
+} from "@/lib/domain/daily-goal";
 import { formatFullDate } from "@/lib/format";
 import {
   billing,
@@ -66,16 +72,27 @@ export function SettingsClient({
   profile,
   subscription,
   lang,
+  initialDailyGoalHours,
 }: {
   initialLanguage: AppLanguage;
   profile: Profile;
   subscription: Subscription;
   lang: Lang;
+  initialDailyGoalHours: number | null;
 }) {
   return (
     <div className="flex flex-col gap-10">
       <ProfileSection profile={profile} lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
+      {/* Ticket 044: placed right after LanguageSection, per the ticket's
+          AK ("nahe dem bestehenden 'Profil'-/Sprache-Abschnitt") — groups
+          with the other plain user preferences (Sprache, Tagesziel) before
+          the account-status/GDPR sections below. Orchestrator merge note
+          (2026-09-01): Ticket 041 independently wanted Abo placed right
+          after Sprache too — resolved by keeping the two lighter
+          "Präferenz"-style sections (Sprache, Tagesziel) adjacent, with
+          the heavier account-status card (Abo) right after. */}
+      <DailyGoalSection initialDailyGoalHours={initialDailyGoalHours} lang={lang} />
       <SubscriptionSection subscription={subscription} lang={lang} />
       <DataExportSection lang={lang} />
       <DeleteAccountSection lang={lang} />
@@ -719,6 +736,86 @@ function LanguageSection({
         <code>&lt;html lang&gt;</code>
         {t(lang, settings.languageInfoSuffix)}
       </p>
+    </section>
+  );
+}
+
+// "Tägliches Ziel" (Ticket 044, TimTracker-Starter repo — follow-up to
+// 033's hero-number redesign). Same shape/pending/toast pattern as
+// LanguageSection just above: a plain number input, optimistic local
+// state update via the same domain normalizer the use-case itself applies
+// server-side (normalizeDailyGoalHoursInput — mirrors ProfileSection's
+// normalizeDisplayNameInput precedent), then a success/error toast
+// (Ticket 042). Deliberately does NOT call router.refresh() the way
+// ProfileSection/LanguageSection do — DashboardNav doesn't show this
+// value anywhere, and "Heute" re-fetches it on its own next server render
+// regardless (ticket edge case: no live-sync requirement between tabs).
+function DailyGoalSection({
+  initialDailyGoalHours,
+  lang,
+}: {
+  initialDailyGoalHours: number | null;
+  lang: Lang;
+}) {
+  const { showSuccess, showError } = useToast();
+  const [value, setValue] = useState(
+    initialDailyGoalHours !== null ? String(initialDailyGoalHours) : "",
+  );
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPending(true);
+    try {
+      const repos = getRepositories();
+      // A blank field parses to NaN -> normalizeDailyGoalHoursInput below
+      // already treats that the same as "no goal" (see its own doc), so
+      // there's no separate empty-string branch needed here.
+      const rawHours = Number(value);
+      await setDailyGoalHours(repos, rawHours);
+      const normalized = normalizeDailyGoalHoursInput(rawHours);
+      setValue(normalized !== null ? String(normalized) : "");
+      showSuccess(t(lang, common.saved));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, settings.dailyGoalSaveError));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-medium text-foreground/70">
+        {t(lang, settings.dailyGoalSectionTitle)}
+      </h2>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="daily-goal-hours" className="text-sm font-medium">
+            {t(lang, settings.dailyGoalLabel)}
+          </label>
+          <input
+            id="daily-goal-hours"
+            type="number"
+            inputMode="decimal"
+            min={MIN_DAILY_GOAL_HOURS}
+            max={MAX_DAILY_GOAL_HOURS}
+            step="0.5"
+            disabled={pending}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            // w-32, not the shared full-width inputClass — a hours value is
+            // a short number, not free text; matches the same "size the
+            // input to its content" instinct as e.g. a quantity field.
+            className={`${inputClass} w-32`}
+          />
+          <p className="text-xs text-foreground/60">{t(lang, settings.dailyGoalHint)}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={pending} className={primaryButtonClass}>
+            {pending ? t(lang, common.saving) : t(lang, common.save)}
+          </button>
+        </div>
+      </form>
     </section>
   );
 }

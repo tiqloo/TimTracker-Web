@@ -4,6 +4,7 @@ import { getRepositories } from "@/lib/application/server";
 import { getTodayBreakdown, getTodayEntries } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { getDailyGoalHours } from "@/lib/application/daily-goal";
 import { canUseApp } from "@/lib/domain/subscription";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
@@ -42,10 +43,11 @@ export default async function TodayPage() {
   // makes directly on its injected Repositories instance (getAll()
   // includes archived projects — Ticket 040's edge case: an archived
   // project's past color must keep showing, archiving isn't deletion).
-  const [breakdown, entries, allProjects] = await Promise.all([
+  const [breakdown, entries, allProjects, dailyGoalHours] = await Promise.all([
     getTodayBreakdown(repos),
     getTodayEntries(repos),
     repos.projects.getAll(),
+    getDailyGoalHours(repos),
   ]);
   const projectColors = Object.fromEntries(
     allProjects.map((project) => [project.id, project.colorHex]),
@@ -64,6 +66,7 @@ export default async function TodayPage() {
         emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
         lang={lang}
         projectColors={projectColors}
+        dailyGoalHours={dailyGoalHours}
       />
 
       <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
