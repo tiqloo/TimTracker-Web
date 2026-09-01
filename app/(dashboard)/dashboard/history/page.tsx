@@ -93,7 +93,7 @@ export default async function HistoryPage({
   const archivedProjects = allProjects.filter((project) => project.isArchived);
 
   return (
-    <main className="flex flex-col gap-6 py-8">
+    <main className="flex animate-content-fade-in flex-col gap-6 py-8">
       <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, history.pageTitle)}</h1>
 
       <div className="flex flex-wrap items-center gap-4">

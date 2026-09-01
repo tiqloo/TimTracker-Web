@@ -167,8 +167,11 @@ function UserMenu({
           // HistoryDateRangePicker's popover and ToastProvider's toast —
           // one consistent "floating surface" shadow instead of three
           // different ad hoc ones. See HistoryDateRangePicker.tsx's own
-          // comment for the full reasoning.
-          className="absolute right-0 top-full z-10 mt-2 w-48 rounded-md border border-line bg-surface py-1 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
+          // comment for the full reasoning. animate-dropdown-in
+          // (globals.css) is the ticket's explicit "Dropdown Fade +
+          // translateY(4px)" animation requirement — this menu previously
+          // appeared with a hard cut, no animation at all.
+          className="absolute right-0 top-full z-10 mt-2 w-48 animate-dropdown-in rounded-md border border-line bg-surface py-1 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
         >
           <Link href="/dashboard/settings" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             {t(lang, nav.settings)}

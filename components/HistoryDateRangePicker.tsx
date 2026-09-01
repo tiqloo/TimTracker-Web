@@ -211,7 +211,10 @@ export function HistoryDateRangePicker({
           // and ToastProvider.tsx's toast for one consistent "floating
           // surface" shadow across the app instead of three slightly
           // different ad hoc ones.
-          className="absolute z-10 mt-2 w-72 rounded-xl border border-line bg-surface p-3 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
+          // animate-dropdown-in (globals.css, Ticket 048): the ticket's
+          // explicit "Dropdown Fade + translateY(4px)" requirement — this
+          // popover previously appeared with a hard cut.
+          className="absolute z-10 mt-2 w-72 animate-dropdown-in rounded-xl border border-line bg-surface p-3 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
         >
           <div className="mb-2 flex items-center justify-between">
             <button

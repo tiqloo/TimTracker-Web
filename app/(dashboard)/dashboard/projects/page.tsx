@@ -39,7 +39,7 @@ export default async function ProjectsPage() {
   const projects = await listProjects(repos);
 
   return (
-    <main className="flex flex-col gap-8 py-8">
+    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
       <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, i18nProjects.pageTitle)}</h1>
       <ProjectsClient initialProjects={projects} lang={lang} />
     </main>

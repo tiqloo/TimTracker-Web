@@ -55,7 +55,15 @@ export default async function TodayPage() {
   const nowMs = currentTimeMs();
 
   return (
-    <main className="flex flex-col gap-8 py-8">
+    // animate-content-fade-in (globals.css, Ticket 048): the ticket's
+    // "Karten/Seiteninhalt beim Laden: leichter Fade-In" requirement —
+    // applied to every (dashboard)/* page's own top-level element (which
+    // remounts on each client-side navigation, unlike the persistent
+    // app/(dashboard)/layout.tsx shell around it), so a fade plays on
+    // every page visit, not just the very first full load. Same class
+    // reused verbatim on AuthCard.tsx's card and SupportClient.tsx's
+    // wrapper rather than redefined per file.
+    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
       {/* Ticket 048: "Dashboard H1" tier of the new type scale (32-36px) —
           was text-2xl (24px) on every (dashboard)/* page's top heading, one
           identical arbitrary-value bump applied consistently across all of

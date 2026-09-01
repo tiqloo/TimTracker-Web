@@ -18,7 +18,7 @@ export default async function HelpcenterPage() {
   const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
 
   return (
-    <main className="flex flex-col gap-6 py-8">
+    <main className="flex animate-content-fade-in flex-col gap-6 py-8">
       <Link href="/dashboard/support" className="text-sm text-foreground/70 hover:text-foreground">
         {t(lang, helpcenter.backToSupport)}
       </Link>

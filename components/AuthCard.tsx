@@ -15,7 +15,7 @@ export function AuthCard({
 }) {
   return (
     <main className="flex min-h-screen flex-1 items-center justify-center bg-background p-6 text-foreground">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8">
+      <div className="w-full max-w-sm animate-content-fade-in rounded-xl border border-line bg-surface p-8">
         <h1 className="mb-6 text-xl font-semibold tracking-tight">{title}</h1>
         {children}
       </div>

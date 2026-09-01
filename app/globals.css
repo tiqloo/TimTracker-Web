@@ -236,3 +236,57 @@ body {
      browser's default sans-serif fallback. */
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Ticket 048 — Animationen: the two "on mount" cases the ticket's AK
+   spells out that a plain Tailwind `transition-*` utility can't cover
+   (those only animate a CHANGE between two states of an already-mounted
+   element; a dropdown/card's very first appearance needs a real
+   animation that plays once on mount). Kept as two small named
+   keyframes/utilities here rather than a library — same "a small amount
+   of own CSS/code is enough" precedent this app already applies
+   elsewhere (HistoryChart's hand-rolled SVG, HistoryDateRangePicker's
+   hand-rolled calendar grid, both documented in their own files).
+   Durations stay inside the ticket's own 120-150ms band for the dropdown
+   (a quick, expected UI reveal) and a slightly longer 200ms for content
+   fade-in (page/card content appearing is a calmer, less frequent event
+   than a dropdown open, so a touch slower reads as more deliberate, not
+   sluggish) — neither is a bounce or a zoom, both explicitly ruled out
+   by the ticket. */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes content-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-dropdown-in {
+  animation: dropdown-in 150ms ease-out;
+}
+
+.animate-content-fade-in {
+  animation: content-fade-in 200ms ease-out;
+}
+
+/* Respect a user's reduced-motion preference — same spirit as the
+   ticket's own "sehr dezente" animation philosophy, taken to its logical
+   conclusion for anyone who has explicitly asked their OS for none at
+   all. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-dropdown-in,
+  .animate-content-fade-in {
+    animation: none;
+  }
+}

@@ -62,7 +62,7 @@ export default async function HistoryDayPage({
   const nowMs = currentTimeMs();
 
   return (
-    <main className="flex flex-col gap-8 py-8">
+    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
       <div>
         <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
           {t(lang, history.backToHistory)}

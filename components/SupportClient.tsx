@@ -49,7 +49,7 @@ function buildMailto(subject: string, body: string): string {
 
 export function SupportClient({ lang, displayName }: { lang: Lang; displayName: string }) {
   return (
-    <div className="flex flex-col gap-10 py-8">
+    <div className="flex animate-content-fade-in flex-col gap-10 py-8">
       <Greeting lang={lang} displayName={displayName} />
       <RequestBox lang={lang} />
       <QuickLinks lang={lang} />

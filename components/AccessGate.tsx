@@ -21,7 +21,7 @@ export function AccessGate({
   lang: Lang;
 }) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-5xl animate-content-fade-in px-6 py-8 sm:px-8">
       {/* Ticket 048: same Dashboard H1 (34px) tier as every other
           (dashboard)/* page's top heading — see app/(dashboard)/dashboard/
           page.tsx's comment for the full reasoning; this is the no-access
