@@ -54,7 +54,12 @@ const BASE =
 
 export const primaryButtonClass = `${BASE} h-10 px-4 text-sm bg-brand text-background hover:bg-brand/90`;
 export const secondaryButtonClass = `${BASE} h-10 px-4 text-sm border border-line bg-surface text-foreground hover:bg-paper`;
-export const dangerButtonClass = `${BASE} h-10 px-4 text-sm bg-danger text-white hover:bg-danger/90`;
+// The user-specified light danger fill (#D94C4C) has only 4.127:1 against
+// white, so white button text fails WCAG AA. Black clears it at 5.088:1 and
+// also clears the lighter dark-mode danger token; keep the literal status
+// color and choose the accessible foreground rather than silently darkening
+// the shared token used by decorative status accents.
+export const dangerButtonClass = `${BASE} h-10 px-4 text-sm bg-danger text-black hover:bg-danger/90`;
 // Tertiary is deliberately NOT built on BASE — no height/padding/
 // container at all, per the ticket's own "nur Text, kein Container"
 // definition. Kept as a plain inline text style, same `disabled:`/focus

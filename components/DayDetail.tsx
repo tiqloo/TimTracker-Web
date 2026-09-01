@@ -363,7 +363,7 @@ export function DayDetail({
         </p>
         {goalProgress && (
           <div className="mt-1 flex max-w-xs flex-col gap-1.5">
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-text-secondary">
               {dailyGoalProgressLabel(
                 lang,
                 formatDuration(breakdown.totalSeconds, locale),
@@ -407,7 +407,7 @@ export function DayDetail({
           equivalent, so this stays a decorative supplement rather than a
           second thing a screen reader announces. */}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground/70">{t(lang, dayDetail.entries)}</h2>
+        <h2 className="text-sm font-medium text-text-secondary">{t(lang, dayDetail.entries)}</h2>
         {/* Ticket 048: structure/segment logic unchanged per the ticket's
             own explicit "NICHT neu bauen" instruction for this timeline —
             rounded-md (6px) bumped to rounded-lg (8px) as the one radius
@@ -507,7 +507,7 @@ export function DayDetail({
                         : t(lang, dayDetail.running)}
                     </span>
                   </span>
-                  <span className="font-mono tabular-nums text-foreground/70">
+                  <span className="font-mono tabular-nums text-text-secondary">
                     {formatDuration((segment.endMs - segment.startMs) / 1000, locale)}
                   </span>
                 </div>
@@ -547,7 +547,7 @@ function SecondaryStat({
   value: string;
 }) {
   return (
-    <span className="flex items-center gap-1.5 text-sm text-foreground/70">
+    <span className="flex items-center gap-1.5 text-sm text-text-secondary">
       <span aria-hidden="true" className={`h-2 w-2 rounded-full ${swatchClassName}`} />
       {label}
       <span className="font-mono tabular-nums text-foreground">{value}</span>

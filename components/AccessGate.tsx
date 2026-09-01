@@ -28,7 +28,7 @@ export function AccessGate({
           fallback for the same pages, so it gets the same heading tier. */}
       <h1 className="text-[34px] font-semibold tracking-tight">{title}</h1>
       <div className="mt-6 max-w-md rounded-xl border border-line bg-surface p-5">
-        <p className="text-sm text-foreground/70">{t(lang, accessGate.message)}</p>
+        <p className="text-sm text-text-secondary">{t(lang, accessGate.message)}</p>
         {status !== "none" && (
           <p className="mt-1">
             <span className="font-mono text-xs tabular-nums text-foreground/50">

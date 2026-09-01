@@ -85,19 +85,19 @@ function SiteNav({ lang }: { lang: Lang }) {
         <nav className="flex items-center gap-1">
           <Link
             href="#features"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground sm:inline-block"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground sm:inline-block"
           >
             {t(lang, home.navFeatures)}
           </Link>
           <Link
             href="#pricing"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground sm:inline-block"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground sm:inline-block"
           >
             {t(lang, home.navPricing)}
           </Link>
           <Link
             href="/login"
-            className="rounded-md px-3 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground"
+            className="rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground"
           >
             {t(lang, home.navSignIn)}
           </Link>
@@ -207,11 +207,11 @@ function DayTimeline({ lang }: { lang: Lang }) {
           <TimeLabel>{t(lang, home.timelineSleepTime)}</TimeLabel>
         </div>
         <div className="mt-5 flex items-center gap-4 border-t border-line pt-4">
-          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
+          <span className="flex items-center gap-1.5 text-xs text-text-secondary">
             <span className="h-2 w-2 rounded-full bg-[var(--chart-standard)]" />
             {t(lang, home.timelineLegendAuto)}
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-foreground/70">
+          <span className="flex items-center gap-1.5 text-xs text-text-secondary">
             <span className="h-2 w-2 rounded-full bg-[var(--chart-project)]" />
             {t(lang, home.timelineLegendProject)}
           </span>
@@ -504,10 +504,10 @@ function SiteFooter({ lang }: { lang: Lang }) {
           </p>
         </div>
         <div className="flex items-center gap-5 text-sm">
-          <Link href="/login" className="text-foreground/70 transition-colors duration-150 hover:text-foreground">
+          <Link href="/login" className="text-text-secondary transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignIn)}
           </Link>
-          <Link href="/register" className="text-foreground/70 transition-colors duration-150 hover:text-foreground">
+          <Link href="/register" className="text-text-secondary transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignUp)}
           </Link>
         </div>

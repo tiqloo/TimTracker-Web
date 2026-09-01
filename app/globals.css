@@ -28,21 +28,20 @@
      same methodology as Ticket 037/scripts/validate_palette.js):
        - #74746F vs --surface (#ffffff)    = 4.698:1 — passes AA (4.5:1)
        - #74746F vs --background (#fafaf8) = 4.495:1 — misses AA by 0.005
-     The miss against --background is a razor-thin, sub-perceptible gap
-     (0.11%) in the literal user-specified hex, and only applies where
-     secondary text sits directly on the page background outside any card
-     (most secondary text in this app sits inside --surface cards, where
-     it clears AA with room). Documented rather than silently changed
-     (Ticket 037 precedent), since — unlike --brand below — this exact
-     migration wasn't called out by the ticket as needing a derived
-     substitute; flagged as a known minor residual risk in the ticket
-     write-up instead of overriding the user's explicit hex.
+     Independent review found two problems with merely documenting that
+     miss: the token was not used anywhere, and the first real use on the
+     page canvas would knowingly fail AA. Use the smallest possible neutral
+     adjustment (#73736E, one RGB step darker per channel):
+       - #73736E vs --background (#fafaf8) = 4.560:1 — passes AA
+       - #73736E vs --surface (#ffffff)    = 4.766:1 — passes AA
+     This is visually indistinguishable from the requested #74746F while
+     making the named token safe on both supported light surfaces.
      text-foreground/NN opacity classes are NOT removed by this ticket —
      both idioms now coexist (this ticket adds the fixed token where the
      user's spec calls for one; a full sweep replacing every remaining
      opacity usage is exactly the "line by line redesign of every
      component" the ticket's own "Bewusst außerhalb" section rules out). */
-  --text-secondary: #74746f;
+  --text-secondary: #73736e;
   /* "Historie" bar chart (Ticket 002) — categorical slots 1 (blue) and 2
      (orange) from the dataviz palette, validated together with
      scripts/validate_palette.js (CVD-safe adjacent pair in both light and

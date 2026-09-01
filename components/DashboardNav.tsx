@@ -147,7 +147,7 @@ function UserMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="dashboard-user-menu"
-        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground ${focusRingClass}`}
+        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground ${focusRingClass}`}
       >
         {/* Ticket 024's truncate rule, reused verbatim per this ticket's
             own Edge Cases section rather than reinvented. */}
