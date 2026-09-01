@@ -408,7 +408,17 @@ export function DayDetail({
           second thing a screen reader announces. */}
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-foreground/70">{t(lang, dayDetail.entries)}</h2>
-        <div className="overflow-x-auto rounded-md border border-line" aria-hidden="true">
+        {/* Ticket 048: structure/segment logic unchanged per the ticket's
+            own explicit "NICHT neu bauen" instruction for this timeline —
+            rounded-md (6px) bumped to rounded-lg (8px) as the one radius
+            touch-up the ticket does ask for ("Radius/Border-Feinschliff"),
+            kept modest rather than the full 10-14px card band since this
+            is a thin 32px-tall bar, not a card. --line itself already
+            picks up its new #E8E8E3 value from globals.css automatically
+            (both the border here and every gap/pause segment fill via
+            segmentColorVar() below reference the same token, no code
+            change needed for those). */}
+        <div className="overflow-x-auto rounded-lg border border-line" aria-hidden="true">
           <div className="flex h-8 min-w-full">
             {timeline.map((segment) => {
               if (segment.type === "gap") {
