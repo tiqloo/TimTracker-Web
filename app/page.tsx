@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import {
+  ArrowRight,
+  AppWindow,
+  CircleCheck,
+  Clock,
+  Download,
+  Tag,
+} from "lucide-react";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { home, t, type Lang } from "@/lib/i18n";
@@ -49,28 +57,18 @@ export default async function HomePage() {
   );
 }
 
-// Small literal mark (a clock face, not an abstract logo) — the one place
-// on the page a "brand symbol" appears, kept tiny and quiet on purpose.
+// Ticket 048: hand-drawn Mark() SVG replaced with lucide-react's Clock —
+// same "literal clock face, not an abstract logo" reasoning as before,
+// now via the shared icon library instead of a bespoke SVG (see
+// DashboardNav.tsx's own Ticket 048 comment for the full reasoning; this
+// is the same brand mark, independently defined here since this file and
+// DashboardNav.tsx are two different route trees with no shared
+// component between them). Kept small (18px, the bottom of the ticket's
+// 18-20px icon-size band) — inline with the "TimTracker" wordmark at
+// text-sm, the same "don't overpower the adjacent text" reasoning
+// DashboardNav.tsx's Mark()/SupportIcon() sizing comment gives.
 function Mark() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
-      <circle
-        cx="10"
-        cy="10"
-        r="8.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        fill="none"
-      />
-      <path
-        d="M10 5.5V10l3 2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Clock size={18} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function SiteNav({ lang }: { lang: Lang }) {
@@ -126,23 +124,13 @@ function TimeLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Ticket 048: hand-drawn arrow SVG replaced with lucide-react's ArrowRight
+// — used inline inside CTA button labels (text-sm), so kept at the same
+// compact 14px it was before rather than the spec's full 18-20px "icon"
+// band (same "don't overpower the adjacent label text" reasoning as
+// Mark() above).
 function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      className="h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      <path
-        d="M3.5 8h9M8.5 3.5 13 8l-4.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <ArrowRight size={14} strokeWidth={1.75} aria-hidden="true" />;
 }
 
 // The signature element: one realistic workday, rendered as the exact
@@ -312,62 +300,29 @@ function HowItWorks({ lang }: { lang: Lang }) {
   );
 }
 
+// Ticket 048: the five hand-drawn Features-section icons replaced with
+// their lucide-react equivalents — standalone, not inline with any text
+// (each sits above its own heading/description), so these get the
+// ticket's literal 18-20px/1.5-2px band in full, unlike the smaller
+// inline icons above (Mark/ArrowIcon) or in DashboardNav.tsx.
 function IconClock() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path d="M10 6v4l2.5 1.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <Clock size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconTag() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M11.2 3.5H5.8a2.3 2.3 0 0 0-2.3 2.3v5.4c0 .3.1.6.3.8l6.3 6.3c.5.5 1.4.5 1.9 0l4.9-4.9c.5-.5.5-1.4 0-1.9L10.6 5.2c-.2-.2-.5-.3-.8-.3"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <circle cx="7.6" cy="7.6" r="1" fill="currentColor" />
-    </svg>
-  );
+  return <Tag size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconExport() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M10 3v9m0 0-3-3m3 3 3-3M4 13.5v1.8c0 .9.7 1.7 1.7 1.7h8.6c.9 0 1.7-.8 1.7-1.7v-1.8"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
+  return <Download size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconWindow() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <rect x="3" y="4" width="14" height="12" rx="1.6" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path d="M3 7.4h14" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
+  return <AppWindow size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function IconCheck() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden="true">
-      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path d="M6.8 10.2 9 12.4l4.2-4.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
+  return <CircleCheck size={20} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function features(lang: Lang): {

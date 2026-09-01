@@ -35,6 +35,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, CircleHelp, Clock } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
@@ -60,57 +61,32 @@ const NAV_LINKS: { href: string; label: Translated; icon?: React.ComponentType }
   { href: "/dashboard/settings", label: nav.settings },
 ];
 
+// Ticket 048: hand-drawn Mark()/SupportIcon()/ChevronIcon() SVGs replaced
+// with lucide-react (new dependency, see package.json) — "einfache
+// Outline-Icons, 1.5-2px Strichstärke, 18-20px" per the ticket AK, which
+// explicitly names "Uhr/Zeit" (clock/time) as an example equivalent for a
+// brand mark exactly like this one. Kept as thin local wrapper functions
+// (not inlined at each call site) so NAV_LINKS's `icon?: ComponentType`
+// shape below still works unchanged, and so the size/stroke choice stays
+// in one place per icon.
+//
+// Sizes are context-appropriate rather than a flat 18-20px everywhere:
+// the brand mark next to the "TimTracker" wordmark and the small Support
+// nav-link icon are both inline WITH text at text-sm (14px) — forcing
+// them up to the spec's full 18-20px would visually overpower that text.
+// The spec's literal 18-20px band is applied to this ticket's standalone,
+// non-inline icons instead (see app/page.tsx's Features section). Stroke
+// width (1.5-1.75px) stays within the spec's 1.5-2px band in every case.
 function Mark() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      <path
-        d="M10 5.5V10l3 2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Clock size={18} strokeWidth={1.5} aria-hidden="true" />;
 }
 
-// Same stroke-only, currentColor visual language as Mark() above (no new
-// icon style introduced) — a question mark in a circle, the conventional
-// "help" glyph the Personio reference itself uses.
 function SupportIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      <path
-        d="M7.7 7.8a2.3 2.3 0 1 1 3.5 1.95c-.65.4-1.2.8-1.2 1.65"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <circle cx="10" cy="14" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <CircleHelp size={16} strokeWidth={1.75} aria-hidden="true" />;
 }
 
-// Same stroke-only, currentColor visual language again — a plain down
-// chevron marking the account-menu trigger as a disclosure control (not
-// just a link), the conventional dropdown affordance.
 function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="h-3 w-3 shrink-0" aria-hidden="true">
-      <path
-        d="M6 8.5 10 12.5 14 8.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
+  return <ChevronDown size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" />;
 }
 
 // Ticket 036: display name + Settings/Billing/Logout collapsed into one
