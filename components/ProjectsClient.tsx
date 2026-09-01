@@ -28,15 +28,16 @@ import {
   type Project,
 } from "@/lib/domain/project";
 import { common, projects as i18nProjects, t, type Lang } from "@/lib/i18n";
+import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui/button-styles";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
-const buttonClass =
-  "rounded-md border border-line px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
-
-const primaryButtonClass =
-  "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
+// Ticket 048: Secondary tier (lib/ui/button-styles.ts) — was a locally
+// defined "buttonClass" (border-line, no fill) before this ticket's button
+// consolidation pass; primaryButtonClass below is now imported rather than
+// locally defined for the same reason.
+const buttonClass = secondaryButtonClass;
 
 // Ticket 039: smaller/more subtle variant of buttonClass for ProjectRow's
 // per-row Edit/Archive actions — transparent border by default, the
@@ -337,7 +338,7 @@ function CreateProjectForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-xl border border-line p-5"
+      className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5"
     >
       <h2 className="text-sm font-medium text-foreground/70">{t(lang, i18nProjects.newProject)}</h2>
       <div className="flex flex-col gap-1">
