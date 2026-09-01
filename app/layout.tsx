@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Schibsted_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
@@ -12,6 +12,19 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// Ticket 048: second typeface, Hero/Display headings ONLY (the marketing
+// homepage's app/page.tsx Hero h1) — exactly wohnu.de's own researched
+// --land-display/--land-ui split (Schibsted Grotesk for big display
+// headings, Geist for everything else) rather than one font for
+// everything. Same next/font/google + CSS-variable pattern as the two
+// Geist fonts above; loaded globally here (not locally in app/page.tsx)
+// so the variable is available on <html> like the other two, even though
+// only one page currently uses it.
+const schibstedGrotesk = Schibsted_Grotesk({
+  variable: "--font-schibsted-grotesk",
   subsets: ["latin"],
 });
 
@@ -55,7 +68,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang={lang}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${schibstedGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

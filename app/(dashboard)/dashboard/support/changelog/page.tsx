@@ -28,11 +28,11 @@ export default async function ChangelogPage() {
   const locale = languageCodeToLocale(lang);
 
   return (
-    <main className="flex flex-col gap-6 py-8">
+    <main className="flex animate-content-fade-in flex-col gap-6 py-8">
       <Link href="/dashboard/support" className="text-sm text-foreground/70 hover:text-foreground">
         {t(lang, changelog.backToSupport)}
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, changelog.pageTitle)}</h1>
+      <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, changelog.pageTitle)}</h1>
       <ul className="flex flex-col divide-y divide-line border-t border-line">
         {changelog.entries.map((entry) => (
           <li key={`${entry.date}-${entry.ticket}`} className="flex flex-col gap-1 py-4">

@@ -1,18 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TimeEntriesRepository } from "../time-entries.repository";
 import type {
-  DailyBreakdown,
   TimeEntry,
   TimeEntrySource,
 } from "@/lib/domain/time-entry";
-
-// The two system pseudo-projects seeded by supabase/migrations/0001_init.sql
-// / 0004_time_entries_project_fk.sql in TimTracker-Starter — every
-// time_entries row belongs to one of these two, or a real customer
-// project. Same constants Domain/Models/Project.swift uses
-// (standardProjectID/pauseProjectID); keep in sync if they ever change.
-const STANDARD_PROJECT_ID = "00000000-0000-0000-0000-000000000001";
-const PAUSE_PROJECT_ID = "00000000-0000-0000-0000-000000000002";
+import { collectAllPages } from "./pagination.ts";
+import { buildDailyBreakdowns } from "../../domain/time-entry-aggregation.ts";
+import { requireUpdatedRow } from "./mutation-result.ts";
 
 interface TimeEntryRow {
   id: string;
@@ -24,6 +18,9 @@ interface TimeEntryRow {
   note: string | null;
   updated_at: string;
 }
+
+const TIME_ENTRY_COLUMNS =
+  "id, project_id, day, start_time, end_time, source, note, updated_at";
 
 // `day` is stored as `timestamptz` in Postgres (0001_init.sql: "damit es
 // exakt wie start_time/end_time/updated_at decodiert werden kann" — the
@@ -54,44 +51,6 @@ function toDomain(row: TimeEntryRow): TimeEntry {
   };
 }
 
-function durationSeconds(entry: TimeEntry, now: Date): number {
-  const start = new Date(entry.startTime).getTime();
-  const end = entry.endTime ? new Date(entry.endTime).getTime() : now.getTime();
-  return Math.max(0, Math.round((end - start) / 1000));
-}
-
-// Mirrors StatisticsService/DailyBreakdown.unassignedSeconds from the
-// Swift app (Ticket 001 fix): unassignedSeconds = max(0, totalSeconds -
-// projectSeconds), where totalSeconds excludes pause time. Do not
-// reimplement this differently on the web — same formula, same meaning,
-// or the two clients will disagree with each other.
-function buildBreakdown(day: string, entries: TimeEntry[], now: Date): DailyBreakdown {
-  let standardSeconds = 0;
-  let projectSeconds = 0;
-  let pauseSeconds = 0;
-
-  for (const entry of entries) {
-    const seconds = durationSeconds(entry, now);
-    if (entry.projectId === PAUSE_PROJECT_ID) {
-      pauseSeconds += seconds;
-    } else if (entry.projectId === STANDARD_PROJECT_ID) {
-      standardSeconds += seconds;
-    } else {
-      projectSeconds += seconds;
-    }
-  }
-
-  const totalSeconds = standardSeconds + projectSeconds;
-  return {
-    day,
-    standardSeconds,
-    projectSeconds,
-    pauseSeconds,
-    totalSeconds,
-    unassignedSeconds: Math.max(0, totalSeconds - projectSeconds),
-  };
-}
-
 // `projectId` (Ticket 043): optional server-side filter for the "Historie"
 // project dropdown — narrows the same range query to one project's rows
 // instead of fetching everything and filtering in JS, so getBreakdown's
@@ -103,18 +62,26 @@ async function fetchRange(
   toDay: string,
   projectId?: string,
 ): Promise<TimeEntry[]> {
-  let query = client
-    .from("time_entries")
-    .select("*")
-    .gte("day", fromDay)
-    .lte("day", toDay)
-    .is("deleted_at", null);
-  if (projectId) {
-    query = query.eq("project_id", projectId);
-  }
-  const { data, error } = await query.order("start_time", { ascending: true });
-  if (error) throw error;
-  return (data as TimeEntryRow[]).map(toDomain);
+  const rows = await collectAllPages<TimeEntryRow>(async (from, to) => {
+    let query = client
+      .from("time_entries")
+      .select(TIME_ENTRY_COLUMNS)
+      .gte("day", fromDay)
+      .lte("day", toDay)
+      .is("deleted_at", null);
+    if (projectId) {
+      query = query.eq("project_id", projectId);
+    }
+    const { data, error } = await query
+      .order("start_time", { ascending: true })
+      // Multiple entries may share a timestamp. A unique second key keeps
+      // offset pages deterministic and prevents gaps/duplicates at a boundary.
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (data ?? []) as TimeEntryRow[];
+  });
+  return rows.map(toDomain);
 }
 
 export function createSupabaseTimeEntriesRepository(
@@ -122,14 +89,7 @@ export function createSupabaseTimeEntriesRepository(
 ): TimeEntriesRepository {
   return {
     async getForDay(day: string) {
-      const { data, error } = await client
-        .from("time_entries")
-        .select("*")
-        .eq("day", day)
-        .is("deleted_at", null)
-        .order("start_time", { ascending: true });
-      if (error) throw error;
-      return (data as TimeEntryRow[]).map(toDomain);
+      return fetchRange(client, day, day);
     },
 
     async getForRange(fromDay: string, toDay: string, projectId?: string) {
@@ -149,26 +109,15 @@ export function createSupabaseTimeEntriesRepository(
         .from("time_entries")
         .update({ project_id: projectId, updated_at: new Date().toISOString() })
         .eq("id", entryId)
-        .select()
-        .single();
+        .select(TIME_ENTRY_COLUMNS)
+        .maybeSingle();
       if (error) throw error;
-      return toDomain(data as TimeEntryRow);
+      return toDomain(requireUpdatedRow(data as TimeEntryRow | null, "Time entry"));
     },
 
     async getBreakdown(fromDay: string, toDay: string, projectId?: string) {
       const entries = await fetchRange(client, fromDay, toDay, projectId);
-
-      const now = new Date();
-      const byDay = new Map<string, TimeEntry[]>();
-      for (const entry of entries) {
-        const bucket = byDay.get(entry.day) ?? [];
-        bucket.push(entry);
-        byDay.set(entry.day, bucket);
-      }
-
-      return Array.from(byDay.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([day, dayEntries]) => buildBreakdown(day, dayEntries, now));
+      return buildDailyBreakdowns(entries, new Date());
     },
   };
 }

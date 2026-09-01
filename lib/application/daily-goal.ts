@@ -5,7 +5,7 @@
 // own port/use-case, no ad-hoc persistence logic in the component. Driving
 // adapters (pages) call these functions, never lib/repositories/* directly.
 import type { Repositories } from "@/lib/repositories/repositories";
-import { normalizeDailyGoalHoursInput } from "@/lib/domain/daily-goal";
+import { normalizeDailyGoalHoursInput } from "../domain/daily-goal.ts";
 
 export async function getDailyGoalHours(repos: Repositories): Promise<number | null> {
   return repos.dailyGoal.get();

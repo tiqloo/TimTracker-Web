@@ -112,7 +112,7 @@ export function HistoryChart({
   const svgWidth = bars.length * (BAR_WIDTH + BAR_GAP);
 
   return (
-    <div className="rounded-xl border border-line p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <div className="mb-3 flex items-center gap-4 font-mono text-xs text-foreground/60">
         <Legend swatchClassName="bg-chart-standard" label={t(lang, historyChart.automaticTime)} />
         <Legend

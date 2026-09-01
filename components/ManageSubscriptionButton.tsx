@@ -20,12 +20,13 @@ import { useState } from "react";
 import { manageSubscription } from "@/lib/application/billing";
 import { getRepositories } from "@/lib/application/client";
 import { manageSubscriptionButton, t, type Lang } from "@/lib/i18n";
+import { primaryButtonClass } from "@/lib/ui/button-styles";
+import { errorMessageClass } from "@/lib/ui/status-styles";
+import { errorFeedbackProps } from "@/lib/ui/feedback";
 
-const primaryButtonClass =
-  "rounded-md bg-brand px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
-
-const errorClass =
-  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
+// Ticket 048: lib/ui/status-styles.ts (--danger token) — was locally
+// defined before this ticket's status-token consolidation pass.
+const errorClass = errorMessageClass;
 
 export function ManageSubscriptionButton({ lang }: { lang: Lang }) {
   const [pending, setPending] = useState(false);
@@ -61,7 +62,7 @@ export function ManageSubscriptionButton({ lang }: { lang: Lang }) {
           {pending ? t(lang, manageSubscriptionButton.opening) : t(lang, manageSubscriptionButton.manage)}
         </button>
       </div>
-      {error && <p className={errorClass}>{error}</p>}
+      {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
     </div>
   );
 }

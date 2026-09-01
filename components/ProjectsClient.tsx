@@ -28,15 +28,18 @@ import {
   type Project,
 } from "@/lib/domain/project";
 import { common, projects as i18nProjects, t, type Lang } from "@/lib/i18n";
+import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui/button-styles";
+import { errorMessageClass } from "@/lib/ui/status-styles";
+import { errorFeedbackProps, warningFeedbackProps } from "@/lib/ui/feedback";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
-const buttonClass =
-  "rounded-md border border-line px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50";
-
-const primaryButtonClass =
-  "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
+// Ticket 048: Secondary tier (lib/ui/button-styles.ts) — was a locally
+// defined "buttonClass" (border-line, no fill) before this ticket's button
+// consolidation pass; primaryButtonClass below is now imported rather than
+// locally defined for the same reason.
+const buttonClass = secondaryButtonClass;
 
 // Ticket 039: smaller/more subtle variant of buttonClass for ProjectRow's
 // per-row Edit/Archive actions — transparent border by default, the
@@ -47,8 +50,9 @@ const primaryButtonClass =
 const rowActionButtonClass =
   "rounded-md border border-transparent px-2 py-1 text-xs font-medium text-foreground/70 transition-colors hover:border-line hover:bg-paper hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
 
-const errorClass =
-  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
+// Ticket 048: lib/ui/status-styles.ts (--danger token) — was locally
+// defined before this ticket's status-token consolidation pass.
+const errorClass = errorMessageClass;
 
 const warningClass = "text-sm text-amber-700 dark:text-amber-400";
 
@@ -63,11 +67,13 @@ function ColorSwatch({ colorHex }: { colorHex: string }) {
 }
 
 function ColorPicker({
+  name,
   value,
   onChange,
   disabled,
   lang,
 }: {
+  name: string;
   value: string;
   onChange: (colorHex: string) => void;
   disabled?: boolean;
@@ -76,21 +82,28 @@ function ColorPicker({
   return (
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t(lang, common.color)}>
       {PROJECT_COLOR_PALETTE.map((colorHex) => (
-        <button
+        <label
           key={colorHex}
-          type="button"
-          role="radio"
-          aria-checked={value === colorHex}
-          disabled={disabled}
-          onClick={() => onChange(colorHex)}
-          className={`h-6 w-6 rounded-full border-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`relative h-6 w-6 rounded-full border-2 ${
             value === colorHex
               ? "border-foreground"
               : "border-transparent"
-          }`}
+          } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
           style={{ backgroundColor: `#${colorHex}` }}
           title={`#${colorHex}`}
-        />
+        >
+          <input
+            type="radio"
+            name={name}
+            value={colorHex}
+            checked={value === colorHex}
+            disabled={disabled}
+            onChange={() => onChange(colorHex)}
+            aria-label={`#${colorHex}`}
+            className="peer sr-only"
+          />
+          <span className="pointer-events-none absolute inset-0 rounded-full peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background" />
+        </label>
       ))}
     </div>
   );
@@ -337,7 +350,7 @@ function CreateProjectForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-xl border border-line p-5"
+      className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5"
     >
       <h2 className="text-sm font-medium text-foreground/70">{t(lang, i18nProjects.newProject)}</h2>
       <div className="flex flex-col gap-1">
@@ -346,6 +359,7 @@ function CreateProjectForm({
         </label>
         <input
           id="new-project-name"
+          autoFocus
           type="text"
           required
           disabled={pending}
@@ -354,7 +368,7 @@ function CreateProjectForm({
           className={inputClass}
         />
         {duplicateWarning && (
-          <p className={warningClass}>{t(lang, i18nProjects.createDuplicateWarning)}</p>
+          <p {...warningFeedbackProps} className={warningClass}>{t(lang, i18nProjects.createDuplicateWarning)}</p>
         )}
       </div>
       <div className="flex flex-col gap-1">
@@ -385,9 +399,15 @@ function CreateProjectForm({
       </div>
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium">{t(lang, common.color)}</span>
-        <ColorPicker value={colorHex} onChange={setColorHex} disabled={pending} lang={lang} />
+        <ColorPicker
+          name="project-color-new"
+          value={colorHex}
+          onChange={setColorHex}
+          disabled={pending}
+          lang={lang}
+        />
       </div>
-      {error && <p className={errorClass}>{error}</p>}
+      {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={primaryButtonClass}>
           {pending ? t(lang, i18nProjects.creating) : t(lang, i18nProjects.createProject)}
@@ -576,6 +596,7 @@ function EditProjectForm({
         </label>
         <input
           id={`edit-name-${project.id}`}
+          autoFocus
           type="text"
           required
           disabled={pending}
@@ -584,7 +605,7 @@ function EditProjectForm({
           className={inputClass}
         />
         {duplicateWarning && (
-          <p className={warningClass}>{t(lang, i18nProjects.editDuplicateWarning)}</p>
+          <p {...warningFeedbackProps} className={warningClass}>{t(lang, i18nProjects.editDuplicateWarning)}</p>
         )}
       </div>
       <div className="flex flex-col gap-1">
@@ -600,7 +621,7 @@ function EditProjectForm({
           className={inputClass}
         />
       </div>
-      {error && <p className={errorClass}>{error}</p>}
+      {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={primaryButtonClass}>
           {pending ? t(lang, common.saving) : t(lang, common.save)}

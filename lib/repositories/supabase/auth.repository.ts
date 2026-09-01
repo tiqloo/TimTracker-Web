@@ -12,6 +12,14 @@ export function createSupabaseAuthRepository(
   client: SupabaseClient,
 ): AuthRepository {
   return {
+    async getAuthenticatedUserId() {
+      // getUser(), not getSession(): authorization is based on an identity
+      // revalidated by Supabase Auth, never on editable JWT metadata.
+      const { data, error } = await client.auth.getUser();
+      if (error || !data.user) return null;
+      return data.user.id;
+    },
+
     async register(email: string, password: string) {
       const { data, error } = await client.auth.signUp({
         email,

@@ -55,8 +55,25 @@ export default async function TodayPage() {
   const nowMs = currentTimeMs();
 
   return (
-    <main className="flex flex-col gap-8 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, today.pageTitle)}</h1>
+    // animate-content-fade-in (globals.css, Ticket 048): the ticket's
+    // "Karten/Seiteninhalt beim Laden: leichter Fade-In" requirement —
+    // applied to every (dashboard)/* page's own top-level element (which
+    // remounts on each client-side navigation, unlike the persistent
+    // app/(dashboard)/layout.tsx shell around it), so a fade plays on
+    // every page visit, not just the very first full load. Same class
+    // reused verbatim on AuthCard.tsx's card and SupportClient.tsx's
+    // wrapper rather than redefined per file.
+    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
+      {/* Ticket 048: "Dashboard H1" tier of the new type scale (32-36px) —
+          was text-2xl (24px) on every (dashboard)/* page's top heading, one
+          identical arbitrary-value bump applied consistently across all of
+          them (settings/projects/history/billing/support/changelog/
+          helpcenter pages, plus SupportClient.tsx's own greeting h1). Flat
+          single value, not a responsive two-tier class, matching this
+          repo's "keep it simple" convention for dashboard chrome (the
+          public homepage's Hero is the one heading that DOES need
+          responsive sizing, see app/page.tsx). */}
+      <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, today.pageTitle)}</h1>
 
       <DayDetail
         breakdown={breakdown}

@@ -21,10 +21,14 @@ export function AccessGate({
   lang: Lang;
 }) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8 sm:px-8">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <div className="mt-6 max-w-md rounded-xl border border-line p-5">
-        <p className="text-sm text-foreground/70">{t(lang, accessGate.message)}</p>
+    <div className="mx-auto w-full max-w-5xl animate-content-fade-in px-6 py-8 sm:px-8">
+      {/* Ticket 048: same Dashboard H1 (34px) tier as every other
+          (dashboard)/* page's top heading — see app/(dashboard)/dashboard/
+          page.tsx's comment for the full reasoning; this is the no-access
+          fallback for the same pages, so it gets the same heading tier. */}
+      <h1 className="text-[34px] font-semibold tracking-tight">{title}</h1>
+      <div className="mt-6 max-w-md rounded-xl border border-line bg-surface p-5">
+        <p className="text-sm text-text-secondary">{t(lang, accessGate.message)}</p>
         {status !== "none" && (
           <p className="mt-1">
             <span className="font-mono text-xs tabular-nums text-foreground/50">

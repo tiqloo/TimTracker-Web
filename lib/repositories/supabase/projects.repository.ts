@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectsRepository } from "../projects.repository";
 import type { NewProject, Project } from "@/lib/domain/project";
+import { collectAllPages } from "./pagination.ts";
+import { requireUpdatedRow } from "./mutation-result.ts";
 
 // Wire-format row shape from the `projects` table (supabase/migrations/
 // 0001_init.sql in TimTracker-Starter) — deliberately kept separate from
@@ -17,6 +19,9 @@ interface ProjectRow {
   is_archived: boolean;
   updated_at: string;
 }
+
+const PROJECT_COLUMNS =
+  "id, name, color_hex, customer, notes, is_default, is_archived, updated_at";
 
 function toDomain(row: ProjectRow): Project {
   return {
@@ -36,12 +41,17 @@ export function createSupabaseProjectsRepository(
 ): ProjectsRepository {
   return {
     async getAll() {
-      const { data, error } = await client
-        .from("projects")
-        .select("*")
-        .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return (data as ProjectRow[]).map(toDomain);
+      const rows = await collectAllPages<ProjectRow>(async (from, to) => {
+        const { data, error } = await client
+          .from("projects")
+          .select(PROJECT_COLUMNS)
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to);
+        if (error) throw error;
+        return (data ?? []) as ProjectRow[];
+      });
+      return rows.map(toDomain);
     },
 
     async create(input: NewProject) {
@@ -53,10 +63,10 @@ export function createSupabaseProjectsRepository(
           customer: input.customer ?? "",
           notes: input.notes ?? "",
         })
-        .select()
-        .single();
+        .select(PROJECT_COLUMNS)
+        .maybeSingle();
       if (error) throw error;
-      return toDomain(data as ProjectRow);
+      return toDomain(requireUpdatedRow(data as ProjectRow | null, "Project"));
     },
 
     async rename(id: string, name: string, notes: string) {
@@ -77,18 +87,21 @@ export function createSupabaseProjectsRepository(
         .from("projects")
         .update({ name, notes, updated_at: new Date().toISOString() })
         .eq("id", id)
-        .select()
-        .single();
+        .select(PROJECT_COLUMNS)
+        .maybeSingle();
       if (error) throw error;
-      return toDomain(data as ProjectRow);
+      return toDomain(requireUpdatedRow(data as ProjectRow | null, "Project"));
     },
 
     async setArchived(id: string, isArchived: boolean) {
-      const { error } = await client
+      const { data, error } = await client
         .from("projects")
         .update({ is_archived: isArchived, updated_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      requireUpdatedRow(data as { id: string } | null, "Project");
     },
   };
 }

@@ -1,5 +1,7 @@
 import { getRepositories } from "@/lib/application/server";
 import { getFullDataExport } from "@/lib/application/data-export";
+import { requireUser } from "@/lib/application/auth";
+import { routeErrorResponse } from "@/lib/http/route-error";
 
 // GDPR/DSGVO Art. 20 "Datenübertragbarkeit" full data export (Ticket 046,
 // TimTracker-Starter repo) — the complementary right to
@@ -14,22 +16,24 @@ import { getFullDataExport } from "@/lib/application/data-export";
 // Deliberately NO canUseApp() gate — same reasoning already applied to
 // DeleteAccountSection and the billing/upgrade action (Ticket 011): a
 // GDPR right must stay reachable even without an active trial/
-// subscription, it cannot depend on one. Auth itself is enforced the
-// same way as every other "/dashboard/*" route, including the sibling
-// CSV/PDF export routes (../pdf/route.ts, ../../export/route.ts): by
-// proxy.ts's session check (Supabase getUser(), not getSession() — see
-// that file's own comment for why), which redirects an unauthenticated
-// request to /login before this handler ever runs. RLS on every table
-// behind each repository port then further ensures a signed-in user only
-// ever gets rows scoped to their own auth.uid() — the same two-layer
-// protection every other dashboard route/export already relies on, no
-// separate check needed here.
+// subscription, it cannot depend on one. The handler revalidates the user
+// directly; proxy.ts remains the UX guard and table RLS remains the final
+// per-row boundary.
 //
 // Server-rendered, single Route Handler, no client-side assembly from
 // multiple API calls — matches the ticket's own AK and the PDF export's
 // precedent (Ticket 021).
 export async function GET() {
+  try {
+    return await createDataExportResponse();
+  } catch (error) {
+    return routeErrorResponse(error, "full_data_export");
+  }
+}
+
+async function createDataExportResponse(): Promise<Response> {
   const repos = await getRepositories();
+  await requireUser(repos);
   const data = await getFullDataExport(repos);
 
   const json = JSON.stringify(data, null, 2);

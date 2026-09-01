@@ -29,21 +29,30 @@ import { useToast } from "@/components/ToastProvider";
 import type { Project } from "@/lib/domain/project";
 import type { TimeEntry } from "@/lib/domain/time-entry";
 import { common, dayDetail, projects as projectsI18n, t, type Lang } from "@/lib/i18n";
+import {
+  primaryButtonSmallClass,
+  secondaryButtonSmallClass,
+  tertiaryButtonClass,
+} from "@/lib/ui/button-styles";
+import { errorFeedbackProps } from "@/lib/ui/feedback";
 
 const selectClass =
   "rounded-md border border-line bg-transparent px-2 py-1 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
 
-// --brand (Ticket 037) — this product's one accent color, reused here as
-// the confirm action's primary button exactly like ProjectsClient.tsx's
-// primaryButtonClass, not a new color.
-const confirmButtonClass =
-  "rounded-md bg-brand px-2.5 py-1 text-xs font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
+// Ticket 048: Primary/Secondary tiers, Small size (lib/ui/button-styles.ts)
+// — this is exactly the "kompakte, inline Aktion" case the Small variants
+// exist for (see that file's own comment): a per-row confirm/cancel pair,
+// never meant to become a full 40px button. Was a locally defined bg-brand
+// string before this ticket's button consolidation pass (--brand itself
+// dates to Ticket 037).
+const confirmButtonClass = primaryButtonSmallClass;
+const cancelButtonClass = secondaryButtonSmallClass;
 
-const linkButtonClass =
-  "text-xs font-medium text-brand hover:underline disabled:cursor-not-allowed disabled:opacity-50";
-
-const cancelButtonClass =
-  "rounded-md border border-line px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50";
+// Tertiary tier — plain text, no container, per the ticket's own
+// "Zuordnen →" example. tertiaryButtonClass has no built-in text-size (see
+// its own comment), so this adds text-xs to match the rest of this file's
+// compact, inline styling.
+const linkButtonClass = `${tertiaryButtonClass} text-xs`;
 
 export function AssignTimeAction({
   entry,
@@ -114,7 +123,7 @@ export function AssignTimeAction({
   if (projectsError) {
     return (
       <div className="flex items-center gap-2 text-xs">
-        <span className="text-red-700 dark:text-red-400">
+        <span {...errorFeedbackProps} className="text-red-700 dark:text-red-400">
           {t(lang, dayDetail.assignProjectsLoadError)}
         </span>
         <button type="button" onClick={handleCancel} className={cancelButtonClass}>
@@ -128,7 +137,10 @@ export function AssignTimeAction({
     return (
       <div className="flex items-center gap-2 text-xs">
         <span className="text-foreground/60">{t(lang, dayDetail.assignNoProjectsYet)}</span>
-        <Link href="/dashboard/projects" className="font-medium text-brand hover:underline">
+        <Link
+          href="/dashboard/projects"
+          className="font-medium text-brand transition-colors duration-150 hover:underline"
+        >
           {t(lang, dayDetail.assignNoProjectsCta)}
         </Link>
         <button type="button" onClick={handleCancel} className={cancelButtonClass}>
@@ -145,6 +157,7 @@ export function AssignTimeAction({
       </label>
       <select
         id={`assign-project-${entry.id}`}
+        autoFocus
         value={selectedProjectId}
         onChange={(e) => {
           setSelectedProjectId(e.target.value);
@@ -189,7 +202,7 @@ export function AssignTimeAction({
         {t(lang, common.cancel)}
       </button>
       {fieldError && (
-        <p className="w-full text-xs text-red-700 dark:text-red-400">{fieldError}</p>
+        <p {...errorFeedbackProps} className="w-full text-xs text-red-700 dark:text-red-400">{fieldError}</p>
       )}
     </div>
   );

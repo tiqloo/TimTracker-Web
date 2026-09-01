@@ -1,11 +1,12 @@
 import { getRepositories } from "@/lib/application/server";
-import { getHistory, isoToday } from "@/lib/application/dashboard";
-import { getExportRows } from "@/lib/application/export";
+import { isoToday } from "@/lib/application/dashboard";
+import { getHistoryExportData } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
-import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatHistoryCsv, resolveHistoryRange } from "@/lib/format";
-import { exportGate, t } from "@/lib/i18n";
+import { requireUser } from "@/lib/application/auth";
+import { ForbiddenError } from "@/lib/domain/application-error";
+import { routeErrorResponse } from "@/lib/http/route-error";
 
 // CSV export for "Historie" — same column structure as CSVExporter.swift
 // (Datum, Projekt, Kunde, Start, Ende, Dauer (h) per session, plus a daily
@@ -19,15 +20,20 @@ import { exportGate, t } from "@/lib/i18n";
 // browser) — Ticket 021. Kept as a separate route rather than a
 // `?format=pdf` branch here so each handler stays a single content type.
 export async function GET(request: Request) {
+  try {
+    return await createCsvExportResponse(request);
+  } catch (error) {
+    return routeErrorResponse(error, "history_csv_export");
+  }
+}
+
+async function createCsvExportResponse(request: Request): Promise<Response> {
   const repos = await getRepositories();
+  await requireUser(repos);
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    const lang = await getEffectiveLanguageCode(repos, request.headers.get("accept-language"));
-    return new Response(t(lang, exportGate.noAccess), {
-      status: 403,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    throw new ForbiddenError("An active subscription is required for this export.");
   }
 
   const url = new URL(request.url);
@@ -49,10 +55,13 @@ export async function GET(request: Request) {
     : undefined;
   const projectId = activeProject?.id;
 
-  const [summaries, rows] = await Promise.all([
-    getHistory(repos, from, to, projectId),
-    getExportRows(repos, from, to, projectId),
-  ]);
+  const { summaries, rows } = await getHistoryExportData(
+    repos,
+    from,
+    to,
+    allProjects,
+    projectId,
+  );
 
   const csv = formatHistoryCsv(rows, summaries, activeProject?.name);
 
