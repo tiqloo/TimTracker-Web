@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode, getLanguagePreference } from "@/lib/application/language";
 import { getProfile } from "@/lib/application/auth";
+import { getSubscriptionStatus } from "@/lib/application/billing";
 import { SettingsClient } from "@/components/SettingsClient";
 import { settings, t } from "@/lib/i18n";
 
@@ -14,26 +14,36 @@ import { settings, t } from "@/lib/i18n";
 // trial/subscription — same reasoning Ticket 011 states explicitly for
 // the billing/upgrade action on ./billing, just applied here too since
 // "Account löschen" has the identical requirement (a canceled/expired
-// user must still be able to exercise their GDPR deletion right).
+// user must still be able to exercise their GDPR deletion right). Same
+// reasoning now also covers fetching `subscription` itself below (Ticket
+// 041) — the new overview card must render for a `status: "none"` user
+// too (see its own edge-case handling in SettingsClient.tsx), not just an
+// entitled one.
+//
+// Ticket 041: also fetches getSubscriptionStatus() — the exact same call
+// billing/page.tsx already makes — so SettingsClient's new compact
+// subscription overview card can render without a second client-side
+// round trip, replacing the previous bare "Abo verwalten →" link that
+// used to live directly in this file.
 export default async function SettingsPage() {
   const repos = await getRepositories();
   const headerList = await headers();
-  const [language, lang, profile] = await Promise.all([
+  const [language, lang, profile, subscription] = await Promise.all([
     getLanguagePreference(repos),
     getEffectiveLanguageCode(repos, headerList.get("accept-language")),
     getProfile(repos),
+    getSubscriptionStatus(repos),
   ]);
 
   return (
     <main className="flex flex-col gap-8 py-8">
       <h1 className="text-2xl font-semibold tracking-tight">{t(lang, settings.pageTitle)}</h1>
-      <SettingsClient initialLanguage={language} profile={profile} lang={lang} />
-      <Link
-        href="/dashboard/settings/billing"
-        className="text-sm text-foreground/70 hover:text-foreground"
-      >
-        {t(lang, settings.manageSubscriptionLink)}
-      </Link>
+      <SettingsClient
+        initialLanguage={language}
+        profile={profile}
+        subscription={subscription}
+        lang={lang}
+      />
     </main>
   );
 }
