@@ -87,25 +87,25 @@ function SiteNav({ lang }: { lang: Lang }) {
         <nav className="flex items-center gap-1">
           <Link
             href="#features"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground sm:inline-block"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground sm:inline-block"
           >
             {t(lang, home.navFeatures)}
           </Link>
           <Link
             href="#pricing"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground sm:inline-block"
+            className="hidden rounded-md px-3 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground sm:inline-block"
           >
             {t(lang, home.navPricing)}
           </Link>
           <Link
             href="/login"
-            className="rounded-md px-3 py-1.5 text-sm text-foreground/70 hover:text-foreground"
+            className="rounded-md px-3 py-1.5 text-sm text-foreground/70 transition-colors duration-150 hover:text-foreground"
           >
             {t(lang, home.navSignIn)}
           </Link>
           <Link
             href="/register"
-            className="rounded-md bg-brand px-3.5 py-1.5 text-sm font-medium text-background"
+            className="rounded-md bg-brand px-3.5 py-1.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
           >
             {t(lang, home.navSignUp)}
           </Link>
@@ -180,7 +180,7 @@ function toMinutes(hhmm: string): number {
 function DayTimeline({ lang }: { lang: Lang }) {
   const segments = daySegments(lang);
   return (
-    <div className="w-full max-w-md rounded-xl border border-line bg-background shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:max-w-none">
+    <div className="w-full max-w-md rounded-xl border border-line bg-surface shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:max-w-none">
       <div className="flex items-center gap-1.5 border-b border-line px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full border border-line" />
         <span className="h-2.5 w-2.5 rounded-full border border-line" />
@@ -257,14 +257,14 @@ function Hero({ lang }: { lang: Lang }) {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background"
+              className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
             >
               {t(lang, home.heroCtaStart)}
               <ArrowIcon />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium"
+              className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium transition-colors duration-150 hover:bg-paper"
             >
               {t(lang, home.heroCtaLogin)}
             </Link>
@@ -449,7 +449,13 @@ function Pricing({ lang }: { lang: Lang }) {
           </p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-sm rounded-2xl border border-line bg-paper p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)]">
+          {/* Ticket 048: rounded-2xl (16px) -> rounded-xl (12px), the
+              ticket's radius AK band for "Karten/größere Container"
+              (10-14px). This card keeps its own bg-paper/shadow treatment
+              per its module comment above — deliberately the one heavier-
+              weight card on the page — the radius unification still
+              applies to it like every other card in the app. */}
+        <div className="mx-auto mt-10 max-w-sm rounded-xl border border-line bg-paper p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)]">
           <div className="flex items-baseline gap-1.5">
             <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
               {t(lang, home.pricingAmount)}
@@ -473,7 +479,7 @@ function Pricing({ lang }: { lang: Lang }) {
 
           <Link
             href="/register"
-            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background"
+            className="mt-7 flex w-full items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
           >
             {t(lang, home.pricingCta)}
             <ArrowIcon />
@@ -543,10 +549,10 @@ function SiteFooter({ lang }: { lang: Lang }) {
           </p>
         </div>
         <div className="flex items-center gap-5 text-sm">
-          <Link href="/login" className="text-foreground/70 hover:text-foreground">
+          <Link href="/login" className="text-foreground/70 transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignIn)}
           </Link>
-          <Link href="/register" className="text-foreground/70 hover:text-foreground">
+          <Link href="/register" className="text-foreground/70 transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignUp)}
           </Link>
         </div>
