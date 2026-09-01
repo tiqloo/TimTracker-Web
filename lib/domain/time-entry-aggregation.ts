@@ -1,11 +1,58 @@
 import type { DailyBreakdown, TimeEntry } from "./time-entry";
+import {
+  calendarDayInTimeZone,
+  PRODUCT_TIME_ZONE,
+} from "./calendar-day.ts";
 
 export const STANDARD_PROJECT_ID = "00000000-0000-0000-0000-000000000001";
 export const PAUSE_PROJECT_ID = "00000000-0000-0000-0000-000000000002";
 
+function nextIsoDay(isoDay: string): string {
+  const date = new Date(`${isoDay}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function timeZoneOffsetMs(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((item) => item.type === type)?.value);
+  const representedAsUtc = Date.UTC(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour"),
+    part("minute"),
+    part("second"),
+  );
+  return representedAsUtc - instant.getTime();
+}
+
+function startOfDayInstant(isoDay: string, timeZone: string): Date {
+  const utcMidnight = new Date(`${isoDay}T00:00:00Z`);
+  let candidate = new Date(utcMidnight.getTime() - timeZoneOffsetMs(utcMidnight, timeZone));
+  // A second pass handles an offset change between the UTC guess and local midnight.
+  candidate = new Date(utcMidnight.getTime() - timeZoneOffsetMs(candidate, timeZone));
+  return candidate;
+}
+
 export function timeEntryDurationSeconds(entry: TimeEntry, now: Date): number {
   const start = new Date(entry.startTime).getTime();
-  const end = entry.endTime ? new Date(entry.endTime).getTime() : now.getTime();
+  const today = calendarDayInTimeZone(now);
+  const end = entry.endTime
+    ? new Date(entry.endTime).getTime()
+    : entry.day < today
+      ? startOfDayInstant(nextIsoDay(entry.day), PRODUCT_TIME_ZONE).getTime()
+      : now.getTime();
   return Math.max(0, Math.round((end - start) / 1000));
 }
 

@@ -1,5 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  calendarDayInTimeZone,
+  InvalidHistoryRangeError,
+  resolveHistoryDateRange,
+} from "@/lib/domain/calendar-day";
 
 // "/" is the public marketing homepage (unauthenticated visitors land
 // here, and signed-in users may revisit it too — it is never gated or
@@ -178,6 +183,21 @@ export async function proxy(request: NextRequest) {
 
   let response = nextResponse();
 
+  const { pathname } = request.nextUrl;
+  if (pathname === "/dashboard/history" || pathname.startsWith("/dashboard/history/export")) {
+    try {
+      resolveHistoryDateRange(calendarDayInTimeZone(new Date()), {
+        from: request.nextUrl.searchParams.get("from") ?? undefined,
+        to: request.nextUrl.searchParams.get("to") ?? undefined,
+      });
+    } catch (error) {
+      if (error instanceof InvalidHistoryRangeError) {
+        return withCsp(new NextResponse(error.message, { status: 400 }), csp);
+      }
+      throw error;
+    }
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -202,8 +222,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   if (!user && isProtectedPath(pathname)) {
     const loginUrl = new URL("/login", request.url);

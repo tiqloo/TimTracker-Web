@@ -5,6 +5,7 @@
 // both Server and Client Components.
 import type { ExportRow } from "@/lib/domain/export-row";
 import type { DailyBreakdown } from "@/lib/domain/time-entry";
+import { resolveHistoryDateRange } from "./domain/calendar-day.ts";
 
 // Mirrors TimeFormatter.shortDurationString(from:) in
 // Shared/Helpers/TimeFormatter.swift (TimTracker-Starter) — same
@@ -102,8 +103,6 @@ export function startOfYearIso(isoDay: string): string {
   return `${isoDay.slice(0, 4)}-01-01`;
 }
 
-const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 export interface DateRange {
   from: string;
   to: string;
@@ -120,12 +119,7 @@ export function resolveHistoryRange(
   today: string,
   params: { from?: string; to?: string },
 ): DateRange {
-  const requestedFrom = params.from && ISO_DAY_RE.test(params.from) ? params.from : null;
-  const requestedTo = params.to && ISO_DAY_RE.test(params.to) ? params.to : null;
-  let from = requestedFrom ?? addDaysIso(today, -29);
-  let to = requestedTo ?? today;
-  if (from > to) [from, to] = [to, from];
-  return { from, to };
+  return resolveHistoryDateRange(today, params);
 }
 
 // --- "Historie" bar chart (Ticket 002) ---------------------------------

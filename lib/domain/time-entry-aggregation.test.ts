@@ -64,3 +64,39 @@ test("buildDailyBreakdowns groups, sorts and separates work, projects and pauses
     },
   ]);
 });
+
+test("old running entries stop at the next Berlin midnight", () => {
+  const winter = entry(
+    "winter",
+    STANDARD_PROJECT_ID,
+    "2026-01-01",
+    "2026-01-01T22:00:00Z",
+    null,
+  );
+  const summer = entry(
+    "summer",
+    STANDARD_PROJECT_ID,
+    "2026-07-01",
+    "2026-07-01T20:00:00Z",
+    null,
+  );
+  assert.equal(timeEntryDurationSeconds(winter, new Date("2026-01-03T12:00:00Z")), 3600);
+  assert.equal(timeEntryDurationSeconds(summer, new Date("2026-07-03T12:00:00Z")), 7200);
+});
+
+test("negative durations clamp to zero and overlaps remain explicit additive segments", () => {
+  const invalid = entry(
+    "invalid",
+    STANDARD_PROJECT_ID,
+    "2026-08-01",
+    "2026-08-01T10:00:00Z",
+    "2026-08-01T09:00:00Z",
+  );
+  assert.equal(timeEntryDurationSeconds(invalid, new Date("2026-08-01T12:00:00Z")), 0);
+
+  const overlapping = [
+    entry("a", "project-1", "2026-08-01", "2026-08-01T08:00:00Z", "2026-08-01T10:00:00Z"),
+    entry("b", "project-1", "2026-08-01", "2026-08-01T09:00:00Z", "2026-08-01T11:00:00Z"),
+  ];
+  assert.equal(buildDailyBreakdowns(overlapping, new Date("2026-08-01T12:00:00Z"))[0]?.totalSeconds, 14400);
+});
