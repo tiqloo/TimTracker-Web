@@ -15,4 +15,14 @@ export interface TimeEntriesRepository {
   // callers pass it.
   getForRange(fromDay: string, toDay: string, projectId?: string): Promise<TimeEntry[]>;
   getBreakdown(fromDay: string, toDay: string, projectId?: string): Promise<DailyBreakdown[]>;
+  // Ticket 034 ("Nicht zugeordnete Zeit" -> Projekt zuordnen): reassigns a
+  // single time entry to a different project by updating its `project_id`
+  // — the only write this repository needed before this ticket was
+  // getForDay/getForRange/getBreakdown, all read-only. Per-entry (not a
+  // whole-day bulk move) on purpose, mirroring the ticket's own edge case:
+  // "mehrere nicht zusammenhängende Segmente am selben Tag -> jedes Segment
+  // einzeln zuordenbar, keine erzwungene Alles-oder-nichts-Zuordnung".
+  // Returns the updated TimeEntry so callers (DayDetail.tsx) can patch
+  // their local state without a full reload/refetch.
+  updateProject(entryId: string, projectId: string): Promise<TimeEntry>;
 }

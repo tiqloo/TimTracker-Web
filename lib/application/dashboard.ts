@@ -71,3 +71,24 @@ export async function getHistory(
 ): Promise<DailyBreakdown[]> {
   return repos.timeEntries.getBreakdown(fromDay, toDay, projectId);
 }
+
+// Ticket 034 ("Nicht zugeordnete Zeit" -> Projekt zuordnen), used by
+// components/AssignTimeAction.tsx (a Client Component, via
+// lib/application/client.ts's getRepositories()) — mirrors this file's
+// existing thin-wrapper shape (projects.ts's renameProject/archiveProject)
+// rather than adding business logic that doesn't exist yet: today the
+// only rule is "you can't assign to an empty/blank project id", enforced
+// here so a caller with a stray blank <select> value fails fast with a
+// clear message instead of sending a request that would either violate
+// the projects_id FK or (worse) silently no-op.
+export async function assignTimeEntryToProject(
+  repos: Repositories,
+  entryId: string,
+  projectId: string,
+): Promise<TimeEntry> {
+  const trimmedProjectId = projectId.trim();
+  if (!trimmedProjectId) {
+    throw new Error("Projekt darf nicht leer sein");
+  }
+  return repos.timeEntries.updateProject(entryId, trimmedProjectId);
+}

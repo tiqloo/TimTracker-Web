@@ -147,6 +147,38 @@ export const dayDetail = {
     de: "Für diesen Tag wurden weder automatische noch manuelle Zeiten aufgezeichnet.",
     en: "No automatic or manual time was recorded for this day.",
   },
+  // Ticket 034: "Jetzt zuordnen" action, one per unassigned (kind "auto")
+  // entry row in the entries list below the timeline — per-entry, not a
+  // single whole-day action, per the ticket's own edge case (see
+  // components/AssignTimeAction.tsx's header comment for the full
+  // reasoning).
+  assignAction: { de: "Jetzt zuordnen", en: "Assign now" },
+  assignSelectLabel: { de: "Projekt auswählen", en: "Select project" },
+  assignSelectPlaceholder: { de: "Projekt wählen…", en: "Choose a project…" },
+  assignProjectsLoading: { de: "Projekte werden geladen…", en: "Loading projects…" },
+  assignConfirm: { de: "Zuordnen", en: "Assign" },
+  assignSuccess: { de: "Zeit wurde zugeordnet.", en: "Time has been assigned." },
+  assignError: {
+    de: "Zuordnung fehlgeschlagen. Bitte erneut versuchen.",
+    en: "Assignment failed. Please try again.",
+  },
+  assignSelectRequiredError: {
+    de: "Bitte ein Projekt auswählen.",
+    en: "Please select a project.",
+  },
+  assignProjectsLoadError: {
+    de: "Projekte konnten nicht geladen werden.",
+    en: "Projects could not be loaded.",
+  },
+  // Shown instead of the select when the account has no real (non-system)
+  // projects yet — assigning unassigned time to a project first requires
+  // having at least one, same underlying list listProjects() (lib/
+  // application/projects.ts) already filters to for the "Projekte" page.
+  assignNoProjectsYet: {
+    de: "Noch keine Projekte angelegt.",
+    en: "No projects created yet.",
+  },
+  assignNoProjectsCta: { de: "Projekt anlegen", en: "Create project" },
 } satisfies Record<string, Translated>;
 
 // Native `title` tooltip for one segment on the new day timeline (Ticket
