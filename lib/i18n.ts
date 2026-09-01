@@ -115,17 +115,54 @@ export const dayDetail = {
   totalAutomaticTime: { de: "Automatikzeit gesamt", en: "Total automatic time" },
   projectTime: { de: "Projektzeit", en: "Project time" },
   unassignedTime: { de: "Nicht zugeordnete Zeit", en: "Unassigned time" },
+  // Ticket 033: label for a "pause" entry's segment/legend dot on the new
+  // day timeline — pause time was previously only reachable as a flat list
+  // row with no label of its own (its duration isn't part of any of the
+  // three summary numbers above, see time-entries.repository.ts's
+  // buildBreakdown: pauseSeconds is tracked but excluded from totalSeconds).
+  pauseTime: { de: "Pause", en: "Pause" },
   entries: { de: "Einträge", en: "Entries" },
   running: { de: "läuft", en: "running" },
   noEntriesToday: {
     de: "Noch keine Zeiteinträge für heute.",
     en: "No time entries for today yet.",
   },
+  // Ticket 033: second line of the "Heute" empty state's now-two-line
+  // explanation (AK: "was passiert automatisch, was muss der Nutzer selbst
+  // tun") — noEntriesToday above stays the terse headline, this is the
+  // added explanatory sentence, DayDetail renders both.
+  noEntriesTodayDetail: {
+    de: "TimTracker erfasst deine Zeit automatisch, sobald du aktiv bist – dafür musst du nichts tun.",
+    en: "TimTracker tracks your time automatically while you're active — there's nothing you need to start yourself.",
+  },
   noEntriesThisDay: {
     de: "Keine Zeiteinträge für diesen Tag.",
     en: "No time entries for this day.",
   },
+  // Ticket 033: second line of the "Historie" day-detail empty state —
+  // same two-line shape as noEntriesTodayDetail above, but phrased for a
+  // past day (no forward-looking "tracking will start automatically"
+  // framing, since the day is already over).
+  noEntriesThisDayDetail: {
+    de: "Für diesen Tag wurden weder automatische noch manuelle Zeiten aufgezeichnet.",
+    en: "No automatic or manual time was recorded for this day.",
+  },
 } satisfies Record<string, Translated>;
+
+// Native `title` tooltip for one segment on the new day timeline (Ticket
+// 033) — same "exact value on hover" precedent as historyChartTooltip
+// below, but no `lang` param needed: unlike that helper's template (word
+// order differs between "Automatik X, Projekt Y" / "Automatic X, Project
+// Y"), every piece here is already a fully localized string the caller
+// passes in, so the template shape itself is language-neutral.
+export function dayDetailSegmentTooltip(
+  kindLabel: string,
+  startLabel: string,
+  endLabel: string,
+  durationLabel: string,
+): string {
+  return `${kindLabel}: ${startLabel}–${endLabel} (${durationLabel})`;
+}
 
 // --- components/HistoryChart.tsx -------------------------------------
 

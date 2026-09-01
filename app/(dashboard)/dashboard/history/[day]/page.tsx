@@ -69,6 +69,7 @@ export default async function HistoryDayPage({
         entries={entries}
         nowMs={nowMs}
         emptyMessage={t(lang, dayDetail.noEntriesThisDay)}
+        emptyMessageDetail={t(lang, dayDetail.noEntriesThisDayDetail)}
         lang={lang}
       />
     </main>

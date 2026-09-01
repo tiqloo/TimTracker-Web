@@ -52,6 +52,7 @@ export default async function TodayPage() {
         entries={entries}
         nowMs={nowMs}
         emptyMessage={t(lang, dayDetail.noEntriesToday)}
+        emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
         lang={lang}
       />
 
