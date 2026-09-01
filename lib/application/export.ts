@@ -1,17 +1,16 @@
 // Application core (use case) — mirrors Application/Services/ExportService.swift.
 // Builds session-level ExportRow data for a date range, joined with each
 // entry's project name/customer, for the "Historie" CSV/PDF export. The
-// getHistory use case (dashboard.ts) already covers the per-day summary
-// rows both exports also need — this file only adds the per-session rows,
-// it doesn't duplicate the breakdown math.
-//
-// getExportRows is shared verbatim by both export formats: the CSV route
-// (app/(dashboard)/dashboard/history/export/route.ts) and the PDF route
-// (.../export/pdf/route.ts, rendering via
-// lib/pdf/history-export-document.tsx) — same ExportRow[] in, just a
-// different renderer.
+// Both export formats use getHistoryExportData so entries are fetched once
+// and per-session rows plus daily summaries come from the same snapshot.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { ExportRow } from "@/lib/domain/export-row";
+import type { Project } from "@/lib/domain/project";
+import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
+import {
+  buildDailyBreakdowns,
+  timeEntryDurationSeconds,
+} from "@/lib/domain/time-entry-aggregation";
 
 // The two system pseudo-projects (see Domain/Models/Project.swift's
 // standardProjectID/pauseProjectID and the matching constants in
@@ -35,27 +34,23 @@ const SYSTEM_PROJECT_NAMES: Record<string, string> = {
 // project's sessions — the CSV/PDF export routes pass through whatever
 // filter is active on the "Historie" page so an export always matches
 // what's currently on screen, instead of always exporting everything.
-export async function getExportRows(
-  repos: Repositories,
-  fromDay: string,
-  toDay: string,
-  projectId?: string,
-): Promise<ExportRow[]> {
-  const [entries, projects] = await Promise.all([
-    repos.timeEntries.getForRange(fromDay, toDay, projectId),
-    repos.projects.getAll(),
-  ]);
+export interface HistoryExportData {
+  rows: ExportRow[];
+  summaries: DailyBreakdown[];
+}
 
+export function buildExportRows(
+  entries: TimeEntry[],
+  projects: Project[],
+  now: Date,
+): ExportRow[] {
   const projectById = new Map(projects.map((project) => [project.id, project]));
-  const now = new Date();
 
   return entries
     .slice()
-    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id))
     .map((entry) => {
       const project = projectById.get(entry.projectId);
-      const startMs = new Date(entry.startTime).getTime();
-      const endMs = entry.endTime ? new Date(entry.endTime).getTime() : now.getTime();
       return {
         id: entry.id,
         day: entry.day,
@@ -64,8 +59,26 @@ export async function getExportRows(
         customerName: project?.customer ? project.customer : "–",
         startTime: entry.startTime,
         endTime: entry.endTime,
-        durationSeconds: Math.max(0, Math.round((endMs - startMs) / 1000)),
+        durationSeconds: timeEntryDurationSeconds(entry, now),
         isRunning: entry.endTime === null,
       } satisfies ExportRow;
     });
+}
+
+// Loads every source collection exactly once. CSV and PDF pass their already
+// loaded project list so validation, row labels and summaries share one
+// consistent snapshot even when an entry is running during the export.
+export async function getHistoryExportData(
+  repos: Repositories,
+  fromDay: string,
+  toDay: string,
+  projects: Project[],
+  projectId?: string,
+): Promise<HistoryExportData> {
+  const entries = await repos.timeEntries.getForRange(fromDay, toDay, projectId);
+  const now = new Date();
+  return {
+    rows: buildExportRows(entries, projects, now),
+    summaries: buildDailyBreakdowns(entries, now),
+  };
 }

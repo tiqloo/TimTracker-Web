@@ -49,3 +49,14 @@ test("collectAllPages: rejects invalid page sizes before fetching", async () => 
   );
   assert.equal(called, false);
 });
+
+for (const rowCount of [0, 1, 999, 1_000, 1_001, 3_507]) {
+  test(`collectAllPages: returns all ${rowCount} rows`, async () => {
+    const source = Array.from({ length: rowCount }, (_, index) => index);
+    const result = await collectAllPages(
+      async (from, to) => source.slice(from, to + 1),
+      1_000,
+    );
+    assert.deepEqual(result, source);
+  });
+}

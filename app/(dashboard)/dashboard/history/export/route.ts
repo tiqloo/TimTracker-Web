@@ -1,6 +1,6 @@
 import { getRepositories } from "@/lib/application/server";
-import { getHistory, isoToday } from "@/lib/application/dashboard";
-import { getExportRows } from "@/lib/application/export";
+import { isoToday } from "@/lib/application/dashboard";
+import { getHistoryExportData } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
@@ -49,10 +49,13 @@ export async function GET(request: Request) {
     : undefined;
   const projectId = activeProject?.id;
 
-  const [summaries, rows] = await Promise.all([
-    getHistory(repos, from, to, projectId),
-    getExportRows(repos, from, to, projectId),
-  ]);
+  const { summaries, rows } = await getHistoryExportData(
+    repos,
+    from,
+    to,
+    allProjects,
+    projectId,
+  );
 
   const csv = formatHistoryCsv(rows, summaries, activeProject?.name);
 

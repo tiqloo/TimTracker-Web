@@ -1,6 +1,6 @@
 import { getRepositories } from "@/lib/application/server";
-import { getHistory, isoToday } from "@/lib/application/dashboard";
-import { getExportRows } from "@/lib/application/export";
+import { isoToday } from "@/lib/application/dashboard";
+import { getHistoryExportData } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
@@ -10,7 +10,7 @@ import { exportGate, t } from "@/lib/i18n";
 
 // PDF export for "Historie" — sibling of ../route.ts's CSV export, same
 // access gate, same date-range resolution, same ExportRow/DailyBreakdown
-// data (getExportRows/getHistory), just a different rendering target.
+// data (getHistoryExportData), just a different rendering target.
 // Kept as a separate route (rather than a `?format=pdf` branch on the CSV
 // route) so each handler stays a single content type/filename, per the
 // ticket's own "not binding" suggestion of either approach.
@@ -55,10 +55,13 @@ export async function GET(request: Request) {
     : undefined;
   const projectId = activeProject?.id;
 
-  const [summaries, rows] = await Promise.all([
-    getHistory(repos, from, to, projectId),
-    getExportRows(repos, from, to, projectId),
-  ]);
+  const { summaries, rows } = await getHistoryExportData(
+    repos,
+    from,
+    to,
+    allProjects,
+    projectId,
+  );
 
   const periodLabel = `${formatDayLabel(from)} – ${formatDayLabel(to)}${
     activeProject ? ` · ${activeProject.name}` : ""
