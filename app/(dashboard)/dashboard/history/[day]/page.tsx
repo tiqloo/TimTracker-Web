@@ -47,10 +47,18 @@ export default async function HistoryDayPage({
     );
   }
 
-  const [breakdown, entries] = await Promise.all([
+  // Ticket 040: same projectId -> colorHex lookup as app/(dashboard)/
+  // dashboard/page.tsx ("Heute") for DayDetail's timeline segments — see
+  // that file's comment for why getAll() (archived included) is correct
+  // here too.
+  const [breakdown, entries, allProjects] = await Promise.all([
     getBreakdownForDay(repos, day),
     getEntriesForDay(repos, day),
+    repos.projects.getAll(),
   ]);
+  const projectColors = Object.fromEntries(
+    allProjects.map((project) => [project.id, project.colorHex]),
+  );
   const nowMs = currentTimeMs();
 
   return (
@@ -71,6 +79,7 @@ export default async function HistoryDayPage({
         emptyMessage={t(lang, dayDetail.noEntriesThisDay)}
         emptyMessageDetail={t(lang, dayDetail.noEntriesThisDayDetail)}
         lang={lang}
+        projectColors={projectColors}
       />
     </main>
   );

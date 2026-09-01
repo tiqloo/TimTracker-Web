@@ -177,6 +177,11 @@ export default async function HistoryPage({
         granularity={granularity}
         lang={lang}
         activeProjectName={activeProject?.name}
+        // Ticket 040: recolor the stacked bar's project segment to this
+        // one filtered project's own color — see HistoryChart.tsx's
+        // activeProjectColor comment for why this is scoped to exactly
+        // the filtered case and not a general per-project breakdown.
+        activeProjectColor={activeProject?.colorHex}
       />
 
       {days.length === 0 ? (

@@ -19,6 +19,13 @@
 // (breakdown.totalSeconds/projectSeconds/unassignedSeconds) and the entry
 // list's data (entries, formatTime/formatDuration) are UNCHANGED — this is
 // a pure display restructuring, no new formulas.
+//
+// Ticket 040 (TimTracker-Starter repo): the timeline's "project" segments
+// (both the bar and the entry-list dot) now color themselves with the
+// actual project's own `colorHex` instead of a flat shared token — see
+// segmentColorVar()/`projectColors` prop below. Layout is otherwise
+// unchanged; this ticket deliberately owns color logic only, not another
+// restructuring pass on top of Ticket 033's finished layout.
 import { formatDuration, formatTime } from "@/lib/format";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import { languageCodeToLocale } from "@/lib/domain/language";
@@ -66,13 +73,26 @@ function segmentKind(entry: TimeEntry): SegmentKind {
 // the neutral --line hairline token). Pause reuses that same neutral
 // --line token rather than inventing a third accent color — consistent
 // with how the homepage's "idle" gap segments already use it for "not
-// tracked work" time.
-function segmentColorVar(kind: SegmentKind): string {
+// tracked work" time. Auto/pause segments are never real projects (they're
+// the two system pseudo-projects, see STANDARD_PROJECT_ID/PAUSE_PROJECT_ID
+// above) so they intentionally keep these flat, neutral tokens rather than
+// getting a per-project color (Ticket 040 edge case: no regression here).
+//
+// Ticket 040: a "project" segment now renders the actual project's own
+// `colorHex` (the same value ColorSwatch in ProjectsClient.tsx already
+// renders as a small dot in the projects list) instead of the flat
+// `--chart-project` orange every project previously shared — that's the
+// whole point of this ticket ("dieselbe Farbe ... auf Timeline, Historie,
+// Reports und Tagesübersicht"). `--chart-project` stays the fallback for
+// the (defensive-only) case a project's color isn't in `projectColors` —
+// e.g. a data race between an entry and a since-deleted project row —
+// so a segment never silently renders unstyled.
+function segmentColorVar(kind: SegmentKind, projectColorHex?: string): string {
   switch (kind) {
     case "auto":
       return "var(--chart-standard)";
     case "project":
-      return "var(--chart-project)";
+      return projectColorHex ? `#${projectColorHex}` : "var(--chart-project)";
     case "pause":
       return "var(--line)";
   }
@@ -140,6 +160,7 @@ export function DayDetail({
   emptyMessage,
   emptyMessageDetail,
   lang,
+  projectColors,
 }: {
   breakdown: DailyBreakdown;
   entries: TimeEntry[];
@@ -147,6 +168,14 @@ export function DayDetail({
   emptyMessage: string;
   emptyMessageDetail: string;
   lang: Lang;
+  // Ticket 040: projectId -> colorHex (no leading "#", same convention as
+  // Project.colorHex/ColorSwatch) for every real project the caller knows
+  // about, including archived ones (Ticket 040 edge case: an archived
+  // project's past entries keep showing its color, same as any other
+  // domain data — archiving isn't deletion, see lib/domain/project.ts).
+  // Only entries whose segmentKind() is "project" ever look this up; the
+  // two system pseudo-projects (auto/pause) never do.
+  projectColors: Record<string, string>;
 }) {
   // Ticket 038: formatDuration/formatTime now take the same locale
   // convention as formatDayLabel/formatFullDate (lib/format.ts) — derived
@@ -252,7 +281,7 @@ export function DayDetail({
                     flexShrink: 0,
                     flexBasis: 0,
                     minWidth: MIN_SEGMENT_WIDTH_PX,
-                    backgroundColor: segmentColorVar(kind),
+                    backgroundColor: segmentColorVar(kind, projectColors[entry.projectId]),
                   }}
                 >
                   {isRunning && (
@@ -283,7 +312,12 @@ export function DayDetail({
                   <span
                     aria-hidden="true"
                     className="h-2 w-2 shrink-0 rounded-full border border-foreground/15"
-                    style={{ backgroundColor: segmentColorVar(segment.kind) }}
+                    style={{
+                      backgroundColor: segmentColorVar(
+                        segment.kind,
+                        projectColors[segment.entry.projectId],
+                      ),
+                    }}
                   />
                   <span className="font-mono tabular-nums">
                     {formatTime(segment.entry.startTime, locale)} –{" "}

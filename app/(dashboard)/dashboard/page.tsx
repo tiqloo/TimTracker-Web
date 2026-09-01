@@ -37,10 +37,19 @@ export default async function TodayPage() {
     return <AccessGate title={t(lang, today.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
-  const [breakdown, entries] = await Promise.all([
+  // Ticket 040: projectId -> colorHex lookup for DayDetail's timeline
+  // segments, same `repos.projects.getAll()` call history/page.tsx already
+  // makes directly on its injected Repositories instance (getAll()
+  // includes archived projects — Ticket 040's edge case: an archived
+  // project's past color must keep showing, archiving isn't deletion).
+  const [breakdown, entries, allProjects] = await Promise.all([
     getTodayBreakdown(repos),
     getTodayEntries(repos),
+    repos.projects.getAll(),
   ]);
+  const projectColors = Object.fromEntries(
+    allProjects.map((project) => [project.id, project.colorHex]),
+  );
   const nowMs = currentTimeMs();
 
   return (
@@ -54,6 +63,7 @@ export default async function TodayPage() {
         emptyMessage={t(lang, dayDetail.noEntriesToday)}
         emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
         lang={lang}
+        projectColors={projectColors}
       />
 
       <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">

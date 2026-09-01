@@ -29,6 +29,18 @@
 // Ticket 002's AK says NOT to do ("zeigen einen 0-Balken statt einer
 // Lücke"). The sliver is the smallest way to make "there is a bar here,
 // it's empty" visually distinct from "there is no data point here".
+//
+// Ticket 040 (TimTracker-Starter repo): deliberately did NOT turn the
+// "project" segment into a per-project color breakdown in the general
+// (unfiltered) case — an unfiltered bar's projectSeconds can mix an
+// unbounded number of projects, and stacking that many colors into one
+// already-narrow bar was judged unreadable (the ticket's own named risk).
+// What IS implemented: once Ticket 043's project filter narrows the whole
+// chart to exactly one project, that one project's real `colorHex` now
+// replaces the flat `--chart-project` orange for both the legend swatch
+// and the project segment fill (see `activeProjectColor` below) — no
+// breakdown ambiguity there since there is only ever one project shown.
+import type { CSSProperties } from "react";
 import type { ChartBar, ChartGranularity } from "@/lib/format";
 import { formatDuration } from "@/lib/format";
 import { languageCodeToLocale } from "@/lib/domain/language";
@@ -58,6 +70,7 @@ export function HistoryChart({
   granularity,
   lang,
   activeProjectName,
+  activeProjectColor,
 }: {
   bars: ChartBar[];
   granularity: ChartGranularity;
@@ -69,6 +82,22 @@ export function HistoryChart({
   // visible "you're looking at one project, not the whole period"
   // indicator so a shorter bar doesn't read as "a quiet day".
   activeProjectName?: string;
+  // Ticket 040: that same filtered project's own `colorHex` (no leading
+  // "#"), if any. Deliberately NOT a general per-project breakdown of the
+  // stacked bar — with several projects active in an unfiltered period,
+  // one bar can contain time from an unbounded number of projects at
+  // once, and a stacked bar with that many colors quickly stops being
+  // readable (the exact risk the ticket's AK calls out; see
+  // docs/tickets/040-project-colors-reuse.md in TimTracker-Starter for
+  // the full reasoning this file's comment intentionally condenses).
+  // The unfiltered "project" segment therefore deliberately keeps the
+  // flat --chart-project token. But once Ticket 043's filter narrows a
+  // bar's whole `projectSeconds` to exactly one, already-named project,
+  // there's no ambiguity left to protect against — recoloring that one
+  // segment to the real project color is a small, unambiguous win
+  // squarely inside this ticket's "same color ... on Historie" goal, so
+  // it's implemented here even though the general case above is not.
+  activeProjectColor?: string;
 }) {
   if (bars.length === 0) return null;
 
@@ -86,7 +115,11 @@ export function HistoryChart({
     <div className="rounded-xl border border-line p-4">
       <div className="mb-3 flex items-center gap-4 font-mono text-xs text-foreground/60">
         <Legend swatchClassName="bg-chart-standard" label={t(lang, historyChart.automaticTime)} />
-        <Legend swatchClassName="bg-chart-project" label={t(lang, historyChart.projectTime)} />
+        <Legend
+          swatchClassName={activeProjectColor ? undefined : "bg-chart-project"}
+          swatchStyle={activeProjectColor ? { backgroundColor: `#${activeProjectColor}` } : undefined}
+          label={t(lang, historyChart.projectTime)}
+        />
         <span className="ml-auto flex items-center gap-2">
           {activeProjectName && (
             <span>
@@ -163,7 +196,8 @@ export function HistoryChart({
                         width={BAR_WIDTH}
                         height={projectHeight - (hasBothSegments ? gap : 0)}
                         rx={2}
-                        className="fill-chart-project"
+                        className={activeProjectColor ? undefined : "fill-chart-project"}
+                        fill={activeProjectColor ? `#${activeProjectColor}` : undefined}
                       />
                     )}
                   </>
@@ -187,10 +221,26 @@ export function HistoryChart({
   );
 }
 
-function Legend({ swatchClassName, label }: { swatchClassName: string; label: string }) {
+function Legend({
+  swatchClassName,
+  swatchStyle,
+  label,
+}: {
+  // Ticket 040: either a Tailwind bg-* token class (the pre-existing
+  // path, still used for automaticTime always and projectTime whenever no
+  // project filter narrows the bar to one project's real color) or an
+  // inline style carrying that project's own colorHex — never both, see
+  // the two callsites above.
+  swatchClassName?: string;
+  swatchStyle?: CSSProperties;
+  label: string;
+}) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className={`h-2.5 w-2.5 rounded-sm ${swatchClassName}`} />
+      <span
+        className={`h-2.5 w-2.5 rounded-sm ${swatchClassName ?? ""}`}
+        style={swatchStyle}
+      />
       {label}
     </span>
   );
