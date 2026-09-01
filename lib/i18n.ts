@@ -359,6 +359,26 @@ export const settings = {
     de: "Sprache konnte nicht gespeichert werden.",
     en: "Language could not be saved.",
   },
+  // "Meine Daten exportieren" (Ticket 046, TimTracker-Starter repo) —
+  // DSGVO/GDPR Art. 20 data-portability action, placed directly above
+  // deleteAccountTitle below (see SettingsClient.tsx's DataExportSection):
+  // both are "Konto-Grundrechte" (Art. 17 vs. Art. 20) and belong next to
+  // each other, same reasoning as that ticket's own "Ausgangslage".
+  dataExportTitle: { de: "Meine Daten exportieren", en: "Export My Data" },
+  dataExportBody: {
+    de: "Lädt alle über dich gespeicherten Daten (Profil, Projekte inkl. archivierter, alle Zeiteinträge, Abo-Status) als eine JSON-Datei herunter — dein Recht auf Datenübertragbarkeit (DSGVO Art. 20).",
+    en: "Downloads everything stored about you (profile, projects incl. archived, all time entries, subscription status) as one JSON file — your right to data portability (GDPR Art. 20).",
+  },
+  dataExportButton: { de: "Daten exportieren", en: "Export Data" },
+  dataExportPending: { de: "Wird exportiert…", en: "Exporting…" },
+  dataExportSuccess: {
+    de: "Datenexport heruntergeladen.",
+    en: "Data export downloaded.",
+  },
+  dataExportError: {
+    de: "Datenexport fehlgeschlagen.",
+    en: "Data export failed.",
+  },
   deleteAccountTitle: { de: "Account löschen", en: "Delete Account" },
   deleteAccountBody: {
     de: "Löscht deinen Account unwiderruflich, inklusive aller Cloud-Daten (Projekte, Zeiteinträge, Abo). Lokale Daten auf deinen Geräten bleiben unangetastet. Diese Aktion kann nicht rückgängig gemacht werden.",

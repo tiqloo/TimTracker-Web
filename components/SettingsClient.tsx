@@ -63,8 +63,83 @@ export function SettingsClient({
     <div className="flex flex-col gap-10">
       <ProfileSection profile={profile} lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
+      <DataExportSection lang={lang} />
       <DeleteAccountSection lang={lang} />
     </div>
+  );
+}
+
+// "Meine Daten exportieren" (Ticket 046, TimTracker-Starter repo) — DSGVO/
+// GDPR Art. 20 data-portability action, the direct complement to
+// DeleteAccountSection's Art. 17 deletion right just below — placed
+// immediately above it, same "Konto-Grundrechte" grouping the ticket's
+// own "Ausgangslage" calls for, without otherwise restructuring this
+// file's section order (that's Ticket 041's job).
+//
+// The actual export is a plain server-rendered Route Handler
+// (app/(dashboard)/dashboard/settings/export/data/route.ts) returning a
+// downloadable JSON file, same "one Route Handler, no client-side
+// assembly" shape as the existing CSV/PDF export routes. Unlike those
+// (plain <a href> links, no loading/error feedback needed there), this
+// button goes through fetch() + a pending state + useToast() — the
+// brief for this ticket explicitly asks for the same success/error toast
+// treatment every other action in this file already has (Ticket 042),
+// which a plain same-origin navigation link can't give: a failed
+// same-origin navigation would just render an error page instead of a
+// toast the user stays on this page to read.
+function DataExportSection({ lang }: { lang: Lang }) {
+  const { showSuccess, showError } = useToast();
+  const [pending, setPending] = useState(false);
+
+  async function handleExport() {
+    setPending(true);
+    try {
+      const response = await fetch("/dashboard/settings/export/data");
+      if (!response.ok) {
+        throw new Error(t(lang, settings.dataExportError));
+      }
+      const blob = await response.blob();
+      // Same filename convention the route itself sets in its
+      // Content-Disposition header — duplicated here only as the
+      // fallback a browser would rarely need (the `download` attribute
+      // below is what browsers actually honor first for a same-origin
+      // blob: URL).
+      const filenameMatch = response.headers
+        .get("Content-Disposition")
+        ?.match(/filename="([^"]+)"/);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filenameMatch?.[1] ?? "TimTracker-Datenexport.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showSuccess(t(lang, settings.dataExportSuccess));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, settings.dataExportError));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-line p-5">
+      <h2 className="text-sm font-medium text-foreground/70">
+        {t(lang, settings.dataExportTitle)}
+      </h2>
+      <p className="text-sm text-foreground/70">{t(lang, settings.dataExportBody)}</p>
+      <div>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={pending}
+          className={buttonClass}
+        >
+          {pending ? t(lang, settings.dataExportPending) : t(lang, settings.dataExportButton)}
+        </button>
+      </div>
+    </section>
   );
 }
 
