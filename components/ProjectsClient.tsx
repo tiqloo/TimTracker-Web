@@ -38,6 +38,15 @@ const buttonClass =
 const primaryButtonClass =
   "rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50";
 
+// Ticket 039: smaller/more subtle variant of buttonClass for ProjectRow's
+// per-row Edit/Archive actions — transparent border by default, the
+// visible border/background only appears on the button's own hover, on
+// top of the row-level opacity reveal (see ProjectRow's `group`/
+// `focus-within` comment) that dims the whole pair until the row is
+// hovered/focused.
+const rowActionButtonClass =
+  "rounded-md border border-transparent px-2 py-1 text-xs font-medium text-foreground/70 transition-colors hover:border-line hover:bg-paper hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+
 const errorClass =
   "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
 
@@ -87,6 +96,8 @@ function ColorPicker({
   );
 }
 
+type SortOption = "recent" | "name";
+
 export function ProjectsClient({
   initialProjects,
   lang,
@@ -95,12 +106,41 @@ export function ProjectsClient({
   lang: Lang;
 }) {
   const [projects, setProjects] = useState(initialProjects);
-  const active = projects.filter((project) => !project.isArchived);
+  // Search/sort (Ticket 039) apply only to the active list, never to
+  // archived — the ticket's own AK explicitly says not to mix the two.
+  // Both are purely client-side derived state (no extra request, no new
+  // state to keep in sync): `initialProjects` already holds every project
+  // up front, so filtering/sorting on every render is enough at the scale
+  // this ticket targets (see its own "bewusst außerhalb"/out-of-scope note
+  // on server-side search/pagination).
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
+
   const archived = projects.filter((project) => project.isArchived);
+  const activeAll = projects.filter((project) => !project.isArchived);
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredActive = normalizedSearch
+    ? activeAll.filter(
+        (project) =>
+          project.name.toLowerCase().includes(normalizedSearch) ||
+          project.customer.toLowerCase().includes(normalizedSearch),
+      )
+    : activeAll;
+
+  const active = [...filteredActive].sort((a, b) =>
+    sortBy === "name"
+      ? a.name.localeCompare(b.name, lang)
+      : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+
+  function handleChanged(updated: Project) {
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  }
 
   return (
     <div className="flex flex-col gap-10">
-      <CreateProjectForm
+      <CreateProjectSection
         projects={projects}
         onCreated={(project) => setProjects((prev) => [project, ...prev])}
         lang={lang}
@@ -110,24 +150,53 @@ export function ProjectsClient({
         <h2 className="text-sm font-medium text-foreground/70">
           {t(lang, i18nProjects.activeProjects)}
         </h2>
-        {active.length === 0 ? (
+        {activeAll.length === 0 ? (
           <p className="text-sm text-foreground/60">{t(lang, i18nProjects.noProjectsYet)}</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-line border-t border-line">
-            {active.map((project) => (
-              <ProjectRow
-                key={project.id}
-                project={project}
-                allProjects={projects}
-                onChanged={(updated) =>
-                  setProjects((prev) =>
-                    prev.map((p) => (p.id === updated.id ? updated : p)),
-                  )
-                }
-                lang={lang}
-              />
-            ))}
-          </ul>
+          <>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-1 min-w-[12rem] flex-col gap-1">
+                <span className="text-xs font-medium text-foreground/60">
+                  {t(lang, i18nProjects.searchLabel)}
+                </span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t(lang, i18nProjects.searchPlaceholder)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-foreground/60">
+                  {t(lang, i18nProjects.sortLabel)}
+                </span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className={inputClass}
+                >
+                  <option value="recent">{t(lang, i18nProjects.sortByRecentOption)}</option>
+                  <option value="name">{t(lang, i18nProjects.sortByNameOption)}</option>
+                </select>
+              </label>
+            </div>
+            {active.length === 0 ? (
+              <p className="text-sm text-foreground/60">{t(lang, i18nProjects.noSearchResults)}</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-line border-t border-line">
+                {active.map((project) => (
+                  <ProjectRow
+                    key={project.id}
+                    project={project}
+                    allProjects={projects}
+                    onChanged={handleChanged}
+                    lang={lang}
+                  />
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 
@@ -142,11 +211,7 @@ export function ProjectsClient({
                 key={project.id}
                 project={project}
                 allProjects={projects}
-                onChanged={(updated) =>
-                  setProjects((prev) =>
-                    prev.map((p) => (p.id === updated.id ? updated : p)),
-                  )
-                }
+                onChanged={handleChanged}
                 lang={lang}
               />
             ))}
@@ -157,13 +222,62 @@ export function ProjectsClient({
   );
 }
 
-function CreateProjectForm({
+// Ticket 039: "Neues Projekt" collapses behind a button, the form itself
+// only appears after a click — same two-step-reveal convention already
+// used by SettingsClient.tsx's EmailChangeAction/DeleteAccountSection (a
+// button first, the form only after it's clicked), reused here rather than
+// inventing a modal/sidepanel that appears nowhere else in this repo.
+// `creating` is local to this wrapper and starts false on every mount, so
+// conditionally mounting CreateProjectForm only while true also means its
+// own field state (name/customer/notes/colorHex/error) is thrown away for
+// free every time the panel closes — no manual reset needed on cancel.
+function CreateProjectSection({
   projects,
   onCreated,
   lang,
 }: {
   projects: Project[];
   onCreated: (project: Project) => void;
+  lang: Lang;
+}) {
+  const [creating, setCreating] = useState(false);
+
+  if (!creating) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className={primaryButtonClass}
+        >
+          {t(lang, i18nProjects.newProject)}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <CreateProjectForm
+      projects={projects}
+      onCreated={(project) => {
+        onCreated(project);
+        setCreating(false);
+      }}
+      onCancel={() => setCreating(false)}
+      lang={lang}
+    />
+  );
+}
+
+function CreateProjectForm({
+  projects,
+  onCreated,
+  onCancel,
+  lang,
+}: {
+  projects: Project[];
+  onCreated: (project: Project) => void;
+  onCancel: () => void;
   lang: Lang;
 }) {
   const { showSuccess, showError } = useToast();
@@ -274,9 +388,17 @@ function CreateProjectForm({
         <ColorPicker value={colorHex} onChange={setColorHex} disabled={pending} lang={lang} />
       </div>
       {error && <p className={errorClass}>{error}</p>}
-      <div>
+      <div className="flex gap-2">
         <button type="submit" disabled={pending} className={primaryButtonClass}>
           {pending ? t(lang, i18nProjects.creating) : t(lang, i18nProjects.createProject)}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={pending}
+          className={buttonClass}
+        >
+          {t(lang, common.cancel)}
         </button>
       </div>
     </form>
@@ -338,7 +460,19 @@ function ProjectRow({
   }
 
   return (
-    <li className="flex flex-col gap-2 py-3">
+    // Ticket 039: `group` here plus the actions wrapper's opacity classes
+    // below implement the AK's hover/focus-reveal option for the two
+    // per-row action buttons (the alternative to collapsing them into a
+    // "⋯" menu — chosen since no menu/popover component exists anywhere
+    // else in this repo to reuse, and this needs no outside-click/keyboard-
+    // nav handling to get right). Default state is dimmed + smaller, NOT
+    // hidden (opacity, not `hidden`/`display:none`) — the AK's own touch-
+    // device fallback ("immer sichtbar aber kleiner/dezenter"): a touch
+    // user with no `:hover` can still see and tap them, just at reduced
+    // visual weight. `focus-within` on the actions wrapper (no `group-`
+    // prefix needed — the buttons themselves are the focus target) covers
+    // keyboard navigation independent of pointer hover.
+    <li className="group flex flex-col gap-2 py-3">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
           <ColorSwatch colorHex={project.colorHex} />
@@ -356,15 +490,15 @@ function ProjectRow({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => setEditing(true)} className={buttonClass}>
+        <div className="flex shrink-0 gap-1 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <button type="button" onClick={() => setEditing(true)} className={rowActionButtonClass}>
             {t(lang, i18nProjects.edit)}
           </button>
           <button
             type="button"
             onClick={handleArchiveToggle}
             disabled={archivePending}
-            className={buttonClass}
+            className={rowActionButtonClass}
           >
             {archivePending
               ? "…"
