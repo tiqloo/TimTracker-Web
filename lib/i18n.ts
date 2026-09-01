@@ -123,6 +123,21 @@ export const dayDetail = {
   pauseTime: { de: "Pause", en: "Pause" },
   entries: { de: "Einträge", en: "Entries" },
   running: { de: "läuft", en: "running" },
+  // Ticket 044: hero-number progress add-on, only rendered when a daily
+  // goal is set (lib/domain/daily-goal.ts#computeDailyGoalProgress). Short
+  // aria-label for the progress bar itself — the "X von Y"/"X of Y" text
+  // right next to it (dailyGoalProgressLabel below) is already the visible
+  // equivalent, this just names the bar for a screen reader that announces
+  // role="progressbar" separately from the text next to it.
+  goalProgressAriaLabel: {
+    de: "Fortschritt zum Tagesziel",
+    en: "Progress toward daily goal",
+  },
+  // AK: "Ziel erreicht/überschritten: klar erkennbarer, aber ruhiger
+  // visueller Zustand ... z. B. Balken voll + kurzer Zusatztext" — appended
+  // after the "X von Y" text rather than replacing it, so the exact
+  // reached value stays visible too.
+  goalReached: { de: "Tagesziel erreicht", en: "Daily goal reached" },
   noEntriesToday: {
     de: "Noch keine Zeiteinträge für heute.",
     en: "No time entries for today yet.",
@@ -162,6 +177,15 @@ export function dayDetailSegmentTooltip(
   durationLabel: string,
 ): string {
   return `${kindLabel}: ${startLabel}–${endLabel} (${durationLabel})`;
+}
+
+// Ticket 044: the hero number's goal-progress caption — AK's own example,
+// "6 h 42 min von 8 h". Both labels are already fully formatted duration
+// strings (formatDuration) the caller passes in, same "template is
+// language-neutral once every piece is pre-localized" precedent as
+// dayDetailSegmentTooltip just above.
+export function dailyGoalProgressLabel(lang: Lang, actualLabel: string, goalLabel: string): string {
+  return lang === "de" ? `${actualLabel} von ${goalLabel}` : `${actualLabel} of ${goalLabel}`;
 }
 
 // --- components/HistoryChart.tsx -------------------------------------
@@ -434,6 +458,21 @@ export const settings = {
   languageSaveError: {
     de: "Sprache konnte nicht gespeichert werden.",
     en: "Language could not be saved.",
+  },
+  // "Tägliches Ziel" (Ticket 044, TimTracker-Starter repo — follow-up to
+  // 033) — new Settings section placed right after LanguageSection (see
+  // SettingsClient.tsx), same "near Profil/Sprache" grouping the ticket's
+  // AK asks for. Optional: blank/0 -> no goal, see
+  // lib/domain/daily-goal.ts#normalizeDailyGoalHoursInput.
+  dailyGoalSectionTitle: { de: "Tägliches Ziel", en: "Daily Goal" },
+  dailyGoalLabel: { de: "Tägliches Ziel (Stunden)", en: "Daily Goal (Hours)" },
+  dailyGoalHint: {
+    de: "Optional — leer lassen oder 0 für kein Ziel. Erlaubt sind 0–24 Stunden.",
+    en: "Optional — leave empty or 0 for no goal. Allowed range is 0–24 hours.",
+  },
+  dailyGoalSaveError: {
+    de: "Tägliches Ziel konnte nicht gespeichert werden.",
+    en: "Daily goal could not be saved.",
   },
   // "Meine Daten exportieren" (Ticket 046, TimTracker-Starter repo) —
   // DSGVO/GDPR Art. 20 data-portability action, placed directly above

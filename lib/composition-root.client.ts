@@ -4,6 +4,7 @@ import { createSupabaseTimeEntriesRepository } from "@/lib/repositories/supabase
 import { createSupabaseSubscriptionRepository } from "@/lib/repositories/supabase/subscription.repository";
 import { createSupabaseAuthRepository } from "@/lib/repositories/supabase/auth.repository";
 import { createCookieLanguageRepository } from "@/lib/repositories/cookie/language.client";
+import { createCookieDailyGoalRepository } from "@/lib/repositories/cookie/daily-goal.client";
 import type { Repositories } from "@/lib/repositories/repositories";
 
 // Composition root — BROWSER half. Analogous to
@@ -39,5 +40,6 @@ export function getBrowserRepositories(): Repositories {
     subscription: createSupabaseSubscriptionRepository(client),
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),
+    dailyGoal: createCookieDailyGoalRepository(),
   };
 }

@@ -4,6 +4,7 @@ import { createSupabaseTimeEntriesRepository } from "@/lib/repositories/supabase
 import { createSupabaseSubscriptionRepository } from "@/lib/repositories/supabase/subscription.repository";
 import { createSupabaseAuthRepository } from "@/lib/repositories/supabase/auth.repository";
 import { createCookieLanguageRepository } from "@/lib/repositories/cookie/language.server";
+import { createCookieDailyGoalRepository } from "@/lib/repositories/cookie/daily-goal.server";
 import type { Repositories } from "@/lib/repositories/repositories";
 
 // Composition root — SERVER half. See composition-root.client.ts for the
@@ -19,5 +20,6 @@ export async function getServerRepositories(): Promise<Repositories> {
     subscription: createSupabaseSubscriptionRepository(client),
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),
+    dailyGoal: createCookieDailyGoalRepository(),
   };
 }

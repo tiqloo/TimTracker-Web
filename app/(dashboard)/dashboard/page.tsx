@@ -4,6 +4,7 @@ import { getRepositories } from "@/lib/application/server";
 import { getTodayBreakdown, getTodayEntries } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { getDailyGoalHours } from "@/lib/application/daily-goal";
 import { canUseApp } from "@/lib/domain/subscription";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
@@ -37,9 +38,10 @@ export default async function TodayPage() {
     return <AccessGate title={t(lang, today.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
-  const [breakdown, entries] = await Promise.all([
+  const [breakdown, entries, dailyGoalHours] = await Promise.all([
     getTodayBreakdown(repos),
     getTodayEntries(repos),
+    getDailyGoalHours(repos),
   ]);
   const nowMs = currentTimeMs();
 
@@ -54,6 +56,7 @@ export default async function TodayPage() {
         emptyMessage={t(lang, dayDetail.noEntriesToday)}
         emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
         lang={lang}
+        dailyGoalHours={dailyGoalHours}
       />
 
       <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
