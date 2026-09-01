@@ -5,6 +5,7 @@ import type {
   TimeEntry,
   TimeEntrySource,
 } from "@/lib/domain/time-entry";
+import { collectAllPages } from "./pagination";
 
 // The two system pseudo-projects seeded by supabase/migrations/0001_init.sql
 // / 0004_time_entries_project_fk.sql in TimTracker-Starter — every
@@ -24,6 +25,9 @@ interface TimeEntryRow {
   note: string | null;
   updated_at: string;
 }
+
+const TIME_ENTRY_COLUMNS =
+  "id, project_id, day, start_time, end_time, source, note, updated_at";
 
 // `day` is stored as `timestamptz` in Postgres (0001_init.sql: "damit es
 // exakt wie start_time/end_time/updated_at decodiert werden kann" — the
@@ -103,18 +107,26 @@ async function fetchRange(
   toDay: string,
   projectId?: string,
 ): Promise<TimeEntry[]> {
-  let query = client
-    .from("time_entries")
-    .select("*")
-    .gte("day", fromDay)
-    .lte("day", toDay)
-    .is("deleted_at", null);
-  if (projectId) {
-    query = query.eq("project_id", projectId);
-  }
-  const { data, error } = await query.order("start_time", { ascending: true });
-  if (error) throw error;
-  return (data as TimeEntryRow[]).map(toDomain);
+  const rows = await collectAllPages<TimeEntryRow>(async (from, to) => {
+    let query = client
+      .from("time_entries")
+      .select(TIME_ENTRY_COLUMNS)
+      .gte("day", fromDay)
+      .lte("day", toDay)
+      .is("deleted_at", null);
+    if (projectId) {
+      query = query.eq("project_id", projectId);
+    }
+    const { data, error } = await query
+      .order("start_time", { ascending: true })
+      // Multiple entries may share a timestamp. A unique second key keeps
+      // offset pages deterministic and prevents gaps/duplicates at a boundary.
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (data ?? []) as TimeEntryRow[];
+  });
+  return rows.map(toDomain);
 }
 
 export function createSupabaseTimeEntriesRepository(
@@ -122,14 +134,7 @@ export function createSupabaseTimeEntriesRepository(
 ): TimeEntriesRepository {
   return {
     async getForDay(day: string) {
-      const { data, error } = await client
-        .from("time_entries")
-        .select("*")
-        .eq("day", day)
-        .is("deleted_at", null)
-        .order("start_time", { ascending: true });
-      if (error) throw error;
-      return (data as TimeEntryRow[]).map(toDomain);
+      return fetchRange(client, day, day);
     },
 
     async getForRange(fromDay: string, toDay: string, projectId?: string) {
