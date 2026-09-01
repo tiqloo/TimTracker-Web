@@ -161,16 +161,27 @@ function ToastView({
       // additional aria-live on the wrapping container above, to avoid
       // the message being announced twice.
       role={isError ? "alert" : "status"}
-      className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border px-3 py-2 text-sm shadow-lg ${
+      // Ticket 048: this is one of the two places the ticket's AK names
+      // explicitly for the new status tokens ("... vereinheitlichen, wo
+      // diese Zustände vorkommen: DeleteAccountSection, ToastProvider,
+      // Fehlermeldungen"). border/bg now use --danger/--success
+      // (decorative accent use — see globals.css's --danger/--success
+      // comment for why these two aren't used as the message TEXT color;
+      // the actual message text stays the already-AA-passing text-red-700/
+      // dark:text-red-400 pair for the error case, and the existing
+      // neutral text-foreground for success — unchanged from before,
+      // since coloring the success message text itself was never this
+      // pattern's design). Success previously reused --brand/bg-brand
+      // specifically to avoid introducing a new green (Ticket 042's own
+      // reasoning, quoted there) — Ticket 048's user-specified Farb-System
+      // now gives this product an actual --success color as one of its
+      // fixed tokens, so that reasoning is superseded: a real "success"
+      // toast can now use the real success color instead of overloading
+      // the brand accent for a state that isn't actually about branding.
+      className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border px-3 py-2 text-sm shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)] ${
         isError
-          ? // Same red tone as every inline errorClass block this
-            // replaces (SettingsClient.tsx/ProjectsClient.tsx) — no new
-            // color invented for the error case.
-            "border-red-600/30 bg-red-500/10 text-red-700 dark:text-red-400"
-          : // --brand/bg-brand (Ticket 037) is this product's one accent
-            // color — reused here as the success toast's tint rather than
-            // introducing e.g. a separate green.
-            "border-brand/30 bg-brand/10 text-foreground"
+          ? "border-danger/30 bg-danger/10 text-red-700 dark:text-red-400"
+          : "border-success/30 bg-success/10 text-foreground"
       }`}
     >
       <p className="flex-1">{toast.message}</p>

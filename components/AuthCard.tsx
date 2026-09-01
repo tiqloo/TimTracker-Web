@@ -4,6 +4,7 @@
 // presentation, no data access, so it sits outside lib/application/* and
 // isn't subject to the app/* import boundary.
 import { primaryButtonClass } from "@/lib/ui/button-styles";
+import { errorMessageClass, successMessageClass } from "@/lib/ui/status-styles";
 
 export function AuthCard({
   title,
@@ -30,8 +31,8 @@ export const authInputClass =
 // consolidation pass.
 export const authButtonClass = `${primaryButtonClass} w-full`;
 
-export const authErrorClass =
-  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
-
-export const authSuccessClass =
-  "rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400";
+// Ticket 048: lib/ui/status-styles.ts (--danger/--success tokens) — was a
+// locally defined bg-red-500/10 / bg-green-500/10 pair before this
+// ticket's status-token consolidation pass.
+export const authErrorClass = errorMessageClass;
+export const authSuccessClass = successMessageClass;

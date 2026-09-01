@@ -48,6 +48,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from "@/lib/ui/button-styles";
+import { errorMessageClass } from "@/lib/ui/status-styles";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -61,8 +62,9 @@ const inputClass =
 // carries a conscious, documented dark value, see globals.css).
 const buttonClass = secondaryButtonClass;
 
-const errorClass =
-  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
+// Ticket 048: lib/ui/status-styles.ts (--danger token) — was locally
+// defined before this ticket's status-token consolidation pass.
+const errorClass = errorMessageClass;
 
 // Ticket 041: main settings page now groups into clearly named, generously
 // spaced sections (AK) rather than one flat list — Profil (incl. 032's

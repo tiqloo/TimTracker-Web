@@ -29,6 +29,7 @@ import {
 } from "@/lib/domain/project";
 import { common, projects as i18nProjects, t, type Lang } from "@/lib/i18n";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui/button-styles";
+import { errorMessageClass } from "@/lib/ui/status-styles";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -48,8 +49,9 @@ const buttonClass = secondaryButtonClass;
 const rowActionButtonClass =
   "rounded-md border border-transparent px-2 py-1 text-xs font-medium text-foreground/70 transition-colors hover:border-line hover:bg-paper hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
 
-const errorClass =
-  "rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400";
+// Ticket 048: lib/ui/status-styles.ts (--danger token) — was locally
+// defined before this ticket's status-token consolidation pass.
+const errorClass = errorMessageClass;
 
 const warningClass = "text-sm text-amber-700 dark:text-amber-400";
 
