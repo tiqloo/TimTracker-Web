@@ -303,7 +303,21 @@ function csvLine(fields: string[]): string {
   return fields.map(escapeCsvField).join(CSV_DELIMITER);
 }
 
-export function formatHistoryCsv(rows: ExportRow[], summaries: DailyBreakdown[]): string {
+// `projectFilterLabel` (Ticket 043 — Historie calendar + project filter):
+// optional project NAME (not id), purely informational. `rows`/`summaries`
+// are already fetched pre-filtered by the caller (getExportRows/getHistory
+// already take the projectId, see lib/application/export.ts) — this
+// function doesn't filter anything itself, it only surfaces which filter
+// produced the data it's given, as one extra line before the real header
+// row, so a reader opening the file later still knows it's a partial
+// export rather than "all activity in this period". Omitted entirely (no
+// extra line) when no filter is active, so an unfiltered export's CSV
+// shape is byte-for-byte unchanged from before this ticket.
+export function formatHistoryCsv(
+  rows: ExportRow[],
+  summaries: DailyBreakdown[],
+  projectFilterLabel?: string,
+): string {
   const rowsByDay = new Map<string, ExportRow[]>();
   for (const row of rows) {
     const bucket = rowsByDay.get(row.day) ?? [];
@@ -311,7 +325,11 @@ export function formatHistoryCsv(rows: ExportRow[], summaries: DailyBreakdown[])
     rowsByDay.set(row.day, bucket);
   }
 
-  const lines: string[] = [
+  const lines: string[] = [];
+  if (projectFilterLabel) {
+    lines.push(csvLine(["Projekt-Filter", projectFilterLabel]));
+  }
+  lines.push(
     csvLine([
       "Datum",
       "Projekt",
@@ -323,7 +341,7 @@ export function formatHistoryCsv(rows: ExportRow[], summaries: DailyBreakdown[])
       "Projektzeit (h)",
       "Nicht zugeordnet (h)",
     ]),
-  ];
+  );
 
   for (const summary of summaries) {
     const dayRows = (rowsByDay.get(summary.day) ?? []).slice().sort((a, b) =>

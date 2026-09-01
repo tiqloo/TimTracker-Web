@@ -40,12 +40,29 @@ export async function GET(request: Request) {
     to: url.searchParams.get("to") ?? undefined,
   });
 
+  // Ticket 043: same active-project-filter handling as the sibling CSV
+  // route (../route.ts) — validated against the real project list, not
+  // just trusted as-is. renderHistoryExportPdf itself doesn't need a new
+  // parameter for this (per the ticket's own "PDF-Rendering muss dafür
+  // einen optionalen Projekt-Filter entgegennehmen können": its existing
+  // `periodLabel` string is already the generic place a filter note
+  // belongs — folded in below rather than plumbing a second label prop
+  // through lib/pdf/history-export-document.tsx).
+  const requestedProjectId = url.searchParams.get("project")?.trim() || undefined;
+  const allProjects = await repos.projects.getAll();
+  const activeProject = requestedProjectId
+    ? allProjects.find((project) => project.id === requestedProjectId)
+    : undefined;
+  const projectId = activeProject?.id;
+
   const [summaries, rows] = await Promise.all([
-    getHistory(repos, from, to),
-    getExportRows(repos, from, to),
+    getHistory(repos, from, to, projectId),
+    getExportRows(repos, from, to, projectId),
   ]);
 
-  const periodLabel = `${formatDayLabel(from)} – ${formatDayLabel(to)}`;
+  const periodLabel = `${formatDayLabel(from)} – ${formatDayLabel(to)}${
+    activeProject ? ` · ${activeProject.name}` : ""
+  }`;
   const pdf = await renderHistoryExportPdf(rows, summaries, periodLabel);
 
   return new Response(new Uint8Array(pdf), {

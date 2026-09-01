@@ -36,12 +36,25 @@ export async function GET(request: Request) {
     to: url.searchParams.get("to") ?? undefined,
   });
 
+  // Ticket 043: carry the "Historie" page's active project filter (if any)
+  // into the export. Validated against the real project list (not just
+  // "any non-empty string") the same way history/page.tsx does, so a
+  // stale/tampered `project` query param can't silently produce a
+  // confusing "filtered to nothing" export — it's just ignored instead,
+  // same fallback-to-unfiltered behavior as an invalid from/to.
+  const requestedProjectId = url.searchParams.get("project")?.trim() || undefined;
+  const allProjects = await repos.projects.getAll();
+  const activeProject = requestedProjectId
+    ? allProjects.find((project) => project.id === requestedProjectId)
+    : undefined;
+  const projectId = activeProject?.id;
+
   const [summaries, rows] = await Promise.all([
-    getHistory(repos, from, to),
-    getExportRows(repos, from, to),
+    getHistory(repos, from, to, projectId),
+    getExportRows(repos, from, to, projectId),
   ]);
 
-  const csv = formatHistoryCsv(rows, summaries);
+  const csv = formatHistoryCsv(rows, summaries, activeProject?.name);
 
   return new Response(csv, {
     headers: {
