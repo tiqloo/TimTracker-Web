@@ -4,6 +4,7 @@
 // (pages) call these functions, never a repository directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { NewProject, Project } from "@/lib/domain/project";
+import { ValidationError } from "@/lib/domain/application-error";
 
 // Excludes the two system pseudo-projects ("Arbeitszeit"/"Pause",
 // is_default = true) — they're FK targets for automatically-tracked time,
@@ -31,7 +32,7 @@ export async function createProject(
   input: NewProject,
 ): Promise<Project> {
   const name = input.name.trim();
-  if (!name) throw new Error("Projektname darf nicht leer sein");
+  if (!name) throw new ValidationError("Project name must not be empty.");
   return repos.projects.create({ ...input, name });
 }
 
@@ -42,7 +43,7 @@ export async function renameProject(
   notes: string,
 ): Promise<Project> {
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Projektname darf nicht leer sein");
+  if (!trimmed) throw new ValidationError("Project name must not be empty.");
   return repos.projects.rename(id, trimmed, notes);
 }
 

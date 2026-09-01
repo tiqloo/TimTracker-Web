@@ -1,6 +1,7 @@
 import { getRepositories } from "@/lib/application/server";
 import { getFullDataExport } from "@/lib/application/data-export";
-import { requireUser, UnauthorizedError } from "@/lib/application/auth";
+import { requireUser } from "@/lib/application/auth";
+import { routeErrorResponse } from "@/lib/http/route-error";
 
 // GDPR/DSGVO Art. 20 "Datenübertragbarkeit" full data export (Ticket 046,
 // TimTracker-Starter repo) — the complementary right to
@@ -23,15 +24,16 @@ import { requireUser, UnauthorizedError } from "@/lib/application/auth";
 // multiple API calls — matches the ticket's own AK and the PDF export's
 // precedent (Ticket 021).
 export async function GET() {
-  const repos = await getRepositories();
   try {
-    await requireUser(repos);
+    return await createDataExportResponse();
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    throw error;
+    return routeErrorResponse(error, "full_data_export");
   }
+}
+
+async function createDataExportResponse(): Promise<Response> {
+  const repos = await getRepositories();
+  await requireUser(repos);
   const data = await getFullDataExport(repos);
 
   const json = JSON.stringify(data, null, 2);

@@ -2,12 +2,12 @@ import { getRepositories } from "@/lib/application/server";
 import { isoToday } from "@/lib/application/dashboard";
 import { getHistoryExportData } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
-import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel, resolveHistoryRange } from "@/lib/format";
 import { renderHistoryExportPdf } from "@/lib/pdf/history-export-document";
-import { exportGate, t } from "@/lib/i18n";
-import { requireUser, UnauthorizedError } from "@/lib/application/auth";
+import { requireUser } from "@/lib/application/auth";
+import { ForbiddenError } from "@/lib/domain/application-error";
+import { routeErrorResponse } from "@/lib/http/route-error";
 
 // PDF export for "Historie" — sibling of ../route.ts's CSV export, same
 // access gate, same date-range resolution, same ExportRow/DailyBreakdown
@@ -24,24 +24,20 @@ import { requireUser, UnauthorizedError } from "@/lib/application/auth";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const repos = await getRepositories();
-
   try {
-    await requireUser(repos);
+    return await createPdfExportResponse(request);
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    throw error;
+    return routeErrorResponse(error, "history_pdf_export");
   }
+}
+
+async function createPdfExportResponse(request: Request): Promise<Response> {
+  const repos = await getRepositories();
+  await requireUser(repos);
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    const lang = await getEffectiveLanguageCode(repos, request.headers.get("accept-language"));
-    return new Response(t(lang, exportGate.noAccess), {
-      status: 403,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    throw new ForbiddenError("An active subscription is required for this export.");
   }
 
   const url = new URL(request.url);

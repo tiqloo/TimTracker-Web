@@ -1,3 +1,5 @@
+import { ValidationError } from "./application-error.ts";
+
 export const PRODUCT_TIME_ZONE = "Europe/Berlin";
 export const MAX_HISTORY_RANGE_DAYS = 366;
 
@@ -36,7 +38,7 @@ export function calendarDayInTimeZone(
   return `${year}-${month}-${day}`;
 }
 
-export class InvalidHistoryRangeError extends Error {
+export class InvalidHistoryRangeError extends ValidationError {
   constructor(message: string) {
     super(message);
     this.name = "InvalidHistoryRangeError";

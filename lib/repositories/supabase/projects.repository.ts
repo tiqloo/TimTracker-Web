@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectsRepository } from "../projects.repository";
 import type { NewProject, Project } from "@/lib/domain/project";
-import { collectAllPages } from "./pagination";
+import { collectAllPages } from "./pagination.ts";
+import { requireUpdatedRow } from "./mutation-result.ts";
 
 // Wire-format row shape from the `projects` table (supabase/migrations/
 // 0001_init.sql in TimTracker-Starter) — deliberately kept separate from
@@ -63,9 +64,9 @@ export function createSupabaseProjectsRepository(
           notes: input.notes ?? "",
         })
         .select(PROJECT_COLUMNS)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return toDomain(data as ProjectRow);
+      return toDomain(requireUpdatedRow(data as ProjectRow | null, "Project"));
     },
 
     async rename(id: string, name: string, notes: string) {
@@ -87,17 +88,20 @@ export function createSupabaseProjectsRepository(
         .update({ name, notes, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select(PROJECT_COLUMNS)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return toDomain(data as ProjectRow);
+      return toDomain(requireUpdatedRow(data as ProjectRow | null, "Project"));
     },
 
     async setArchived(id: string, isArchived: boolean) {
-      const { error } = await client
+      const { data, error } = await client
         .from("projects")
         .update({ is_archived: isArchived, updated_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      requireUpdatedRow(data as { id: string } | null, "Project");
     },
   };
 }

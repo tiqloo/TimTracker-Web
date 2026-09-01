@@ -5,6 +5,12 @@ import {
   InvalidHistoryRangeError,
   resolveHistoryDateRange,
 } from "@/lib/domain/calendar-day";
+import {
+  authenticatedLandingPath,
+  isProtectedPath,
+  shouldRedirectAuthenticatedUser,
+  shouldValidateHistoryRange,
+} from "@/lib/http/proxy-routing";
 
 // "/" is the public marketing homepage (unauthenticated visitors land
 // here, and signed-in users may revisit it too — it is never gated or
@@ -15,7 +21,6 @@ import {
 // namespace — see TimTracker-Starter/docs/tickets/018-account-website.md's
 // "public homepage" addendum for the full old-path -> new-path mapping)
 // requires a session.
-const PROTECTED_PREFIX = "/dashboard";
 // Of the public auth paths, these two additionally redirect AWAY to
 // "/dashboard" when a session already exists, so a signed-in user doesn't
 // see the login/register form again. /reset-password is deliberately
@@ -23,11 +28,6 @@ const PROTECTED_PREFIX = "/dashboard";
 // 009) establishes a temporary session client-side via Supabase's
 // PASSWORD_RECOVERY event, and the user must still be able to reach that
 // page's "set new password" form while that session is active.
-const REDIRECT_IF_AUTHENTICATED_PATHS = ["/login", "/register"];
-
-function isProtectedPath(pathname: string): boolean {
-  return pathname === PROTECTED_PREFIX || pathname.startsWith(`${PROTECTED_PREFIX}/`);
-}
 
 // ---------------------------------------------------------------------
 // Ticket 027 (TimTracker-Starter/docs/tickets/027-web-security-headers.md)
@@ -184,7 +184,7 @@ export async function proxy(request: NextRequest) {
   let response = nextResponse();
 
   const { pathname } = request.nextUrl;
-  if (pathname === "/dashboard/history" || pathname.startsWith("/dashboard/history/export")) {
+  if (shouldValidateHistoryRange(pathname)) {
     try {
       resolveHistoryDateRange(calendarDayInTimeZone(new Date()), {
         from: request.nextUrl.searchParams.get("from") ?? undefined,
@@ -234,10 +234,10 @@ export async function proxy(request: NextRequest) {
     return copyCookies(response, withCsp(NextResponse.redirect(loginUrl), csp));
   }
 
-  if (user && REDIRECT_IF_AUTHENTICATED_PATHS.includes(pathname)) {
+  if (user && shouldRedirectAuthenticatedUser(pathname)) {
     return copyCookies(
       response,
-      withCsp(NextResponse.redirect(new URL(PROTECTED_PREFIX, request.url)), csp),
+      withCsp(NextResponse.redirect(new URL(authenticatedLandingPath(), request.url)), csp),
     );
   }
 

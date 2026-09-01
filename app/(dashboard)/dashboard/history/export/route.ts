@@ -2,11 +2,11 @@ import { getRepositories } from "@/lib/application/server";
 import { isoToday } from "@/lib/application/dashboard";
 import { getHistoryExportData } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
-import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatHistoryCsv, resolveHistoryRange } from "@/lib/format";
-import { exportGate, t } from "@/lib/i18n";
-import { requireUser, UnauthorizedError } from "@/lib/application/auth";
+import { requireUser } from "@/lib/application/auth";
+import { ForbiddenError } from "@/lib/domain/application-error";
+import { routeErrorResponse } from "@/lib/http/route-error";
 
 // CSV export for "Historie" — same column structure as CSVExporter.swift
 // (Datum, Projekt, Kunde, Start, Ende, Dauer (h) per session, plus a daily
@@ -20,24 +20,20 @@ import { requireUser, UnauthorizedError } from "@/lib/application/auth";
 // browser) — Ticket 021. Kept as a separate route rather than a
 // `?format=pdf` branch here so each handler stays a single content type.
 export async function GET(request: Request) {
-  const repos = await getRepositories();
-
   try {
-    await requireUser(repos);
+    return await createCsvExportResponse(request);
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    throw error;
+    return routeErrorResponse(error, "history_csv_export");
   }
+}
+
+async function createCsvExportResponse(request: Request): Promise<Response> {
+  const repos = await getRepositories();
+  await requireUser(repos);
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    const lang = await getEffectiveLanguageCode(repos, request.headers.get("accept-language"));
-    return new Response(t(lang, exportGate.noAccess), {
-      status: 403,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    throw new ForbiddenError("An active subscription is required for this export.");
   }
 
   const url = new URL(request.url);

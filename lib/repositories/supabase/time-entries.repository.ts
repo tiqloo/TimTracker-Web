@@ -4,8 +4,9 @@ import type {
   TimeEntry,
   TimeEntrySource,
 } from "@/lib/domain/time-entry";
-import { collectAllPages } from "./pagination";
-import { buildDailyBreakdowns } from "@/lib/domain/time-entry-aggregation";
+import { collectAllPages } from "./pagination.ts";
+import { buildDailyBreakdowns } from "../../domain/time-entry-aggregation.ts";
+import { requireUpdatedRow } from "./mutation-result.ts";
 
 interface TimeEntryRow {
   id: string;
@@ -109,9 +110,9 @@ export function createSupabaseTimeEntriesRepository(
         .update({ project_id: projectId, updated_at: new Date().toISOString() })
         .eq("id", entryId)
         .select(TIME_ENTRY_COLUMNS)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return toDomain(data as TimeEntryRow);
+      return toDomain(requireUpdatedRow(data as TimeEntryRow | null, "Time entry"));
     },
 
     async getBreakdown(fromDay: string, toDay: string, projectId?: string) {

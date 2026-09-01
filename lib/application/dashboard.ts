@@ -4,6 +4,7 @@
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import { calendarDayInTimeZone } from "@/lib/domain/calendar-day";
+import { ValidationError } from "@/lib/domain/application-error";
 
 // Exported (not just an internal helper) so app/* pages that need "today"
 // as a plain ISO string for their own purposes (e.g. building default
@@ -89,7 +90,7 @@ export async function assignTimeEntryToProject(
 ): Promise<TimeEntry> {
   const trimmedProjectId = projectId.trim();
   if (!trimmedProjectId) {
-    throw new Error("Projekt darf nicht leer sein");
+    throw new ValidationError("Project must not be empty.");
   }
   return repos.timeEntries.updateProject(entryId, trimmedProjectId);
 }
