@@ -172,6 +172,19 @@ export const projects = {
   activeProjects: { de: "Aktive Projekte", en: "Active Projects" },
   archivedProjects: { de: "Archivierte Projekte", en: "Archived Projects" },
   noProjectsYet: { de: "Noch keine Projekte angelegt.", en: "No projects created yet." },
+  // Ticket 039: distinct from noProjectsYet above — this is the empty
+  // state for "the search term matched nothing", not "there are no
+  // projects at all". Shown only while a search term is active, so a user
+  // never sees a bare, unexplained empty list (ticket's own edge case).
+  noSearchResults: { de: "Keine Projekte gefunden.", en: "No projects found." },
+  searchLabel: { de: "Suchen", en: "Search" },
+  searchPlaceholder: {
+    de: "Name oder Kunde suchen…",
+    en: "Search name or customer…",
+  },
+  sortLabel: { de: "Sortieren nach", en: "Sort by" },
+  sortByRecentOption: { de: "Zuletzt aktualisiert", en: "Last updated" },
+  sortByNameOption: { de: "Name (A–Z)", en: "Name (A–Z)" },
   newProject: { de: "Neues Projekt", en: "New Project" },
   customerOptional: { de: "Kunde (optional)", en: "Customer (optional)" },
   noteOptional: { de: "Notiz (optional)", en: "Note (optional)" },
