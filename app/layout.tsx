@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Schibsted_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { ThemeInitializer } from "@/components/ThemeInitializer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -70,7 +71,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang={lang}
       className={`${geistSans.variable} ${geistMono.variable} ${schibstedGrotesk.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeInitializer />
+        {children}
+      </body>
     </html>
   );
 }

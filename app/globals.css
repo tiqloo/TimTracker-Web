@@ -156,7 +156,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Ticket 048 edge case: dark mode isn't given by the user's brief (it
        only specifies light values) but every token still needs a
        consciously derived dark counterpart, not an automatic inversion.
@@ -225,6 +225,27 @@
   }
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #161513;
+  --surface: #1e1d1a;
+  --foreground: #f2f1ed;
+  --text-secondary: #a6a29a;
+  --chart-standard: #3987e5;
+  --chart-project: #d95926;
+  --paper: #1a1815;
+  --line: #312e29;
+  --brand: #7482ff;
+  --brand-soft: #23263d;
+  --success: #2f9e66;
+  --warning: #e59a29;
+  --danger: #ef6f6f;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -234,6 +255,39 @@ body {
      never actually applied anywhere) — every page was rendering in the
      browser's default sans-serif fallback. */
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Public website only: an airy, cool canvas that visually belongs to the
+   blue Tiqloo navigation without changing the warmer dashboard workspace. */
+.marketing-shell {
+  background:
+    radial-gradient(circle at 82% 5%, color-mix(in srgb, var(--brand) 10%, transparent) 0, transparent 28rem),
+    radial-gradient(circle at 8% 28%, color-mix(in srgb, var(--chart-standard) 6%, transparent) 0, transparent 24rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--brand-soft) 34%, var(--surface)) 0, var(--background) 31rem);
+}
+
+.marketing-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.marketing-hero::before {
+  position: absolute;
+  z-index: -1;
+  top: 8%;
+  right: 7%;
+  width: min(34rem, 58vw);
+  height: min(34rem, 58vw);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--brand) 7%, transparent);
+  filter: blur(72px);
+  content: "";
+  pointer-events: none;
+}
+
+.marketing-section-muted {
+  background: color-mix(in srgb, var(--surface) 76%, var(--brand-soft));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
 .auth-shell {

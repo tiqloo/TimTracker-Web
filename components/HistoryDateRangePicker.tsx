@@ -37,6 +37,7 @@ interface HistoryDateRangePickerProps {
   projectId?: string;
   lang: Lang;
   locale: string;
+  basePath?: string;
 }
 
 // Same eslint react-hooks/purity workaround already established elsewhere
@@ -101,6 +102,7 @@ export function HistoryDateRangePicker({
   projectId,
   lang,
   locale,
+  basePath = "/dashboard/history",
 }: HistoryDateRangePickerProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -148,7 +150,7 @@ export function HistoryDateRangePicker({
     const query = new URLSearchParams({ from: nextFrom, to: nextTo });
     if (projectId) query.set("project", projectId);
     setOpen(false);
-    router.push(`/dashboard/history?${query.toString()}`);
+    router.push(`${basePath}?${query.toString()}`);
   }
 
   function handleDayClick(iso: string) {

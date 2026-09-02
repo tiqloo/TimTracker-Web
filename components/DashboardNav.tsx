@@ -35,7 +35,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
@@ -60,6 +60,7 @@ const NAV_LINKS: {
 }[] = [
   { href: "/dashboard", label: nav.today, icon: CalendarDays },
   { href: "/dashboard/history", label: nav.history, icon: History },
+  { href: "/dashboard/analytics", label: nav.analytics, icon: BarChart3 },
   { href: "/dashboard/projects", label: nav.projects, icon: FolderKanban },
   { href: "/dashboard/support", label: nav.support, icon: SupportIcon },
   { href: "/dashboard/settings", label: nav.settings, icon: Settings },

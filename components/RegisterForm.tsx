@@ -53,7 +53,7 @@ export function RegisterForm({ lang }: { lang: Lang }) {
         setConfirmationPending(true);
         setPending(false);
       } else {
-        router.push("/dashboard");
+        router.push("/dashboard/get-started");
         router.refresh();
       }
     } catch (err) {
