@@ -33,7 +33,7 @@
 //   never clips/breaks) independent of exact link count or label length.
 //   Revisit if a 6th link ever makes even the scroller feel cramped.
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings } from "lucide-react";
 import { logout } from "@/lib/application/auth";
@@ -92,6 +92,41 @@ function SupportIcon({ size = 16, strokeWidth = 1.75 }: { size?: number; strokeW
 
 function ChevronIcon() {
   return <ChevronDown size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" />;
+}
+
+// Ticket 072: instant "clicked, navigating there" feedback per nav link —
+// independent of the destination route's own loading.tsx skeleton, which
+// only appears once Next.js has actually started rendering the new route.
+// This fires the moment the click is registered, before any server round
+// trip (auth check + Supabase queries) even begins — exactly the "sofort
+// eine Reaktion sehen" the ticket's user quote asks for.
+//
+// useLinkStatus() only reports a status when called from a component
+// nested *inside* the <Link> it describes (Next.js requirement, see
+// https://nextjs.org/docs/app/api-reference/functions/use-link-status) —
+// hence this tiny child component rather than reading pending state
+// directly in DashboardNav/navigationLinks(). Rendered as an
+// absolutely-positioned overlay behind the icon/label (icon/label get
+// `relative z-10`, see navigationLinks() below) rather than by swapping
+// the parent <Link>'s own background classes, so it composes with the
+// existing active/hover background logic instead of fighting it — both
+// can be visible at once (e.g. re-clicking the already-active link).
+// bg-brand-soft + a brief opacity fade reuses the exact tint the
+// horizontal nav bar already uses for "this is the active page" (see the
+// `active` ternary below), just pulsing instead of static, so it reads as
+// "the same family of highlight, temporarily" rather than a new color
+// vocabulary. animate-pulse (Tailwind's built-in, ~2s opacity pulse) is
+// this ticket's "subtiler Pulse ... höchstens" — no spinner.
+function NavLinkPendingOverlay() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-0 z-0 rounded-xl bg-brand-soft transition-opacity duration-150 ${
+        pending ? "opacity-100 animate-pulse" : "opacity-0"
+      }`}
+    />
+  );
 }
 
 // Ticket 036: display name + Settings/Billing/Logout collapsed into one
@@ -267,7 +302,7 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
           href={link.href}
           aria-current={active ? "page" : undefined}
           title={compact ? t(lang, link.label) : undefined}
-          className={`group flex shrink-0 items-center rounded-xl transition-all duration-150 ${focusRingClass} ${
+          className={`group relative flex shrink-0 items-center rounded-xl transition-all duration-150 ${focusRingClass} ${
             vertical ? "h-11 gap-3 px-3 text-sm" : "h-14 flex-1 flex-col justify-center gap-1 px-1 text-[10px]"
           } ${
             active
@@ -277,9 +312,20 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
               : "text-text-secondary hover:bg-surface hover:text-foreground"
           }`}
         >
-          {Icon && <Icon size={17} strokeWidth={active ? 2 : 1.8} />}
-          {!compact && <span className={active ? "font-semibold" : "font-medium"}>{t(lang, link.label)}</span>}
-          {vertical && active && !compact && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />}
+          <NavLinkPendingOverlay />
+          {Icon && (
+            <span className="relative z-10 flex shrink-0">
+              <Icon size={17} strokeWidth={active ? 2 : 1.8} />
+            </span>
+          )}
+          {!compact && (
+            <span className={`relative z-10 ${active ? "font-semibold" : "font-medium"}`}>
+              {t(lang, link.label)}
+            </span>
+          )}
+          {vertical && active && !compact && (
+            <span className="relative z-10 ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />
+          )}
         </Link>
       );
     });
