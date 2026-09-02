@@ -12,7 +12,8 @@
 import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { login, onAuthStateChange } from "@/lib/application/auth";
+import { faGoogle } from "@fortawesome/free-brands-svg-icons";
+import { login, onAuthStateChange, signInWithGoogle } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import {
   AuthCard,
@@ -21,9 +22,33 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
+import { secondaryButtonClass } from "@/lib/ui/button-styles";
 import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 import { common, login as i18nLogin, t, type Lang } from "@/lib/i18n";
 import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
+
+// Ticket 077: renders a @fortawesome/free-brands-svg-icons icon as inline
+// SVG path data — no @fortawesome/react-fontawesome dependency, same
+// approach app/page.tsx's own BrandIcon already established for its
+// Instagram/TikTok/LinkedIn social icons (independently defined here
+// rather than shared, matching that file's own precedent of duplicating
+// small brand-icon helpers per route tree rather than adding a shared
+// component outside this ticket's file ownership). lucide-react (this
+// project's default icon set) has no Google brand mark — confirmed by
+// checking its icon list — so this is the fallback the ticket's own AK
+// anticipates, using a dependency already installed for Ticket 071 rather
+// than adding a new icon package for one button.
+function GoogleIcon() {
+  const [width, height, , , pathData] = faGoogle.icon;
+  const paths = typeof pathData === "string" ? [pathData] : pathData;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="18" height="18" fill="currentColor" aria-hidden="true">
+      {paths.map((path) => (
+        <path key={path} d={path} />
+      ))}
+    </svg>
+  );
+}
 
 // useSearchParams() (for ?redirectTo=) requires a Suspense boundary
 // around it for Next.js's static-render bailout, hence the wrapper below.
@@ -50,8 +75,21 @@ function LoginFormInner({ lang }: { lang: Lang }) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Ticket 077: Supabase appends `?error=...&error_description=...` to the
+  // OAuth callback URL when the Google consent screen is cancelled/fails
+  // (or, currently, because the provider isn't enabled — see Ticket 077's
+  // "harte Voraussetzung" section). A lazy initializer, not a useEffect —
+  // this must be visible on the very first render (no flash of an empty
+  // error state), same reasoning `accountDeleted` above uses a plain
+  // `searchParams.get()` read rather than state. Kept as `error` state
+  // (not a separate variable) so it shares the existing display slot/
+  // styling below and behaves like any other error once set (cleared by
+  // the next submit attempt).
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("error") ? t(lang, i18nLogin.oauthError) : null,
+  );
   const [pending, setPending] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
 
   // Supabase's signup-confirmation link (see
   // register/page.tsx's emailRedirectTo) points here because "/dashboard"
@@ -104,6 +142,25 @@ function LoginFormInner({ lang }: { lang: Lang }) {
     }
   }
 
+  // Ticket 077. Doesn't itself route anywhere on success — Supabase's
+  // browser client performs the full-page redirect to Google internally
+  // (see lib/repositories/supabase/auth.repository.ts#signInWithGoogle's
+  // own comment); this only ever returns/throws for an immediate failure
+  // BEFORE that redirect (e.g. "provider is not enabled"). After Google,
+  // /auth/callback exchanges the PKCE code server-side and sends the browser
+  // directly to the validated dashboard destination.
+  async function handleGoogleSignIn() {
+    setError(null);
+    setGooglePending(true);
+    try {
+      const repos = getRepositories();
+      await signInWithGoogle(repos, redirectTo);
+    } catch {
+      setError(t(lang, i18nLogin.oauthError));
+      setGooglePending(false);
+    }
+  }
+
   return (
     <AuthCard title={t(lang, i18nLogin.title)}>
       {accountDeleted && (
@@ -111,6 +168,20 @@ function LoginFormInner({ lang }: { lang: Lang }) {
           {t(lang, i18nLogin.accountDeleted)}
         </p>
       )}
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={pending || googlePending}
+        className={`${secondaryButtonClass} h-12 w-full rounded-xl gap-2.5`}
+      >
+        <GoogleIcon />
+        {t(lang, i18nLogin.continueWithGoogle)}
+      </button>
+      <div className="my-6 flex items-center gap-3 text-xs font-medium text-text-secondary">
+        <span className="h-px flex-1 bg-line" aria-hidden="true" />
+        {t(lang, i18nLogin.orDivider)}
+        <span className="h-px flex-1 bg-line" aria-hidden="true" />
+      </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <label htmlFor="email" className="text-sm font-medium text-foreground/80">
@@ -121,7 +192,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
             type="email"
             autoComplete="email"
             required
-            disabled={pending}
+            disabled={pending || googlePending}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={authInputClass}
@@ -141,14 +212,14 @@ function LoginFormInner({ lang }: { lang: Lang }) {
             type="password"
             autoComplete="current-password"
             required
-            disabled={pending}
+            disabled={pending || googlePending}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={authInputClass}
           />
         </div>
         {error && <p {...errorFeedbackProps} className={authErrorClass}>{error}</p>}
-        <button type="submit" disabled={pending} className={authButtonClass}>
+        <button type="submit" disabled={pending || googlePending} className={authButtonClass}>
           {pending ? t(lang, i18nLogin.signingIn) : t(lang, i18nLogin.submit)}
         </button>
       </form>

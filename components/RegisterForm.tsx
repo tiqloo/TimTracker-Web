@@ -6,7 +6,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { EmailAlreadyRegisteredError, register } from "@/lib/application/auth";
+import { faGoogle } from "@fortawesome/free-brands-svg-icons";
+import { EmailAlreadyRegisteredError, register, signInWithGoogle } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import {
   AuthCard,
@@ -15,8 +16,27 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
+import { secondaryButtonClass } from "@/lib/ui/button-styles";
 import { errorFeedbackProps, successFeedbackProps, warningFeedbackProps } from "@/lib/ui/feedback";
 import { common, register as i18nRegister, t, type Lang } from "@/lib/i18n";
+
+// Ticket 077: same inline-SVG BrandIcon approach as LoginForm.tsx's own
+// GoogleIcon — see that file's comment for the full reasoning (no
+// @fortawesome/react-fontawesome dependency, no lucide-react Google mark
+// available, duplicated locally per this project's existing per-route
+// brand-icon precedent rather than shared across files outside this
+// ticket's ownership).
+function GoogleIcon() {
+  const [width, height, , , pathData] = faGoogle.icon;
+  const paths = typeof pathData === "string" ? [pathData] : pathData;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="18" height="18" fill="currentColor" aria-hidden="true">
+      {paths.map((path) => (
+        <path key={path} d={path} />
+      ))}
+    </svg>
+  );
+}
 
 // Ticket 074. Verified LIVE against the local Docker Supabase stack
 // (2026-09-02): signUp() with a 5-character password fails with
@@ -50,6 +70,7 @@ export function RegisterForm({ lang }: { lang: Lang }) {
   const [pending, setPending] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(false);
   const [emailAlreadyRegistered, setEmailAlreadyRegistered] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
 
   // Live, during-typing feedback (Ticket 074) — computed straight from
   // state each render rather than a separate effect, same "derive, don't
@@ -105,6 +126,24 @@ export function RegisterForm({ lang }: { lang: Lang }) {
     }
   }
 
+  // Ticket 077. Same redirect target as this form's own email-confirmation
+  // flow above (register()'s emailRedirectTo: "/login?redirectTo=/dashboard/
+  // get-started") — Supabase treats OAuth sign-in/sign-up identically, so
+  // "registering" with Google is the same call as LoginForm's Google
+  // button. The server-side PKCE callback sends a newly authenticated user
+  // straight to the onboarding page.
+  async function handleGoogleSignIn() {
+    setError(null);
+    setGooglePending(true);
+    try {
+      const repos = getRepositories();
+      await signInWithGoogle(repos, "/dashboard/get-started");
+    } catch {
+      setError(t(lang, i18nRegister.oauthError));
+      setGooglePending(false);
+    }
+  }
+
   if (emailAlreadyRegistered) {
     return (
       <AuthCard title={t(lang, i18nRegister.emailAlreadyRegisteredTitle)}>
@@ -138,6 +177,20 @@ export function RegisterForm({ lang }: { lang: Lang }) {
 
   return (
     <AuthCard title={t(lang, i18nRegister.title)}>
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={pending || googlePending}
+        className={`${secondaryButtonClass} h-12 w-full rounded-xl gap-2.5`}
+      >
+        <GoogleIcon />
+        {t(lang, i18nRegister.continueWithGoogle)}
+      </button>
+      <div className="my-6 flex items-center gap-3 text-xs font-medium text-text-secondary">
+        <span className="h-px flex-1 bg-line" aria-hidden="true" />
+        {t(lang, i18nRegister.orDivider)}
+        <span className="h-px flex-1 bg-line" aria-hidden="true" />
+      </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <label htmlFor="email" className="text-sm font-medium">
@@ -148,7 +201,7 @@ export function RegisterForm({ lang }: { lang: Lang }) {
             type="email"
             autoComplete="email"
             required
-            disabled={pending}
+            disabled={pending || googlePending}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={authInputClass}
@@ -163,7 +216,7 @@ export function RegisterForm({ lang }: { lang: Lang }) {
             type="password"
             autoComplete="new-password"
             required
-            disabled={pending}
+            disabled={pending || googlePending}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={authInputClass}
@@ -188,14 +241,14 @@ export function RegisterForm({ lang }: { lang: Lang }) {
             type="password"
             autoComplete="new-password"
             required
-            disabled={pending}
+            disabled={pending || googlePending}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className={authInputClass}
           />
         </div>
         {error && <p {...errorFeedbackProps} className={authErrorClass}>{error}</p>}
-        <button type="submit" disabled={pending} className={authButtonClass}>
+        <button type="submit" disabled={pending || googlePending} className={authButtonClass}>
           {pending ? t(lang, i18nRegister.creating) : t(lang, i18nRegister.submit)}
         </button>
       </form>

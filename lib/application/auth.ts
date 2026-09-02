@@ -7,6 +7,7 @@ import type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
 import type { Profile } from "@/lib/domain/profile";
 import { normalizeDisplayNameInput } from "../domain/profile.ts";
 import { UnauthorizedError } from "../domain/application-error.ts";
+import { normalizeDashboardRedirect } from "../domain/redirect-target.ts";
 // Type-only re-export so app/* can name this type without importing
 // lib/repositories/* directly (blocked by eslint.config.mjs) — same
 // pattern lib/composition-root.ts uses for `Repositories` itself.
@@ -43,6 +44,23 @@ export async function login(
   password: string,
 ): Promise<void> {
   return repos.auth.login(email, password);
+}
+
+// Ticket 077 — see lib/repositories/auth.repository.ts#signInWithGoogle's
+// own doc for the full contract. The destination is normalized here so no
+// adapter can turn OAuth into an open redirect.
+export async function signInWithGoogle(
+  repos: Repositories,
+  destinationPath: string,
+): Promise<void> {
+  return repos.auth.signInWithGoogle(normalizeDashboardRedirect(destinationPath));
+}
+
+export async function completeOAuthSignIn(
+  repos: Repositories,
+  code: string,
+): Promise<void> {
+  return repos.auth.exchangeOAuthCode(code);
 }
 
 export async function logout(repos: Repositories): Promise<void> {

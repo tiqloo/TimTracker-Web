@@ -5,9 +5,9 @@ import {
   ReauthenticationFailedError,
   type AuthChangeEvent,
   type AuthRepository,
-} from "../auth.repository";
-import type { Profile } from "@/lib/domain/profile";
-import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated";
+} from "../auth.repository.ts";
+import type { Profile } from "../../domain/profile.ts";
+import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated.ts";
 
 export function createSupabaseAuthRepository(
   client: SupabaseClient,
@@ -77,6 +77,77 @@ export function createSupabaseAuthRepository(
 
     async login(email: string, password: string) {
       const { error } = await client.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    },
+
+    async signInWithGoogle(destinationPath: string) {
+      // Real-backend finding (2026-09-02, local Docker stack, Ticket
+      // 077): client.auth.signInWithOAuth() does NOT reject when the
+      // provider is disabled. Reading @supabase/auth-js's own source
+      // (_handleProviderSignIn/_getUrlForProvider in GoTrueClient.js)
+      // confirms it builds the `/auth/v1/authorize` URL purely
+      // client-side — no preflight request — and, in a browser,
+      // unconditionally calls `window.location.assign(url)`, always
+      // resolving with `error: null`. GoTrue only rejects once the
+      // browser actually lands on that URL, and for a disabled provider
+      // it does so with a raw 400 JSON body (verified via curl against
+      // this project's own local stack: `GET .../auth/v1/authorize
+      // ?provider=google` -> `400 {"error_code":"validation_failed",
+      // "msg":"Unsupported provider: provider is not enabled"}`, no
+      // Location header) — NOT a redirect back to redirectTo with
+      // `?error=...` the way a genuine mid-flow failure (e.g. the user
+      // cancelling Google's consent screen, handled on the login page
+      // separately) does. Left as just a plain signInWithOAuth() call,
+      // this is exactly the "undurchsichtiger Fehler" (opaque error) the
+      // ticket's own AK says must not happen: the browser would navigate
+      // away to a bare JSON page instead of showing this app's error UI.
+      //
+      // Fix: check the project's actual enabled-providers list FIRST —
+      // the same public, unauthenticated `/auth/v1/settings` endpoint the
+      // ticket's own "Ausgangslage" section used to confirm Google is
+      // disabled in the first place — and throw a normal Error before
+      // ever calling signInWithOAuth if it isn't enabled, so it's caught
+      // by the exact same try/catch UI callers already have for
+      // login()/register(). Fails open (falls through to the normal call)
+      // if the settings check itself doesn't come back cleanly — a
+      // secondary, best-effort request should never itself block sign-in.
+      try {
+        const settingsResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
+          headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY! },
+        });
+        if (settingsResponse.ok) {
+          const settings = (await settingsResponse.json()) as { external?: Record<string, boolean> };
+          if (settings.external?.google === false) {
+            throw new Error("Unsupported provider: provider is not enabled");
+          }
+        }
+      } catch (err) {
+        // Re-throw our own "not enabled" error (caught by the caller);
+        // swallow anything else (network hiccup, unexpected response
+        // shape) and fall through to the normal signInWithOAuth() call
+        // below instead of blocking sign-in on a best-effort check.
+        if (err instanceof Error && err.message === "Unsupported provider: provider is not enabled") {
+          throw err;
+        }
+      }
+
+      // @supabase/ssr uses PKCE. Google therefore returns to a server-side
+      // callback that exchanges the one-time code for the cookie session.
+      // The application layer has already normalized destinationPath to the
+      // /dashboard namespace; URLSearchParams safely encodes it here.
+      const callbackUrl = new URL("/auth/callback", process.env.NEXT_PUBLIC_SITE_URL!);
+      callbackUrl.searchParams.set("next", destinationPath);
+      const { error } = await client.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: callbackUrl.toString(),
+        },
+      });
+      if (error) throw error;
+    },
+
+    async exchangeOAuthCode(code: string) {
+      const { error } = await client.auth.exchangeCodeForSession(code);
       if (error) throw error;
     },
 

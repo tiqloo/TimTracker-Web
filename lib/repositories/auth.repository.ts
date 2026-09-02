@@ -98,6 +98,27 @@ export interface AuthRepository {
     password: string,
   ): Promise<{ emailConfirmationRequired: boolean }>;
   login(email: string, password: string): Promise<void>;
+  // Ticket 077 (TimTracker-Starter repo): Google OAuth, the "genau wie
+  // claude.ai" alternative to register()/login() above. Supabase treats
+  // OAuth sign-in and sign-up identically — there is no separate
+  // "register with Google" call — so this one method serves both
+  // LoginForm's and RegisterForm's Google buttons.
+  //
+  // Triggers a full-page redirect to Google's consent screen
+  // (`client.auth.signInWithOAuth`). Unlike login()/register(), a caller
+  // does NOT get a normal "success" return from this on the happy path —
+  // the browser navigates away before the promise would otherwise
+  // resolve. The promise DOES reject for immediate failures that happen
+  // BEFORE any redirect (e.g. the provider isn't enabled on this Supabase
+  // project — the current, documented state, see Ticket 077's own
+  // "harte Voraussetzung" section), so callers still wrap this in
+  // try/catch and show that error, same pattern as login()/register().
+  // The actual sign-in completion happens in /auth/callback, which exchanges
+  // Supabase's PKCE code for a cookie-backed session before redirecting to the
+  // validated dashboard destination.
+  //
+  signInWithGoogle(destinationPath: string): Promise<void>;
+  exchangeOAuthCode(code: string): Promise<void>;
   logout(): Promise<void>;
   requestPasswordReset(email: string): Promise<void>;
   // Sets a new password for the CURRENT session — only meaningful while a

@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   changeEmail,
   changePassword,
+  completeOAuthSignIn,
   requireUser,
+  signInWithGoogle,
   updateDisplayName,
   updatePassword,
 } from "./auth.ts";
@@ -91,6 +93,8 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async getAuthenticatedUserId() { record("auth.userId"); return state.userId; },
       async register(email, password) { record("auth.register", email, password); return { emailConfirmationRequired: true }; },
       async login(email, password) { record("auth.login", email, password); },
+      async signInWithGoogle(destinationPath) { record("auth.google", destinationPath); },
+      async exchangeOAuthCode(code) { record("auth.oauthCallback", code); },
       async logout() { record("auth.logout"); },
       async requestPasswordReset(email) { record("auth.reset", email); },
       async updatePassword(password) { record("auth.updatePassword", password); },
@@ -198,6 +202,9 @@ test("auth use cases normalize identity fields but leave passwords opaque", asyn
   await changeEmail(repos, "  ada@example.com ", " current password ");
   await changePassword(repos, " new password ", " current password ");
   await updatePassword(repos, " recovery password ");
+  await signInWithGoogle(repos, "/dashboard/history?from=2026-09-01");
+  await signInWithGoogle(repos, "https://evil.example/phishing");
+  await completeOAuthSignIn(repos, "one-time-code");
   assert.deepEqual(state.calls, [
     { method: "auth.userId", args: [] },
     { method: "auth.displayName", args: ["Ada Lovelace"] },
@@ -205,6 +212,9 @@ test("auth use cases normalize identity fields but leave passwords opaque", asyn
     { method: "auth.changeEmail", args: ["ada@example.com", " current password "] },
     { method: "auth.changePassword", args: [" new password ", " current password "] },
     { method: "auth.updatePassword", args: [" recovery password "] },
+    { method: "auth.google", args: ["/dashboard/history?from=2026-09-01"] },
+    { method: "auth.google", args: ["/dashboard"] },
+    { method: "auth.oauthCallback", args: ["one-time-code"] },
   ]);
 });
 

@@ -885,12 +885,41 @@ export const login = {
     de: "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Bestätigungsmail).",
     en: "Please confirm your email address first (link in the confirmation email).",
   },
+  // Ticket 077: Google OAuth, offered equally alongside email/password
+  // ("genau wie claude.ai" — see the ticket's own title). continueWithGoogle
+  // is the button label, orDivider the "oder"/"or" separator text between
+  // the OAuth button and the email/password form.
+  continueWithGoogle: { de: "Mit Google anmelden", en: "Continue with Google" },
+  orDivider: { de: "oder", en: "or" },
+  // Shown on /login when Google's OAuth callback carries an
+  // `?error=...&error_description=...` query pair — either the user
+  // cancelled the Google consent screen, or (current, documented state,
+  // see Ticket 077's own "harte Voraussetzung" section) the provider
+  // isn't enabled on this Supabase project yet. Deliberately generic/
+  // non-technical rather than surfacing Supabase's raw error_description,
+  // same "don't show a raw query parameter" principle the ticket's own AK
+  // states.
+  oauthError: {
+    de: "Die Anmeldung mit Google ist fehlgeschlagen oder wurde abgebrochen. Bitte versuche es erneut oder melde dich mit E-Mail und Passwort an.",
+    en: "Signing in with Google failed or was cancelled. Please try again, or sign in with email and password.",
+  },
 } satisfies Record<string, Translated>;
 
 // --- app/(auth)/register (components/RegisterForm.tsx) -----------------
 
 export const register = {
   title: { de: "Konto erstellen", en: "Create Account" },
+  // Ticket 077: same Google-OAuth strings as the login namespace's own
+  // continueWithGoogle/orDivider/oauthError — duplicated per namespace,
+  // same pattern every other login/register pair here already follows
+  // (title, submit, genericError, ...) rather than a shared cross-
+  // namespace const.
+  continueWithGoogle: { de: "Mit Google anmelden", en: "Continue with Google" },
+  orDivider: { de: "oder", en: "or" },
+  oauthError: {
+    de: "Die Anmeldung mit Google ist fehlgeschlagen oder wurde abgebrochen. Bitte versuche es erneut oder registriere dich mit E-Mail und Passwort.",
+    en: "Signing in with Google failed or was cancelled. Please try again, or sign up with email and password.",
+  },
   passwordConfirm: { de: "Passwort bestätigen", en: "Confirm Password" },
   passwordMismatchError: {
     de: "Die Passwörter stimmen nicht überein.",
