@@ -896,6 +896,21 @@ export const register = {
     de: "Die Passwörter stimmen nicht überein.",
     en: "The passwords do not match.",
   },
+  // Ticket 074. Client-side-only (no server roundtrip) — checked in
+  // handleSubmit before passwordMismatchError, same pattern. Also shown
+  // live under the password field while typing (RegisterForm.tsx), via
+  // passwordMinLengthHint below.
+  passwordTooShortError: {
+    de: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+    en: "Password must be at least 6 characters long.",
+  },
+  // Shorter variant for the inline, during-typing hint under the password
+  // field (RegisterForm.tsx) — passwordTooShortError above is the
+  // submit-time version shown in the form's generic error slot.
+  passwordMinLengthHint: {
+    de: "Mindestens 6 Zeichen.",
+    en: "At least 6 characters.",
+  },
   genericError: { de: "Registrierung fehlgeschlagen.", en: "Registration failed." },
   creating: { de: "Wird erstellt…", en: "Creating…" },
   submit: { de: "Konto erstellen", en: "Create Account" },
@@ -907,6 +922,20 @@ export const register = {
     en: "We've sent you an email. Please confirm your address via the link in it to sign in.",
   },
   goToLogin: { de: "Zum Login", en: "Go to Login" },
+  // Ticket 074 — shown instead of the confirmationSentBody success card
+  // when register() detects the email is already registered (see
+  // lib/repositories/supabase/auth.repository.ts#register's own comment
+  // for the detection logic and the deliberate anti-enumeration tradeoff
+  // this represents, a conscious product decision, not an oversight).
+  emailAlreadyRegisteredTitle: {
+    de: "E-Mail bereits registriert",
+    en: "Email Already Registered",
+  },
+  emailAlreadyRegisteredBody: {
+    de: "Für diese E-Mail-Adresse existiert bereits ein Konto. Melde dich an oder setze dein Passwort zurück, falls du es vergessen hast.",
+    en: "An account with this email address already exists. Sign in, or reset your password if you've forgotten it.",
+  },
+  resetPasswordLink: { de: "Passwort zurücksetzen", en: "Reset Password" },
 } satisfies Record<string, Translated>;
 
 // --- app/(dashboard)/dashboard/get-started ---------------------------

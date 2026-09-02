@@ -14,7 +14,11 @@ export type { Profile } from "@/lib/domain/profile";
 // Value re-export (not type-only): app/* needs `instanceof` checks against
 // these to show the right error message — same reasoning as re-exporting
 // the port's types above, just for runtime-checkable classes instead.
-export { EmailAlreadyInUseError, ReauthenticationFailedError } from "../repositories/auth.repository.ts";
+export {
+  EmailAlreadyInUseError,
+  EmailAlreadyRegisteredError,
+  ReauthenticationFailedError,
+} from "../repositories/auth.repository.ts";
 
 export { UnauthorizedError } from "../domain/application-error.ts";
 

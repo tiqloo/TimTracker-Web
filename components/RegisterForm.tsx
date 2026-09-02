@@ -6,7 +6,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { register } from "@/lib/application/auth";
+import { EmailAlreadyRegisteredError, register } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import {
   AuthCard,
@@ -15,8 +15,22 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
-import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
+import { errorFeedbackProps, successFeedbackProps, warningFeedbackProps } from "@/lib/ui/feedback";
 import { common, register as i18nRegister, t, type Lang } from "@/lib/i18n";
+
+// Ticket 074. Verified LIVE against the local Docker Supabase stack
+// (2026-09-02): signUp() with a 5-character password fails with
+// error_code "weak_password" ("Password should be at least 6
+// characters."), a 6-character password succeeds — matching the value the
+// pre-existing code comment already cited (see the try/catch below). Not
+// re-verified against the production project in this session (this repo's
+// .env.local points at the local stack, not production, per README.md's
+// "lokal gegen Docker (Standard)" policy) — if production's configured
+// minimum has since drifted from the local stack's, this client-side gate
+// would be wrong in one direction or the other; Supabase's own server-side
+// error remains the fallback either way (see the try/catch below), so a
+// drift fails safe rather than silently.
+const MIN_PASSWORD_LENGTH = 6;
 
 // A 7-day trial starts server-side automatically on signup (DB trigger,
 // see supabase/migrations/0003_trial.sql in TimTracker-Starter) — nothing
@@ -35,10 +49,23 @@ export function RegisterForm({ lang }: { lang: Lang }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(false);
+  const [emailAlreadyRegistered, setEmailAlreadyRegistered] = useState(false);
+
+  // Live, during-typing feedback (Ticket 074) — computed straight from
+  // state each render rather than a separate effect, same "derive, don't
+  // duplicate" approach the mismatch check below relies on. Only shown
+  // once the user has actually typed something, so the field doesn't open
+  // with a warning already showing.
+  const passwordTooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(t(lang, i18nRegister.passwordTooShortError));
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError(t(lang, i18nRegister.passwordMismatchError));
@@ -57,12 +84,43 @@ export function RegisterForm({ lang }: { lang: Lang }) {
         router.refresh();
       }
     } catch (err) {
+      // Ticket 074: a dedicated card (see below), not the generic error
+      // message — the "already registered" case needs its own copy plus a
+      // path forward (login / reset password), not just an inline error
+      // string next to the form.
+      if (err instanceof EmailAlreadyRegisteredError) {
+        setEmailAlreadyRegistered(true);
+        setPending(false);
+        return;
+      }
       // Supabase's own validation messages (e.g. "Password should be at
       // least 6 characters.") are already user-friendly — shown as-is,
       // same pattern the native apps use (error.localizedDescription).
+      // Kept as a fallback even though the client-side check above should
+      // normally prevent a too-short password from reaching the server at
+      // all — see MIN_PASSWORD_LENGTH's own comment on why that gate
+      // could theoretically drift from the server's actual policy.
       setError(err instanceof Error ? err.message : t(lang, i18nRegister.genericError));
       setPending(false);
     }
+  }
+
+  if (emailAlreadyRegistered) {
+    return (
+      <AuthCard title={t(lang, i18nRegister.emailAlreadyRegisteredTitle)}>
+        <p {...errorFeedbackProps} className={authErrorClass}>
+          {t(lang, i18nRegister.emailAlreadyRegisteredBody)}
+        </p>
+        <p className="mt-4 flex flex-col gap-2 text-sm">
+          <Link href="/login" className="underline">
+            {t(lang, i18nRegister.goToLogin)}
+          </Link>
+          <Link href="/reset-password" className="underline">
+            {t(lang, i18nRegister.resetPasswordLink)}
+          </Link>
+        </p>
+      </AuthCard>
+    );
   }
 
   if (confirmationPending) {
@@ -110,6 +168,16 @@ export function RegisterForm({ lang }: { lang: Lang }) {
             onChange={(e) => setPassword(e.target.value)}
             className={authInputClass}
           />
+          {passwordTooShort && (
+            // text-red-700/text-red-400 (not text-danger) for the actual
+            // text color — same reasoning as authErrorClass/errorMessageClass
+            // (lib/ui/status-styles.ts): --danger alone is under the AA text
+            // contrast ratio (documented in app/globals.css), so it's only
+            // used for background/border tints, never text color.
+            <p {...warningFeedbackProps} className="text-xs text-red-700 dark:text-red-400">
+              {t(lang, i18nRegister.passwordMinLengthHint)}
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="confirmPassword" className="text-sm font-medium">

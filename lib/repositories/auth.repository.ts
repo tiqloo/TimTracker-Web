@@ -41,6 +41,23 @@ export class ReauthenticationFailedError extends Error {
   }
 }
 
+// Ticket 074: thrown by register() below when the requested email address
+// already has an account (confirmed or not). Deliberately a DISTINCT type
+// from EmailAlreadyInUseError above rather than a reuse of it — that one
+// exists specifically to keep changeEmail() anti-enumerating (generic
+// message, doesn't confirm the address belongs to someone). Registration
+// is a different product decision (explicit user request, see Ticket 074
+// in TimTracker-Starter): show a clear "this email is already registered"
+// message with a path forward (login / reset password), accepting the
+// email-enumeration tradeoff that implies. Kept as its own class so the UI
+// can't accidentally show the generic changeEmail() copy here instead.
+export class EmailAlreadyRegisteredError extends Error {
+  constructor() {
+    super("An account with this email address already exists.");
+    this.name = "EmailAlreadyRegisteredError";
+  }
+}
+
 // Vendor-agnostic mirror of Supabase's AuthChangeEvent string union
 // (@supabase/auth-js lib/types.ts). Defined locally rather than imported
 // from @supabase/supabase-js — this file is a pure port and must stay
@@ -66,6 +83,16 @@ export interface AuthRepository {
   // where seed/test users are pre-confirmed). Callers need this to decide
   // whether to redirect straight into the app or show a "check your
   // email" message instead.
+  //
+  // Throws EmailAlreadyRegisteredError (Ticket 074) if the email address
+  // already has an account. Supabase's signUp() itself doesn't throw for
+  // this — its documented anti-enumeration behavior returns the same
+  // success shape as a genuine new signup, distinguishable only by
+  // `data.user.identities` being an empty array (a real new signup always
+  // has exactly one populated entry there); see the adapter for the
+  // detection logic. This is a deliberate departure from that
+  // anti-enumeration default, scoped to registration only — see
+  // EmailAlreadyRegisteredError's own comment for why.
   register(
     email: string,
     password: string,

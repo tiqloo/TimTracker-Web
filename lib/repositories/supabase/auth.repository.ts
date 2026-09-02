@@ -1,6 +1,7 @@
 import { AuthApiError, type SupabaseClient } from "@supabase/supabase-js";
 import {
   EmailAlreadyInUseError,
+  EmailAlreadyRegisteredError,
   ReauthenticationFailedError,
   type AuthChangeEvent,
   type AuthRepository,
@@ -37,7 +38,37 @@ export function createSupabaseAuthRepository(
           emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/login?redirectTo=/dashboard/get-started`,
         },
       });
-      if (error) throw error;
+      if (error) {
+        // Ticket 074. Verified LIVE against the local Docker stack
+        // (2026-09-02): with `mailer_autoconfirm: true` (local dev only —
+        // production has it false, confirmed 2026-08-25), signUp() with an
+        // already-registered email throws directly with this error_code
+        // (AuthApiError.code === "user_already_exists"), rather than the
+        // silent "empty identities" success path handled below for the
+        // confirmation-required case. Both branches are handled so
+        // detection works regardless of the project's mailer_autoconfirm
+        // setting.
+        const isAlreadyRegistered =
+          error instanceof AuthApiError && error.code === "user_already_exists";
+        throw isAlreadyRegistered ? new EmailAlreadyRegisteredError() : error;
+      }
+      // Ticket 074. Supabase's documented anti-enumeration behavior for
+      // projects that require email confirmation (production:
+      // `mailer_autoconfirm: false`, confirmed 2026-08-25): signUp() with
+      // an ALREADY-registered email does NOT throw here — it returns the
+      // same 200 success shape as a genuine new signup, distinguishable
+      // only by `data.user.identities` being an empty array (a real new
+      // signup always has exactly one populated entry, confirmed via the
+      // "identities" shape returned by the local stack's own signUp
+      // response). NOT independently re-verified against a live
+      // mailer_autoconfirm:false backend in this environment — the local
+      // stack used for the above verification has autoconfirm ON, so it
+      // takes the branch above instead; this specific branch still needs
+      // human confirmation against production before shipping (see
+      // Ticket 074's final report).
+      if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        throw new EmailAlreadyRegisteredError();
+      }
       // data.session is null when Supabase is waiting on email
       // confirmation, populated when signup logs the user in immediately
       // (local/dev config, or a project with confirmations disabled).
