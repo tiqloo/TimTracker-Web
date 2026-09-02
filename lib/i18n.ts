@@ -85,6 +85,12 @@ export const nav = {
   billing: { de: "Abo", en: "Subscription" },
   logout: { de: "Logout", en: "Log Out" },
   loggingOut: { de: "Wird abgemeldet…", en: "Logging out…" },
+  // Ticket 073: sidebar-collapse toggle button's aria-label/title — was a
+  // duplicated `lang === "de" ? ... : ...` ternary (once per attribute)
+  // before this ticket, moved here so both attributes resolve the same
+  // translated string once instead of repeating the ternary.
+  sidebarExpand: { de: "Seitenleiste einblenden", en: "Expand sidebar" },
+  sidebarCollapse: { de: "Seitenleiste ausblenden", en: "Collapse sidebar" },
 } satisfies Record<string, Translated>;
 
 // --- components/AccessGate.tsx --------------------------------------
@@ -387,6 +393,18 @@ export const history = {
   calendarLabel: { de: "Kalender", en: "Calendar" },
 } satisfies Record<string, Translated>;
 
+// Ticket 073: weekday abbreviations for the work calendar's header row
+// (components/HistoryWorkCalendar.tsx). Not part of the `history` object
+// above — its values are string[], not the single {de,en} string pair
+// `Translated`/`t()` expect (same reason helpcenter.faqs/changelog.entries
+// live as their own top-level consts rather than inside a `satisfies
+// Record<string, Translated>` object) — but stays in this file section
+// since it belongs to the same component/namespace.
+export const historyWeekdayAbbreviations: { de: string[]; en: string[] } = {
+  de: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+};
+
 // --- components/SettingsClient.tsx: ProfileSection (Ticket 024) --------
 
 export const profile = {
@@ -488,6 +506,12 @@ export function emailChangeSuccessMessage(
 
 export const settings = {
   pageTitle: { de: "Einstellungen", en: "Settings" },
+  // Ticket 073: description paragraph under the "Einstellungen" heading —
+  // was a hardcoded `lang === "de" ? ... : ...` ternary in page.tsx.
+  pageDescription: {
+    de: "Verwalte dein Profil, deine persönlichen Präferenzen und alle Kontoeinstellungen an einem Ort.",
+    en: "Manage your profile, personal preferences, and account settings in one place.",
+  },
   manageSubscriptionLink: { de: "Abo verwalten →", en: "Manage Subscription →" },
   // Ticket 041: heading for the new compact subscription overview card
   // that replaces the previous bare manageSubscriptionLink text link on

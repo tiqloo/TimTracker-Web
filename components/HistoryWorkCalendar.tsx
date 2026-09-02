@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { DailyBreakdown } from "@/lib/domain/time-entry";
 import { addDaysIso, formatDuration } from "@/lib/format";
-import { history, t, type Lang } from "@/lib/i18n";
+import { history, historyWeekdayAbbreviations, t, type Lang } from "@/lib/i18n";
 
 export function HistoryWorkCalendar({ breakdowns, month, locale, lang }: { breakdowns: DailyBreakdown[]; month: string; locale: string; lang: Lang }) {
   const firstDay = `${month}-01`;
@@ -12,7 +12,7 @@ export function HistoryWorkCalendar({ breakdowns, month, locale, lang }: { break
   const byDay = new Map(breakdowns.map((day) => [day.day, day]));
   const maxSeconds = Math.max(1, ...breakdowns.map((day) => day.totalSeconds));
   const mondayOffset = (new Date(`${firstDay}T00:00:00Z`).getUTCDay() + 6) % 7;
-  const weekdays = lang === "de" ? ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekdays = historyWeekdayAbbreviations[lang];
   const monthLabel = new Date(`${firstDay}T00:00:00Z`).toLocaleDateString(locale, { month: "long", year: "numeric", timeZone: "UTC" });
   const days: string[] = [];
   for (let day = firstDay; day <= lastDay; day = addDaysIso(day, 1)) days.push(day);

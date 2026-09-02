@@ -238,6 +238,10 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Ticket 073: resolved once here instead of duplicating the same
+  // `lang === "de" ? ... : ...` ternary for both the toggle button's
+  // aria-label and title below.
+  const sidebarToggleLabel = t(lang, sidebarCollapsed ? nav.sidebarExpand : nav.sidebarCollapse);
 
   async function handleLogout() {
     setPending(true);
@@ -287,8 +291,8 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
         <button
           type="button"
           onClick={() => setSidebarCollapsed((value) => !value)}
-          aria-label={sidebarCollapsed ? (lang === "de" ? "Seitenleiste einblenden" : "Expand sidebar") : (lang === "de" ? "Seitenleiste ausblenden" : "Collapse sidebar")}
-          title={sidebarCollapsed ? (lang === "de" ? "Seitenleiste einblenden" : "Expand sidebar") : (lang === "de" ? "Seitenleiste ausblenden" : "Collapse sidebar")}
+          aria-label={sidebarToggleLabel}
+          title={sidebarToggleLabel}
           className={`absolute top-8 -right-3 z-10 grid h-7 w-7 place-items-center rounded-full border border-brand/20 bg-surface text-brand transition-all duration-150 hover:scale-105 hover:border-brand/40 hover:bg-brand-soft ${focusRingClass}`}
         >
           {sidebarCollapsed ? <ChevronRight size={15} strokeWidth={2.2} /> : <ChevronLeft size={15} strokeWidth={2.2} />}

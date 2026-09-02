@@ -43,9 +43,7 @@ export default async function SettingsPage() {
         <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-brand uppercase">Workspace</p>
         <h1 className="text-[34px] font-semibold tracking-[-0.035em] sm:text-[40px]">{t(lang, settings.pageTitle)}</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">
-          {lang === "de"
-            ? "Verwalte dein Profil, deine persönlichen Präferenzen und alle Kontoeinstellungen an einem Ort."
-            : "Manage your profile, personal preferences, and account settings in one place."}
+          {t(lang, settings.pageDescription)}
         </p>
       </div>
       <SettingsClient
