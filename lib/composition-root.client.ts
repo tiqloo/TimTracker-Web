@@ -43,3 +43,19 @@ export function getBrowserRepositories(): Repositories {
     dailyGoal: createCookieDailyGoalRepository(),
   };
 }
+
+export function subscribeToBrowserTimeEntryChanges(onChange: () => void): () => void {
+  const client = createBrowserSupabaseClient();
+  const channel = client
+    .channel("today-time-entry-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "time_entries" },
+      onChange,
+    )
+    .subscribe();
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}

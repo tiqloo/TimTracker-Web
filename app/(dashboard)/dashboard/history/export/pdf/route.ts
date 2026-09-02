@@ -1,16 +1,17 @@
 import { getRepositories } from "@/lib/application/server";
-import { getHistory, isoToday } from "@/lib/application/dashboard";
-import { getExportRows } from "@/lib/application/export";
+import { isoToday } from "@/lib/application/dashboard";
+import { getHistoryExportData } from "@/lib/application/export";
 import { getSubscriptionStatus } from "@/lib/application/billing";
-import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel, resolveHistoryRange } from "@/lib/format";
 import { renderHistoryExportPdf } from "@/lib/pdf/history-export-document";
-import { exportGate, t } from "@/lib/i18n";
+import { requireUser } from "@/lib/application/auth";
+import { ForbiddenError } from "@/lib/domain/application-error";
+import { routeErrorResponse } from "@/lib/http/route-error";
 
 // PDF export for "Historie" — sibling of ../route.ts's CSV export, same
 // access gate, same date-range resolution, same ExportRow/DailyBreakdown
-// data (getExportRows/getHistory), just a different rendering target.
+// data (getHistoryExportData), just a different rendering target.
 // Kept as a separate route (rather than a `?format=pdf` branch on the CSV
 // route) so each handler stays a single content type/filename, per the
 // ticket's own "not binding" suggestion of either approach.
@@ -23,15 +24,20 @@ import { exportGate, t } from "@/lib/i18n";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  try {
+    return await createPdfExportResponse(request);
+  } catch (error) {
+    return routeErrorResponse(error, "history_pdf_export");
+  }
+}
+
+async function createPdfExportResponse(request: Request): Promise<Response> {
   const repos = await getRepositories();
+  await requireUser(repos);
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    const lang = await getEffectiveLanguageCode(repos, request.headers.get("accept-language"));
-    return new Response(t(lang, exportGate.noAccess), {
-      status: 403,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    throw new ForbiddenError("An active subscription is required for this export.");
   }
 
   const url = new URL(request.url);
@@ -55,10 +61,13 @@ export async function GET(request: Request) {
     : undefined;
   const projectId = activeProject?.id;
 
-  const [summaries, rows] = await Promise.all([
-    getHistory(repos, from, to, projectId),
-    getExportRows(repos, from, to, projectId),
-  ]);
+  const { summaries, rows } = await getHistoryExportData(
+    repos,
+    from,
+    to,
+    allProjects,
+    projectId,
+  );
 
   const periodLabel = `${formatDayLabel(from)} – ${formatDayLabel(to)}${
     activeProject ? ` · ${activeProject.name}` : ""
@@ -68,7 +77,7 @@ export async function GET(request: Request) {
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="TimTracker-Export-${from}_${to}.pdf"`,
+      "Content-Disposition": `attachment; filename="Tiqloo-Export-${from}_${to}.pdf"`,
     },
   });
 }

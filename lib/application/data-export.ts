@@ -21,10 +21,10 @@ import type { Profile } from "@/lib/domain/profile";
 import type { Project } from "@/lib/domain/project";
 import type { TimeEntry } from "@/lib/domain/time-entry";
 import type { Subscription } from "@/lib/domain/subscription";
-import { getProfile } from "@/lib/application/auth";
-import { listProjects } from "@/lib/application/projects";
-import { getSubscriptionStatus } from "@/lib/application/billing";
-import { isoToday } from "@/lib/application/dashboard";
+import { getProfile } from "./auth.ts";
+import { listProjects } from "./projects.ts";
+import { getSubscriptionStatus } from "./billing.ts";
+import { isoToday } from "./dashboard.ts";
 
 // Only what this app's own Supabase schema actually holds (per the
 // ticket's own "Bewusst außerhalb" note: Stripe-side raw data like

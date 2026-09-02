@@ -49,9 +49,10 @@ import {
   secondaryButtonClass,
 } from "@/lib/ui/button-styles";
 import { errorMessageClass } from "@/lib/ui/status-styles";
+import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 
 const inputClass =
-  "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
+  "h-11 w-full rounded-xl border border-line bg-background/60 px-3.5 text-sm outline-none transition-all duration-150 hover:border-foreground/20 focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-brand/10 disabled:opacity-50";
 
 // Ticket 048: Secondary tier (lib/ui/button-styles.ts) — was a locally
 // defined "buttonClass" (border-line, no fill) before this ticket's button
@@ -88,7 +89,7 @@ export function SettingsClient({
   initialDailyGoalHours: number | null;
 }) {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="grid gap-5 lg:grid-cols-2">
       <ProfileSection profile={profile} lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
       {/* Ticket 044: placed right after LanguageSection, per the ticket's
@@ -144,8 +145,8 @@ function SubscriptionSection({
         : billing.accessEndedOn;
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-5">
-      <h2 className="text-sm font-medium text-foreground/70">
+    <section className="flex flex-col gap-3 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)]">
+      <h2 className="text-base font-semibold tracking-tight">
         {t(lang, settings.subscriptionSectionTitle)}
       </h2>
       <p className="text-sm">
@@ -170,7 +171,7 @@ function SubscriptionSection({
       <div>
         <Link
           href="/dashboard/settings/billing"
-          className="text-sm text-foreground/70 hover:text-foreground"
+          className="text-sm font-medium text-brand hover:underline"
         >
           {t(lang, settings.manageSubscriptionLink)}
         </Link>
@@ -220,7 +221,7 @@ function DataExportSection({ lang }: { lang: Lang }) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = filenameMatch?.[1] ?? "TimTracker-Datenexport.json";
+      link.download = filenameMatch?.[1] ?? "Tiqloo-Datenexport.json";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -234,8 +235,8 @@ function DataExportSection({ lang }: { lang: Lang }) {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5">
-      <h2 className="text-sm font-medium text-foreground/70">
+    <section className="flex flex-col gap-3 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)]">
+      <h2 className="text-base font-semibold tracking-tight">
         {t(lang, settings.dataExportTitle)}
       </h2>
       <p className="text-sm text-foreground/70">{t(lang, settings.dataExportBody)}</p>
@@ -296,11 +297,14 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5">
-      <h2 className="text-sm font-medium text-foreground/70">
+    <section className="flex flex-col gap-5 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)] lg:col-span-2 sm:p-7">
+      <div>
+        <p className="mb-1 text-xs font-semibold tracking-[0.14em] text-brand uppercase">Account</p>
+        <h2 className="text-lg font-semibold tracking-tight">
         {t(lang, i18nProfile.sectionTitle)}
-      </h2>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        </h2>
+      </div>
+      <form onSubmit={handleSubmit} className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="flex flex-col gap-1">
           <label htmlFor="profile-display-name" className="text-sm font-medium">
             {t(lang, i18nProfile.displayNameLabel)}{" "}
@@ -324,14 +328,14 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
           </button>
         </div>
       </form>
-      <dl className="flex flex-col gap-2 border-t border-line pt-4 text-sm">
-        <div className="flex items-center justify-between gap-3">
+      <dl className="grid gap-3 border-t border-line pt-5 text-sm sm:grid-cols-2">
+        <div className="rounded-xl bg-background px-4 py-3">
           <dt className="text-foreground/60">{t(lang, i18nProfile.emailLabel)}</dt>
-          <dd className="truncate">{profile.email}</dd>
+          <dd className="mt-1 truncate font-medium">{profile.email}</dd>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="rounded-xl bg-background px-4 py-3">
           <dt className="text-foreground/60">{t(lang, i18nProfile.createdAtLabel)}</dt>
-          <dd className="font-mono tabular-nums">
+          <dd className="mt-1 font-mono font-medium tabular-nums">
             {formatFullDate(profile.createdAt, languageCodeToLocale(lang))}
           </dd>
         </div>
@@ -349,7 +353,7 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
           the 10-14px band; this nested "Sicherheit" box is a card-within-
           a-card, same treatment as every other card container in this
           file. */}
-      <div className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-line/80 bg-background p-4 sm:p-5">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
           {t(lang, i18nProfile.securitySectionTitle)}
         </h3>
@@ -467,6 +471,7 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
             </label>
             <input
               id="email-change-new-email"
+              autoFocus
               type="email"
               autoComplete="email"
               required
@@ -491,7 +496,7 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
               className={inputClass}
             />
           </div>
-          {error && <p className={errorClass}>{error}</p>}
+          {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className={primaryButtonClass}>
               {pending
@@ -515,7 +520,7 @@ function EmailChangeAction({ profile, lang }: { profile: Profile; lang: Lang }) 
         </form>
       )}
       {sentTo && !changing && (
-        <p className="text-sm text-foreground/70">
+        <p {...successFeedbackProps} className="text-sm text-foreground/70">
           {emailChangeSuccessMessage(lang, sentTo.oldEmail, sentTo.newEmail)}
         </p>
       )}
@@ -606,6 +611,7 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
             </label>
             <input
               id="password-change-current"
+              autoFocus
               type="password"
               autoComplete="current-password"
               required
@@ -645,7 +651,7 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
               className={inputClass}
             />
           </div>
-          {error && <p className={errorClass}>{error}</p>}
+          {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className={primaryButtonClass}>
               {pending
@@ -670,7 +676,7 @@ function PasswordChangeAction({ lang }: { lang: Lang }) {
         </form>
       )}
       {succeeded && !changing && (
-        <p className="text-sm text-foreground/70">
+        <p {...successFeedbackProps} className="text-sm text-foreground/70">
           {t(lang, i18nProfile.passwordChangeSuccess)}
         </p>
       )}
@@ -717,19 +723,19 @@ function LanguageSection({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-foreground/70">
+    <section className="flex flex-col gap-4 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)]">
+      <h2 className="text-base font-semibold tracking-tight">
         {t(lang, settings.languageSectionTitle)}
       </h2>
       <div
-        className="flex flex-col gap-1"
+        className="grid gap-2"
         role="radiogroup"
         aria-label={t(lang, settings.languageSectionTitle)}
       >
         {APP_LANGUAGES.map((option) => (
           <label
             key={option}
-            className="flex items-center gap-2 text-sm"
+            className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-sm transition-colors ${language === option ? "border-brand/30 bg-brand-soft font-medium text-brand" : "border-line bg-background/50 hover:bg-background"}`}
           >
             <input
               type="radio"
@@ -796,8 +802,8 @@ function DailyGoalSection({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-foreground/70">
+    <section className="flex flex-col gap-4 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)]">
+      <h2 className="text-base font-semibold tracking-tight">
         {t(lang, settings.dailyGoalSectionTitle)}
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -893,7 +899,7 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
       // already clears AA text contrast (unlike the literal --danger hex
       // as text, see globals.css), and this ticket's token pass is
       // explicit about not regressing real error-message legibility.
-      className={`flex flex-col gap-3 rounded-xl border bg-surface p-5 transition-colors duration-150 ${
+      className={`flex flex-col gap-3 rounded-2xl border bg-surface p-6 transition-colors duration-150 lg:col-span-2 ${
         confirming ? "border-danger/30" : "border-line"
       }`}
     >
@@ -923,6 +929,7 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
           </label>
           <input
             id="delete-confirm"
+            autoFocus
             type="text"
             disabled={pending}
             value={confirmationText}
@@ -930,7 +937,7 @@ function DeleteAccountSection({ lang }: { lang: Lang }) {
             className={inputClass}
             autoComplete="off"
           />
-          {error && <p className={errorClass}>{error}</p>}
+          {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
           <div className="flex gap-2">
             <button
               type="button"

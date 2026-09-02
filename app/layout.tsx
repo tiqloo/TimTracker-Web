@@ -30,14 +30,14 @@ const schibstedGrotesk = Schibsted_Grotesk({
 
 const METADATA_BY_LANG = {
   de: {
-    title: "TimTracker — Zeit erfassen, ohne daran zu denken",
+    title: "Tiqloo — Zeit erfassen, ohne daran zu denken",
     description:
-      "TimTracker erfasst deine Arbeitszeit automatisch im Hintergrund (Login, Wake, Sleep, Bildschirmsperre) und lässt dich Zeit im Nachhinein Projekten zuordnen — als Menüleisten-App und im Web-Dashboard.",
+      "Tiqloo erfasst deine Arbeitszeit automatisch im Hintergrund (Login, Wake, Sleep, Bildschirmsperre) und lässt dich Zeit im Nachhinein Projekten zuordnen — als Menüleisten-App und im Web-Dashboard.",
   },
   en: {
-    title: "TimTracker — Time Tracking Without Thinking About It",
+    title: "Tiqloo — Time Tracking Without Thinking About It",
     description:
-      "TimTracker tracks your work time automatically in the background (login, wake, sleep, screen lock) and lets you assign time to projects afterwards — as a menu-bar app and in the web dashboard.",
+      "Tiqloo tracks your work time automatically in the background (login, wake, sleep, screen lock) and lets you assign time to projects afterwards — as a menu-bar app and in the web dashboard.",
   },
 } as const;
 

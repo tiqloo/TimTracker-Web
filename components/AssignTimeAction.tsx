@@ -34,6 +34,7 @@ import {
   secondaryButtonSmallClass,
   tertiaryButtonClass,
 } from "@/lib/ui/button-styles";
+import { errorFeedbackProps } from "@/lib/ui/feedback";
 
 const selectClass =
   "rounded-md border border-line bg-transparent px-2 py-1 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -122,7 +123,7 @@ export function AssignTimeAction({
   if (projectsError) {
     return (
       <div className="flex items-center gap-2 text-xs">
-        <span className="text-red-700 dark:text-red-400">
+        <span {...errorFeedbackProps} className="text-red-700 dark:text-red-400">
           {t(lang, dayDetail.assignProjectsLoadError)}
         </span>
         <button type="button" onClick={handleCancel} className={cancelButtonClass}>
@@ -156,6 +157,7 @@ export function AssignTimeAction({
       </label>
       <select
         id={`assign-project-${entry.id}`}
+        autoFocus
         value={selectedProjectId}
         onChange={(e) => {
           setSelectedProjectId(e.target.value);
@@ -200,7 +202,7 @@ export function AssignTimeAction({
         {t(lang, common.cancel)}
       </button>
       {fieldError && (
-        <p className="w-full text-xs text-red-700 dark:text-red-400">{fieldError}</p>
+        <p {...errorFeedbackProps} className="w-full text-xs text-red-700 dark:text-red-400">{fieldError}</p>
       )}
     </div>
   );

@@ -28,9 +28,16 @@
 // also statically import the server-side Supabase client, which broke
 // `npm run build` the moment a "use client" module (this one) reached it,
 // since Next.js refuses to bundle next/headers for the client at all.
-import { getBrowserRepositories } from "@/lib/composition-root.client";
+import {
+  getBrowserRepositories,
+  subscribeToBrowserTimeEntryChanges,
+} from "@/lib/composition-root.client";
 import type { Repositories } from "@/lib/repositories/repositories";
 
 export function getRepositories(): Repositories {
   return getBrowserRepositories();
+}
+
+export function subscribeToTimeEntryChanges(onChange: () => void): () => void {
+  return subscribeToBrowserTimeEntryChanges(onChange);
 }

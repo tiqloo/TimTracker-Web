@@ -1,5 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  calendarDayInTimeZone,
+  InvalidHistoryRangeError,
+  resolveHistoryDateRange,
+} from "@/lib/domain/calendar-day";
+import {
+  authenticatedLandingPath,
+  isProtectedPath,
+  shouldRedirectAuthenticatedUser,
+  shouldValidateHistoryRange,
+} from "@/lib/http/proxy-routing";
 
 // "/" is the public marketing homepage (unauthenticated visitors land
 // here, and signed-in users may revisit it too — it is never gated or
@@ -10,7 +21,6 @@ import { NextResponse, type NextRequest } from "next/server";
 // namespace — see TimTracker-Starter/docs/tickets/018-account-website.md's
 // "public homepage" addendum for the full old-path -> new-path mapping)
 // requires a session.
-const PROTECTED_PREFIX = "/dashboard";
 // Of the public auth paths, these two additionally redirect AWAY to
 // "/dashboard" when a session already exists, so a signed-in user doesn't
 // see the login/register form again. /reset-password is deliberately
@@ -18,11 +28,6 @@ const PROTECTED_PREFIX = "/dashboard";
 // 009) establishes a temporary session client-side via Supabase's
 // PASSWORD_RECOVERY event, and the user must still be able to reach that
 // page's "set new password" form while that session is active.
-const REDIRECT_IF_AUTHENTICATED_PATHS = ["/login", "/register"];
-
-function isProtectedPath(pathname: string): boolean {
-  return pathname === PROTECTED_PREFIX || pathname.startsWith(`${PROTECTED_PREFIX}/`);
-}
 
 // ---------------------------------------------------------------------
 // Ticket 027 (TimTracker-Starter/docs/tickets/027-web-security-headers.md)
@@ -178,6 +183,21 @@ export async function proxy(request: NextRequest) {
 
   let response = nextResponse();
 
+  const { pathname } = request.nextUrl;
+  if (shouldValidateHistoryRange(pathname)) {
+    try {
+      resolveHistoryDateRange(calendarDayInTimeZone(new Date()), {
+        from: request.nextUrl.searchParams.get("from") ?? undefined,
+        to: request.nextUrl.searchParams.get("to") ?? undefined,
+      });
+    } catch (error) {
+      if (error instanceof InvalidHistoryRangeError) {
+        return withCsp(new NextResponse(error.message, { status: 400 }), csp);
+      }
+      throw error;
+    }
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -203,8 +223,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-
   if (!user && isProtectedPath(pathname)) {
     const loginUrl = new URL("/login", request.url);
     // Bounce back to the originally requested page after a successful
@@ -216,10 +234,10 @@ export async function proxy(request: NextRequest) {
     return copyCookies(response, withCsp(NextResponse.redirect(loginUrl), csp));
   }
 
-  if (user && REDIRECT_IF_AUTHENTICATED_PATHS.includes(pathname)) {
+  if (user && shouldRedirectAuthenticatedUser(pathname)) {
     return copyCookies(
       response,
-      withCsp(NextResponse.redirect(new URL(PROTECTED_PREFIX, request.url)), csp),
+      withCsp(NextResponse.redirect(new URL(authenticatedLandingPath(), request.url)), csp),
     );
   }
 

@@ -22,6 +22,7 @@ import { getRepositories } from "@/lib/application/client";
 import { manageSubscriptionButton, t, type Lang } from "@/lib/i18n";
 import { primaryButtonClass } from "@/lib/ui/button-styles";
 import { errorMessageClass } from "@/lib/ui/status-styles";
+import { errorFeedbackProps } from "@/lib/ui/feedback";
 
 // Ticket 048: lib/ui/status-styles.ts (--danger token) — was locally
 // defined before this ticket's status-token consolidation pass.
@@ -61,7 +62,7 @@ export function ManageSubscriptionButton({ lang }: { lang: Lang }) {
           {pending ? t(lang, manageSubscriptionButton.opening) : t(lang, manageSubscriptionButton.manage)}
         </button>
       </div>
-      {error && <p className={errorClass}>{error}</p>}
+      {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
     </div>
   );
 }

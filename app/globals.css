@@ -236,6 +236,48 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Ticket 069/071 (origin/master) introduced .auth-shell/.auth-orb-* for a
+   softer login/register background and .dashboard-shell/.dashboard-sidebar
+   for the actual product dashboard. The auth-screen treatment is kept —
+   narrow scope, login/register aren't "the Dashboard" the user's Ticket 048
+   brief means. .dashboard-shell/.dashboard-sidebar's strong multi-stop
+   radial-gradient backgrounds are deliberately NOT restored here: Ticket
+   048's user brief explicitly says "keine starken Gradients im Dashboard"
+   — merge conflict resolved 2026-09-02 in favor of that explicit, more
+   recent instruction. The class names stay wired in app/(dashboard)/
+   layout.tsx / DashboardNav.tsx (harmless without a matching rule) so
+   nothing needs touching there; only the visual treatment is dropped. */
+.auth-shell {
+  background:
+    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--brand) 13%, transparent) 0, transparent 30rem),
+    radial-gradient(circle at 88% 86%, color-mix(in srgb, var(--chart-project) 8%, transparent) 0, transparent 26rem),
+    var(--background);
+}
+
+.auth-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.auth-orb-one {
+  width: 28rem;
+  height: 28rem;
+  right: -12rem;
+  top: -10rem;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.5), rgba(99, 102, 241, 0));
+}
+
+.auth-orb-two {
+  width: 24rem;
+  height: 24rem;
+  left: -10rem;
+  bottom: -12rem;
+  background: radial-gradient(circle, rgba(235, 104, 52, 0.22), rgba(235, 104, 52, 0));
+}
+
+
 /* Ticket 048 — Animationen: the two "on mount" cases the ticket's AK
    spells out that a plain Tailwind `transition-*` utility can't cover
    (those only animate a CHANGE between two states of an already-mounted

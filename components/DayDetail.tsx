@@ -266,6 +266,14 @@ export function DayDetail({
   // free, no separate rollback logic needed.
   const [entries, setEntries] = useState(initialEntries);
   const [breakdown, setBreakdown] = useState(initialBreakdown);
+  const hasRunningEntry = entries.some((entry) => entry.endTime === null);
+  const [liveNowMs, setLiveNowMs] = useState(nowMs);
+
+  useEffect(() => {
+    if (!hasRunningEntry) return;
+    const interval = window.setInterval(() => setLiveNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [hasRunningEntry]);
 
   // Real (non-system) projects for the assign dropdown, fetched once,
   // lazily, and shared by every AssignTimeAction instance on this page —
@@ -337,7 +345,10 @@ export function DayDetail({
     );
   }
 
-  const timeline = buildTimeline(entries, nowMs);
+  const currentBreakdown = hasRunningEntry
+    ? computeBreakdown(initialBreakdown.day, entries, liveNowMs)
+    : breakdown;
+  const timeline = buildTimeline(entries, liveNowMs);
 
   // Ticket 044: null whenever no goal is set (dailyGoalHours undefined/
   // null/0) — see computeDailyGoalProgress's own doc. Kept out of the
@@ -345,7 +356,7 @@ export function DayDetail({
   // Aussage, der Fortschrittsbalken ist sekundär") — rendered as a small
   // caption + thin bar right underneath it instead.
   const goalProgress = computeDailyGoalProgress(
-    breakdown.totalSeconds,
+    currentBreakdown.totalSeconds,
     dailyGoalHours ?? null,
   );
 
@@ -359,14 +370,14 @@ export function DayDetail({
           {t(lang, dayDetail.totalAutomaticTime)}
         </p>
         <p className="font-mono text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl">
-          {formatDuration(breakdown.totalSeconds, locale)}
+          {formatDuration(currentBreakdown.totalSeconds, locale)}
         </p>
         {goalProgress && (
           <div className="mt-1 flex max-w-xs flex-col gap-1.5">
             <p className="text-sm text-text-secondary">
               {dailyGoalProgressLabel(
                 lang,
-                formatDuration(breakdown.totalSeconds, locale),
+                formatDuration(currentBreakdown.totalSeconds, locale),
                 formatDuration(goalProgress.goalSeconds, locale),
               )}
               {goalProgress.reached && <> · {t(lang, dayDetail.goalReached)}</>}
@@ -390,12 +401,12 @@ export function DayDetail({
           <SecondaryStat
             swatchClassName="bg-chart-project"
             label={t(lang, dayDetail.projectTime)}
-            value={formatDuration(breakdown.projectSeconds, locale)}
+            value={formatDuration(currentBreakdown.projectSeconds, locale)}
           />
           <SecondaryStat
             swatchClassName="bg-chart-standard"
             label={t(lang, dayDetail.unassignedTime)}
-            value={formatDuration(breakdown.unassignedSeconds, locale)}
+            value={formatDuration(currentBreakdown.unassignedSeconds, locale)}
           />
         </div>
       </section>

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubscriptionRepository } from "../subscription.repository";
 import type { Subscription, SubscriptionStatus } from "@/lib/domain/subscription";
-import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated";
+import { describeFunctionsError, invokeAuthenticated } from "./invoke-authenticated.ts";
 
 interface SubscriptionRow {
   status: SubscriptionStatus;

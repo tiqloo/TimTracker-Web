@@ -162,7 +162,7 @@ function ExportPage({
     <Page size={PAGE_SIZE} style={styles.page}>
       {isFirstPage ? (
         <>
-          <Text style={styles.title}>TimTracker – Zeitbericht</Text>
+          <Text style={styles.title}>Tiqloo – Zeitbericht</Text>
           <Text style={styles.period}>{periodLabel}</Text>
           <View style={styles.totals}>
             <TotalTile label="Automatikzeit" seconds={grandTotal.standardSeconds} />

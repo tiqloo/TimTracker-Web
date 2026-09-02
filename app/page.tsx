@@ -80,7 +80,7 @@ function SiteNav({ lang }: { lang: Lang }) {
           className="flex items-center gap-2 text-sm font-semibold tracking-tight"
         >
           <Mark />
-          TimTracker
+          Tiqloo
         </Link>
         <nav className="flex items-center gap-1">
           <Link
@@ -497,7 +497,7 @@ function SiteFooter({ lang }: { lang: Lang }) {
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold">
             <Mark />
-            TimTracker
+            Tiqloo
           </p>
           <p className="mt-1.5 max-w-sm text-sm text-foreground/60">
             {t(lang, home.footerSupport)}
@@ -513,7 +513,7 @@ function SiteFooter({ lang }: { lang: Lang }) {
         </div>
       </div>
       <p className="mx-auto mt-8 w-full max-w-5xl">
-        <TimeLabel>© {currentYear()} TimTracker</TimeLabel>
+        <TimeLabel>© {currentYear()} Tiqloo</TimeLabel>
       </p>
     </footer>
   );

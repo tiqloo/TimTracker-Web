@@ -9,7 +9,7 @@
 // module comment). Same split rationale as components/SettingsClient.tsx/
 // ProjectsClient.tsx: a Server Component does the fetch, a Client
 // Component does the interactivity.
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login, onAuthStateChange } from "@/lib/application/auth";
@@ -21,7 +21,9 @@ import {
   authInputClass,
   authSuccessClass,
 } from "@/components/AuthCard";
+import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 import { common, login as i18nLogin, t, type Lang } from "@/lib/i18n";
+import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
 
 // useSearchParams() (for ?redirectTo=) requires a Suspense boundary
 // around it for Next.js's static-render bailout, hence the wrapper below.
@@ -36,7 +38,10 @@ export function LoginForm({ lang }: { lang: Lang }) {
 function LoginFormInner({ lang }: { lang: Lang }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+  const redirectTo = useMemo(
+    () => normalizeDashboardRedirect(searchParams.get("redirectTo")),
+    [searchParams],
+  );
   // Set by components/SettingsClient.tsx after a successful "Account
   // löschen" (Ticket 018, Phase 1e) — confirms the deletion actually
   // happened rather than silently landing back on an unremarkable login
@@ -65,8 +70,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
       }
     });
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [redirectTo, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -103,13 +107,13 @@ function LoginFormInner({ lang }: { lang: Lang }) {
   return (
     <AuthCard title={t(lang, i18nLogin.title)}>
       {accountDeleted && (
-        <p className={`${authSuccessClass} mb-4`}>
+        <p {...successFeedbackProps} className={`${authSuccessClass} mb-4`}>
           {t(lang, i18nLogin.accountDeleted)}
         </p>
       )}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="email" className="text-sm font-medium">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="email" className="text-sm font-medium text-foreground/80">
             {t(lang, common.email)}
           </label>
           <input
@@ -123,12 +127,12 @@ function LoginFormInner({ lang }: { lang: Lang }) {
             className={authInputClass}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between">
-            <label htmlFor="password" className="text-sm font-medium">
+            <label htmlFor="password" className="text-sm font-medium text-foreground/80">
               {t(lang, common.password)}
             </label>
-            <Link href="/reset-password" className="text-xs underline">
+            <Link href="/reset-password" className="text-xs font-medium text-brand hover:underline">
               {t(lang, i18nLogin.forgotPassword)}
             </Link>
           </div>
@@ -143,14 +147,14 @@ function LoginFormInner({ lang }: { lang: Lang }) {
             className={authInputClass}
           />
         </div>
-        {error && <p className={authErrorClass}>{error}</p>}
+        {error && <p {...errorFeedbackProps} className={authErrorClass}>{error}</p>}
         <button type="submit" disabled={pending} className={authButtonClass}>
           {pending ? t(lang, i18nLogin.signingIn) : t(lang, i18nLogin.submit)}
         </button>
       </form>
-      <p className="mt-6 text-sm">
+      <p className="mt-8 border-t border-line pt-6 text-center text-sm text-text-secondary">
         {t(lang, i18nLogin.noAccountYet)}{" "}
-        <Link href="/register" className="underline">
+        <Link href="/register" className="font-semibold text-brand hover:underline">
           {t(lang, i18nLogin.registerLink)}
         </Link>
       </p>

@@ -147,8 +147,8 @@ export const dayDetail = {
   // tun") — noEntriesToday above stays the terse headline, this is the
   // added explanatory sentence, DayDetail renders both.
   noEntriesTodayDetail: {
-    de: "TimTracker erfasst deine Zeit automatisch, sobald du aktiv bist – dafür musst du nichts tun.",
-    en: "TimTracker tracks your time automatically while you're active — there's nothing you need to start yourself.",
+    de: "Tiqloo erfasst deine Zeit automatisch, sobald du aktiv bist – dafür musst du nichts tun.",
+    en: "Tiqloo tracks your time automatically while you're active — there's nothing you need to start yourself.",
   },
   noEntriesThisDay: {
     de: "Keine Zeiteinträge für diesen Tag.",
@@ -637,14 +637,14 @@ export const support = {
     de: "Öffnet dein E-Mail-Programm mit einer vorausgefüllten Nachricht. Falls sich nichts öffnet, schreib uns direkt an die Adresse oben.",
     en: "Opens your email app with a pre-filled message. If nothing opens, write to the address above directly.",
   },
-  requestMailSubject: { de: "TimTracker Support-Anfrage", en: "TimTracker Support Request" },
+  requestMailSubject: { de: "Tiqloo Support-Anfrage", en: "Tiqloo Support Request" },
   quickLinksTitle: { de: "Schnellzugriffe", en: "Quick Links" },
   feedbackTitle: { de: "Feedback teilen", en: "Share Feedback" },
   feedbackBody: {
     de: "Idee, Kritik oder Lob — wir lesen jede Nachricht.",
     en: "Idea, criticism, or praise — we read every message.",
   },
-  feedbackMailSubject: { de: "TimTracker Feedback", en: "TimTracker Feedback" },
+  feedbackMailSubject: { de: "Tiqloo Feedback", en: "Tiqloo Feedback" },
   // "Kontoinhaber" from the Personio reference is deliberately NOT
   // ported (B2B-only concept, no equivalent in TimTracker's one-person
   // accounts, see the ticket's AK) — this settings quick link is the
@@ -673,8 +673,8 @@ export const helpcenter = {
   pageTitle: { de: "Helpcenter", en: "Help Center" },
   backToSupport: { de: "← Zurück zu Support", en: "← Back to Support" },
   intro: {
-    de: "Antworten auf häufige Fragen zu TimTracker.",
-    en: "Answers to common questions about TimTracker.",
+    de: "Antworten auf häufige Fragen zu Tiqloo.",
+    en: "Answers to common questions about Tiqloo.",
   },
   faqs: [
     {
@@ -714,8 +714,8 @@ export const helpcenter = {
     },
     {
       question: {
-        de: "Kann ich TimTracker auch im Browser nutzen, nicht nur auf dem Mac?",
-        en: "Can I use TimTracker in the browser, not just on the Mac?",
+        de: "Kann ich Tiqloo auch im Browser nutzen, nicht nur auf dem Mac?",
+        en: "Can I use Tiqloo in the browser, not just on the Mac?",
       },
       answer: {
         de: "Ja — auf tiqloo.com meldest du dich mit demselben Account wie in der Mac-App an und siehst Heute, Historie, Projekte und Einstellungen direkt im Browser.",
@@ -752,8 +752,8 @@ export const changelog = {
       ticket: "027",
       title: { de: "Sicherheits-Header", en: "Security Headers" },
       body: {
-        de: "Die Verbindung zu TimTracker ist jetzt zusätzlich per Content-Security-Policy und weiteren Sicherheits-Headern abgesichert.",
-        en: "The connection to TimTracker is now additionally secured with a Content Security Policy and other security headers.",
+        de: "Die Verbindung zu Tiqloo ist jetzt zusätzlich per Content-Security-Policy und weiteren Sicherheits-Headern abgesichert.",
+        en: "The connection to Tiqloo is now additionally secured with a Content Security Policy and other security headers.",
       },
     },
     {
@@ -905,8 +905,8 @@ export const home = {
     en: "Time tracking, without thinking about it.",
   },
   heroBody: {
-    de: "TimTracker beobachtet Login, Sperren und Ruhezustand auf deinem Mac (Windows folgt) und erfasst deine Arbeitszeit automatisch — kein Start-/Stopp-Knopf, den du vergessen kannst. Welchem Projekt die Zeit gehört, ordnest du danach zu.",
-    en: "TimTracker watches login, lock, and sleep on your Mac (Windows coming soon) and tracks your work time automatically — no start/stop button to forget. Which project the time belongs to, you assign afterwards.",
+    de: "Tiqloo beobachtet Login, Sperren und Ruhezustand auf deinem Mac (Windows folgt) und erfasst deine Arbeitszeit automatisch — kein Start-/Stopp-Knopf, den du vergessen kannst. Welchem Projekt die Zeit gehört, ordnest du danach zu.",
+    en: "Tiqloo watches login, lock, and sleep on your Mac (Windows coming soon) and tracks your work time automatically — no start/stop button to forget. Which project the time belongs to, you assign afterwards.",
   },
   heroCtaStart: { de: "Kostenlos starten", en: "Start for Free" },
   heroCtaLogin: { de: "Anmelden", en: "Sign In" },
@@ -915,7 +915,7 @@ export const home = {
     en: "7 days free · no credit card required",
   },
 
-  timelineWindowTitle: { de: "TimTracker — Heute", en: "TimTracker — Today" },
+  timelineWindowTitle: { de: "Tiqloo — Heute", en: "Tiqloo — Today" },
   timelineSegmentPresent: { de: "Anwesend", en: "Present" },
   timelineSegmentBreak: { de: "Pause", en: "Break" },
   timelineSegmentClient: { de: "Client X", en: "Client X" },
@@ -941,7 +941,7 @@ export const home = {
     en: "View your history and export the selected period as CSV — for Excel, Numbers, or accounting.",
   },
 
-  featuresTitle: { de: "Was TimTracker macht", en: "What TimTracker Does" },
+  featuresTitle: { de: "Was Tiqloo macht", en: "What Tiqloo Does" },
   feature1Title: { de: "Automatisches Tracking", en: "Automatic Tracking" },
   feature1Body: {
     de: "Erfasst Anwesenheit anhand von Login, Wake/Sleep und Bildschirmsperre — kein manuelles Starten oder Stoppen nötig.",
@@ -992,8 +992,8 @@ export const home = {
     en: "Built for freelancers and developers who forget to track",
   },
   narrativeBody1: {
-    de: "Ein manueller Timer wird im Arbeitsalltag zuverlässig vergessen — beim Kunden-Call, beim Debuggen, beim Wechsel zwischen Projekten. TimTracker setzt deshalb nicht auf Disziplin, sondern erfasst Anwesenheit automatisch im Hintergrund, sobald du am Rechner bist.",
-    en: "A manual timer reliably gets forgotten in everyday work — during a client call, while debugging, when switching between projects. TimTracker doesn't rely on discipline, it tracks presence automatically in the background as soon as you're at your computer.",
+    de: "Ein manueller Timer wird im Arbeitsalltag zuverlässig vergessen — beim Kunden-Call, beim Debuggen, beim Wechsel zwischen Projekten. Tiqloo setzt deshalb nicht auf Disziplin, sondern erfasst Anwesenheit automatisch im Hintergrund, sobald du am Rechner bist.",
+    en: "A manual timer reliably gets forgotten in everyday work — during a client call, while debugging, when switching between projects. Tiqloo doesn't rely on discipline, it tracks presence automatically in the background as soon as you're at your computer.",
   },
   narrativeTag2: { de: "Ehrlich", en: "Honest" },
   narrativeHeading2: {
