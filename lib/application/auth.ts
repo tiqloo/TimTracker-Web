@@ -1,6 +1,7 @@
 // Application core (use cases) — mirrors SupabaseAuthService.swift.
 // Driving adapters (pages) call these functions, never
 // lib/repositories/* or lib/composition-root.ts directly.
+import { cache } from "react";
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
 import type { Profile } from "@/lib/domain/profile";
@@ -81,9 +82,19 @@ export async function deleteAccount(repos: Repositories): Promise<void> {
 // plus the DashboardNav identity display. See
 // lib/repositories/auth.repository.ts's getProfile() doc for the field
 // contract.
-export async function getProfile(repos: Repositories): Promise<Profile> {
+//
+// Ticket 072: wrapped in React's cache() — app/(dashboard)/layout.tsx
+// (display name in DashboardNav) and several page.tsx files (settings,
+// get-started, support) each call this independently on the same
+// navigation, and repos.auth.getProfile() is a real Supabase Auth network
+// call (client.auth.getUser(), revalidated server-side — see
+// lib/repositories/supabase/auth.repository.ts), not a local read.
+// cache() collapses those into one call per request; requires
+// getRepositories() (server.ts) to also be cache()-wrapped so `repos` is
+// the same instance across call sites, not just structurally equal.
+export const getProfile = cache(async (repos: Repositories): Promise<Profile> => {
   return repos.auth.getProfile();
-}
+});
 
 // Normalizes the raw text-input value (trim, empty/whitespace-only -> null)
 // before persisting — this is the one call site that does so, so a page

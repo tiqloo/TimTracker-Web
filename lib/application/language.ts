@@ -5,6 +5,7 @@
 // every open window without a request" — see language.ts's SCOPE NOTE and
 // the Phase 1e ticket section for the full reasoning). Driving adapters
 // (pages) call these functions, never lib/repositories/* directly.
+import { cache } from "react";
 import type { Repositories } from "@/lib/repositories/repositories";
 import { resolveLanguageCode, type AppLanguage } from "@/lib/domain/language";
 export type { AppLanguage } from "@/lib/domain/language";
@@ -28,10 +29,23 @@ export async function setLanguagePreference(
 // next/headers' headers()) rather than here, keeping this file free of
 // any Next.js-specific API — same reasoning as every other
 // lib/application/* file staying framework-agnostic where it can.
-export async function getEffectiveLanguageCode(
+//
+// Ticket 072: wrapped in React's cache() — app/(dashboard)/layout.tsx and
+// the active page.tsx both call this independently on every navigation
+// (documented convention, see layout.tsx's own comment). repos.language
+// is a cookie read (lib/repositories/cookie/language.server.ts), not a
+// network round trip, so this specific dedupe is a minor, mostly
+// consistency-motivated win by itself (identical result guaranteed from
+// one cookies() snapshot instead of two) — the real payoff of the same
+// pattern is getProfile()/getSubscriptionStatus() below, which DO hit
+// Supabase. cache() dedupes calls with the same arguments within one
+// request; relies on getRepositories() (server.ts) also being
+// cache()-wrapped so `repos` is reference-equal between the layout's call
+// and the page's call, not just the header string.
+export const getEffectiveLanguageCode = cache(async (
   repos: Repositories,
   acceptLanguageHeader: string | null,
-): Promise<"de" | "en"> {
+): Promise<"de" | "en"> => {
   const preference = await getLanguagePreference(repos);
   return resolveLanguageCode(preference, acceptLanguageHeader);
-}
+});
