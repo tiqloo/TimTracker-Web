@@ -48,6 +48,15 @@ export async function getEntriesForDay(
   return repos.timeEntries.getForDay(day);
 }
 
+export async function getEntriesForRange(
+  repos: Repositories,
+  fromDay: string,
+  toDay: string,
+  projectId?: string,
+): Promise<TimeEntry[]> {
+  return repos.timeEntries.getForRange(fromDay, toDay, projectId);
+}
+
 export async function getTodayBreakdown(
   repos: Repositories,
 ): Promise<DailyBreakdown> {

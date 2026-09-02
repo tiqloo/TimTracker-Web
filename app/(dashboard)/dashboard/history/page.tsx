@@ -8,16 +8,13 @@ import { languageCodeToLocale } from "@/lib/domain/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import {
   addDaysIso,
-  buildChartBars,
   formatDayLabel,
   formatDuration,
-  resolveChartGranularity,
   resolveHistoryRange,
   startOfMonthIso,
   startOfWeekIso,
   startOfYearIso,
 } from "@/lib/format";
-import { HistoryChart } from "@/components/HistoryChart";
 import { HistoryDateRangePicker } from "@/components/HistoryDateRangePicker";
 import { AccessGate } from "@/components/AccessGate";
 import { history, projects as projectsI18n, t, type Translated } from "@/lib/i18n";
@@ -73,14 +70,6 @@ export default async function HistoryPage({
 
   const breakdowns = await getHistory(repos, from, to, projectId);
   const days = breakdowns.slice().sort((a, b) => b.day.localeCompare(a.day));
-
-  // Chart granularity adapts to the selected range's length, not to which
-  // preset was clicked — so a hand-picked long custom range also falls
-  // back to monthly bars, not just the "Dieses Jahr" preset specifically.
-  // See lib/format.ts#resolveChartGranularity for the exact threshold and
-  // reasoning.
-  const granularity = resolveChartGranularity(from, to);
-  const chartBars = buildChartBars(breakdowns, from, to, granularity);
 
   const presets: { label: Translated; from: string; to: string }[] = [
     { label: history.last30Days, from: addDaysIso(today, -29), to: today },
@@ -171,18 +160,6 @@ export default async function HistoryPage({
           {activeProject && ` · ${activeProject.name}`}
         </span>
       </p>
-
-      <HistoryChart
-        bars={chartBars}
-        granularity={granularity}
-        lang={lang}
-        activeProjectName={activeProject?.name}
-        // Ticket 040: recolor the stacked bar's project segment to this
-        // one filtered project's own color — see HistoryChart.tsx's
-        // activeProjectColor comment for why this is scoped to exactly
-        // the filtered case and not a general per-project breakdown.
-        activeProjectColor={activeProject?.colorHex}
-      />
 
       {days.length === 0 ? (
         <p className="text-sm text-foreground/60">

@@ -8,9 +8,10 @@
 // CLAUDE.md's "Resolved 2026-08-25" entry) and calls straight into
 // lib/application/language.ts / lib/application/auth.ts — never
 // lib/repositories/* directly.
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Monitor, Moon, Palette, Sun } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/client";
 import { setLanguagePreference, type AppLanguage } from "@/lib/application/language";
@@ -41,6 +42,7 @@ import {
   profile as i18nProfile,
   settings,
   t,
+  themeLabels,
   type Lang,
 } from "@/lib/i18n";
 import {
@@ -50,6 +52,8 @@ import {
 } from "@/lib/ui/button-styles";
 import { errorMessageClass } from "@/lib/ui/status-styles";
 import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
+import { applyThemePreference } from "@/components/ThemeInitializer";
+import { APP_THEMES, parseTheme, THEME_STORAGE_KEY, type AppTheme } from "@/lib/domain/theme";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-line bg-background/60 px-3.5 text-sm outline-none transition-all duration-150 hover:border-foreground/20 focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-brand/10 disabled:opacity-50";
@@ -92,6 +96,7 @@ export function SettingsClient({
     <div className="grid gap-5 lg:grid-cols-2">
       <ProfileSection profile={profile} lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
+      <DesignSection lang={lang} />
       {/* Ticket 044: placed right after LanguageSection, per the ticket's
           AK ("nahe dem bestehenden 'Profil'-/Sprache-Abschnitt") — groups
           with the other plain user preferences (Sprache, Tagesziel) before
@@ -105,6 +110,66 @@ export function SettingsClient({
       <DataExportSection lang={lang} />
       <DeleteAccountSection lang={lang} />
     </div>
+  );
+}
+
+function DesignSection({ lang }: { lang: Lang }) {
+  const theme = useSyncExternalStore(
+    (notify) => {
+      window.addEventListener("tiqloo-theme-change", notify);
+      window.addEventListener("storage", notify);
+      return () => {
+        window.removeEventListener("tiqloo-theme-change", notify);
+        window.removeEventListener("storage", notify);
+      };
+    },
+    () => parseTheme(window.localStorage.getItem(THEME_STORAGE_KEY)),
+    () => "system",
+  );
+
+  function handleThemeChange(nextTheme: AppTheme) {
+    if (nextTheme === "system") window.localStorage.removeItem(THEME_STORAGE_KEY);
+    else window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    applyThemePreference(nextTheme);
+    window.dispatchEvent(new Event("tiqloo-theme-change"));
+  }
+
+  const icons = { system: Monitor, light: Sun, dark: Moon } as const;
+
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)]">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand">
+          <Palette size={20} strokeWidth={1.8} aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">{t(lang, settings.designSectionTitle)}</h2>
+          <p className="mt-0.5 text-xs text-text-secondary">{t(lang, settings.designSectionBody)}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 rounded-2xl bg-paper p-1.5" role="radiogroup" aria-label={t(lang, settings.designSectionTitle)}>
+        {APP_THEMES.map((option) => {
+          const Icon = icons[option];
+          return (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={theme === option}
+              onClick={() => handleThemeChange(option)}
+              className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl px-2 text-sm font-medium outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-brand/50 ${
+                theme === option
+                  ? "bg-surface text-brand shadow-[0_6px_18px_-12px_rgba(24,24,23,0.45)]"
+                  : "text-text-secondary hover:bg-surface/60 hover:text-foreground"
+              }`}
+            >
+              <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
+              {t(lang, themeLabels[option])}
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

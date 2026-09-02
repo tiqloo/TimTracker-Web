@@ -70,6 +70,7 @@ export const common = {
 export const nav = {
   today: { de: "Heute", en: "Today" },
   history: { de: "Historie", en: "History" },
+  analytics: { de: "Auswertung", en: "Analytics" },
   projects: { de: "Projekte", en: "Projects" },
   // Ticket 030 (TimTracker-Starter repo) — new nav entry, own icon (see
   // DashboardNav.tsx's SupportIcon), otherwise same flat-link treatment
@@ -344,6 +345,15 @@ export const today = {
 
 export const history = {
   pageTitle: { de: "Historie", en: "History" },
+  analyticsTitle: { de: "Auswertung", en: "Analytics" },
+  analyticsDescription: { de: "Arbeitszeiten, Trends und Projektanteile auf einen Blick.", en: "Working time, trends, and project shares at a glance." },
+  periodOverview: { de: "Zeitraum im Überblick", en: "Period overview" },
+  totalHours: { de: "Arbeitszeit gesamt", en: "Total working time" },
+  averagePerDay: { de: "Ø pro aktivem Tag", en: "Average per active day" },
+  projectCount: { de: "Projekte mit Arbeitszeit", en: "Projects with tracked time" },
+  calendarView: { de: "Arbeitskalender", en: "Work calendar" },
+  workTimeTrend: { de: "Arbeitszeit-Verlauf", en: "Working-time trend" },
+  projectOverview: { de: "Zeit nach Projekten", en: "Time by project" },
   last30Days: { de: "Letzte 30 Tage", en: "Last 30 Days" },
   thisWeek: { de: "Diese Woche", en: "This Week" },
   thisMonth: { de: "Dieser Monat", en: "This Month" },
@@ -484,6 +494,11 @@ export const settings = {
   // the main settings page — see SettingsClient.tsx's SubscriptionSection.
   subscriptionSectionTitle: { de: "Abo", en: "Subscription" },
   languageSectionTitle: { de: "Sprache", en: "Language" },
+  designSectionTitle: { de: "Design", en: "Appearance" },
+  designSectionBody: {
+    de: "Wähle, wie Tiqloo für dich aussehen soll.",
+    en: "Choose how Tiqloo should look for you.",
+  },
   // Split around the <code>&lt;html lang&gt;</code> markup the component
   // renders inline — see SettingsClient.tsx's LanguageSection.
   languageInfoPrefix: {
@@ -560,6 +575,12 @@ export const settings = {
   deleteConfirmPrefix: { de: "Gib", en: "Type" },
   deleteConfirmSuffix: { de: "ein, um zu bestätigen:", en: "to confirm:" },
 } satisfies Record<string, Translated>;
+
+export const themeLabels = {
+  system: { de: "System", en: "System" },
+  light: { de: "Hell", en: "Light" },
+  dark: { de: "Dunkel", en: "Dark" },
+} satisfies Record<"system" | "light" | "dark", Translated>;
 
 // --- app/(dashboard)/dashboard/settings/billing/page.tsx --------------
 
@@ -864,6 +885,49 @@ export const register = {
   goToLogin: { de: "Zum Login", en: "Go to Login" },
 } satisfies Record<string, Translated>;
 
+// --- app/(dashboard)/dashboard/get-started ---------------------------
+
+export const onboarding = {
+  eyebrow: { de: "ERSTE SCHRITTE", en: "GET STARTED" },
+  title: { de: "Tiqloo einrichten", en: "Set up Tiqloo" },
+  intro: {
+    de: "Dein Konto ist bereit. Verbinde jetzt die Mac-App, damit deine Arbeitszeit automatisch im Web erscheint.",
+    en: "Your account is ready. Connect the Mac app so your work time appears on the web automatically.",
+  },
+  progress: { de: "Einrichtungsfortschritt", en: "Setup progress" },
+  accountTitle: { de: "Konto bestätigt", en: "Account confirmed" },
+  accountBody: { de: "Angemeldet als", en: "Signed in as" },
+  downloadTitle: { de: "Mac-App laden", en: "Download the Mac app" },
+  downloadBody: {
+    de: "Lade ausschließlich die aktuelle, signierte Testversion herunter.",
+    en: "Only download the current signed beta version.",
+  },
+  downloadAction: { de: "Tiqloo für macOS laden", en: "Download Tiqloo for macOS" },
+  downloadUnavailable: {
+    de: "Der geprüfte Mac-Download wird gerade vorbereitet. Wir schalten ihn erst frei, wenn Signatur und Notarisierung bestätigt sind.",
+    en: "The verified Mac download is being prepared. It will only be enabled after signing and notarization are confirmed.",
+  },
+  installTitle: { de: "Installieren und anmelden", en: "Install and sign in" },
+  installBody: {
+    de: "Öffne Tiqloo und melde dich mit derselben E-Mail-Adresse an. Aktiviere anschließend die benötigten macOS-Berechtigungen.",
+    en: "Open Tiqloo and sign in with the same email address. Then enable the required macOS permissions.",
+  },
+  syncTitle: { de: "Ersten Eintrag synchronisieren", en: "Sync your first entry" },
+  syncPending: {
+    de: "Sobald Tiqloo Aktivität erfasst, erscheint der erste Eintrag automatisch hier.",
+    en: "As soon as Tiqloo records activity, your first entry will appear here automatically.",
+  },
+  syncDone: {
+    de: "Der erste Zeiteintrag ist angekommen. Tiqloo ist verbunden.",
+    en: "Your first time entry has arrived. Tiqloo is connected.",
+  },
+  openToday: { de: "Zur Heute-Übersicht", en: "Open Today" },
+  trialPrefix: { de: "Deine Testphase läuft noch", en: "Your trial has" },
+  trialSuffix: { de: "Tage.", en: "days remaining." },
+  done: { de: "Erledigt", en: "Done" },
+  next: { de: "Als Nächstes", en: "Next" },
+} satisfies Record<string, Translated>;
+
 // --- app/(auth)/reset-password (components/ResetPasswordForm.tsx) ------
 
 export const resetPassword = {
@@ -894,10 +958,15 @@ export const resetPassword = {
 // --- app/page.tsx (public homepage) ------------------------------------
 
 export const home = {
+  navPrimaryLabel: { de: "Hauptnavigation", en: "Primary navigation" },
+  navAbout: { de: "Das ist Tiqloo", en: "About Tiqloo" },
   navFeatures: { de: "Funktionen", en: "Features" },
   navPricing: { de: "Preis", en: "Pricing" },
   navSignIn: { de: "Anmelden", en: "Sign In" },
   navSignUp: { de: "Registrieren", en: "Sign Up" },
+  navTryTiqloo: { de: "Tiqloo ausprobieren", en: "Try Tiqloo" },
+  socialLabel: { de: "Tiqloo in sozialen Medien", en: "Tiqloo on social media" },
+  socialUnavailable: { de: "Bald verfügbar", en: "Coming soon" },
 
   heroEyebrow: { de: "Läuft im Hintergrund", en: "Runs in the Background" },
   heroTitle: {
@@ -966,6 +1035,21 @@ export const home = {
   feature5Body: {
     de: "Voller Funktionsumfang während der Testphase, danach ein einfaches Abo — jederzeit über die Einstellungen verwaltbar.",
     en: "Full functionality during the trial, then a simple subscription — manageable anytime via settings.",
+  },
+
+  downloadEyebrow: { de: "Desktop-App", en: "Desktop app" },
+  downloadTitle: { de: "Tiqloo für Mac", en: "Tiqloo for Mac" },
+  downloadBody: {
+    de: "Lade die signierte und von Apple geprüfte Tiqloo-App herunter. Öffne danach das DMG und ziehe Tiqloo in den Programme-Ordner.",
+    en: "Download the signed and Apple-notarized Tiqloo app. Then open the DMG and drag Tiqloo into Applications.",
+  },
+  downloadAction: { de: "Für Mac herunterladen", en: "Download for Mac" },
+  downloadVersion: { de: "Version", en: "Version" },
+  downloadRequirement: { de: "Voraussetzung", en: "Requirement" },
+  downloadSize: { de: "Größe", en: "Size" },
+  downloadUnavailable: {
+    de: "Der sichere Mac-Download wird gerade signiert und von Apple geprüft. Er erscheint hier automatisch, sobald die Freigabe abgeschlossen ist.",
+    en: "The secure Mac download is currently being signed and verified by Apple. It will appear here automatically once release approval is complete.",
   },
 
   pricingEyebrow: { de: "Preis", en: "Pricing" },

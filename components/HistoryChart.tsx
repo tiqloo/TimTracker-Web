@@ -46,6 +46,7 @@ import { formatDuration } from "@/lib/format";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import {
   historyChart,
+  history,
   historyChartAriaLabel,
   historyChartTooltip,
   t,
@@ -112,7 +113,8 @@ export function HistoryChart({
   const svgWidth = bars.length * (BAR_WIDTH + BAR_GAP);
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
+    <section className="rounded-2xl border border-line/80 bg-surface/90 p-5 shadow-[0_12px_35px_rgba(22,28,45,0.04)] sm:p-6" aria-labelledby="work-time-trend-title">
+      <h2 id="work-time-trend-title" className="mb-4 text-lg font-semibold">{t(lang, history.workTimeTrend)}</h2>
       <div className="mb-3 flex items-center gap-4 font-mono text-xs text-foreground/60">
         <Legend swatchClassName="bg-chart-standard" label={t(lang, historyChart.automaticTime)} />
         <Legend
@@ -217,7 +219,7 @@ export function HistoryChart({
           })}
         </svg>
       </div>
-    </div>
+    </section>
   );
 }
 

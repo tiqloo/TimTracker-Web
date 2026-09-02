@@ -4,12 +4,15 @@ import {
   ArrowRight,
   AppWindow,
   CircleCheck,
+  ChevronDown,
   Clock,
   Download,
   Tag,
 } from "lucide-react";
+import { faInstagram, faLinkedinIn, faTiktok } from "@fortawesome/free-brands-svg-icons";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { getPublicMacosRelease, type MacosRelease } from "@/lib/domain/macos-release";
 import { home, t, type Lang } from "@/lib/i18n";
 
 // Public marketing homepage — "/" itself, unprotected (see proxy.ts; the
@@ -41,14 +44,16 @@ export default async function HomePage() {
   const repos = await getRepositories();
   const headerList = await headers();
   const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  const release = getPublicMacosRelease();
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
+    <div className="marketing-shell flex min-h-screen flex-1 flex-col text-foreground">
       <SiteNav lang={lang} />
       <main className="flex flex-1 flex-col">
-        <Hero lang={lang} />
+        <Hero lang={lang} release={release} />
         <HowItWorks lang={lang} />
         <Features lang={lang} />
+        <MacDownload lang={lang} release={release} />
         <Pricing lang={lang} />
         <Narrative lang={lang} />
       </main>
@@ -71,43 +76,98 @@ function Mark() {
   return <Clock size={18} strokeWidth={1.5} aria-hidden="true" />;
 }
 
+function BrandIcon({
+  icon,
+}: {
+  icon: { icon: readonly [number, number, readonly string[], string, string | readonly string[]] };
+}) {
+  const [width, height, , , pathData] = icon.icon;
+  const paths = typeof pathData === "string" ? [pathData] : pathData;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="20" height="20" fill="currentColor" aria-hidden="true">
+      {paths.map((path) => <path key={path} d={path} />)}
+    </svg>
+  );
+}
+
+function SocialIcons({ lang, compact = false }: { lang: Lang; compact?: boolean }) {
+  const unavailable = t(lang, home.socialUnavailable);
+  const iconClass = `grid place-items-center rounded-full text-foreground/65 transition-colors ${
+    compact ? "h-9 w-9" : "h-10 w-10"
+  }`;
+
+  return (
+    <div className="flex items-center gap-0.5" aria-label={t(lang, home.socialLabel)}>
+      <span className={iconClass} title={`Instagram · ${unavailable}`} aria-label={`Instagram · ${unavailable}`}>
+        <BrandIcon icon={faInstagram} />
+      </span>
+      <span className={iconClass} title={`TikTok · ${unavailable}`} aria-label={`TikTok · ${unavailable}`}>
+        <BrandIcon icon={faTiktok} />
+      </span>
+      <span className={iconClass} title={`LinkedIn · ${unavailable}`} aria-label={`LinkedIn · ${unavailable}`}>
+        <BrandIcon icon={faLinkedinIn} />
+      </span>
+    </div>
+  );
+}
+
 function SiteNav({ lang }: { lang: Lang }) {
   return (
-    <header className="border-b border-line px-4 sm:px-6">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between">
+    <header className="sticky top-0 z-40 border-b border-line/80 bg-surface/95 px-4 backdrop-blur-xl sm:px-6">
+      <div className="mx-auto flex h-[72px] w-full max-w-7xl items-center gap-7 lg:h-[82px]">
         <Link
           href="/"
-          className="flex items-center gap-2 text-sm font-semibold tracking-tight"
+          className="flex shrink-0 items-center gap-2.5 text-base font-bold tracking-[-0.025em]"
         >
-          <Mark />
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white shadow-[0_10px_28px_-14px_rgba(82,97,230,0.75)]">
+            <Mark />
+          </span>
           Tiqloo
         </Link>
-        <nav className="flex items-center gap-1">
+
+        <nav className="hidden h-full items-stretch gap-1 md:flex" aria-label={t(lang, home.navPrimaryLabel)}>
           <Link
-            href="#features"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground sm:inline-block"
+            href="#how-it-works"
+            className="group relative flex items-center gap-2 px-4 text-[15px] font-medium text-foreground transition-colors hover:text-brand"
           >
-            {t(lang, home.navFeatures)}
+            {t(lang, home.navAbout)}
+            <ChevronDown size={16} strokeWidth={2} className="transition-transform duration-150 group-hover:translate-y-0.5" aria-hidden="true" />
+            <span className="absolute right-4 bottom-0 left-4 h-0.5 origin-left scale-x-0 rounded-full bg-brand transition-transform duration-200 group-hover:scale-x-100" />
           </Link>
           <Link
             href="#pricing"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground sm:inline-block"
+            className="group relative flex items-center px-4 text-[15px] font-medium text-foreground transition-colors hover:text-brand"
           >
             {t(lang, home.navPricing)}
+            <span className="absolute right-4 bottom-0 left-4 h-0.5 origin-left scale-x-0 rounded-full bg-brand transition-transform duration-200 group-hover:scale-x-100" />
           </Link>
           <Link
+            href="#features"
+            className="group relative flex items-center gap-2 px-4 text-[15px] font-medium text-foreground transition-colors hover:text-brand"
+          >
+            {t(lang, home.navFeatures)}
+            <ChevronDown size={16} strokeWidth={2} className="transition-transform duration-150 group-hover:translate-y-0.5" aria-hidden="true" />
+            <span className="absolute right-4 bottom-0 left-4 h-0.5 origin-left scale-x-0 rounded-full bg-brand transition-transform duration-200 group-hover:scale-x-100" />
+          </Link>
+        </nav>
+
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="hidden lg:block">
+            <SocialIcons lang={lang} compact />
+          </div>
+          <Link
             href="/login"
-            className="rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground"
+            className="hidden rounded-full px-4 py-2.5 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-paper sm:inline-flex"
           >
             {t(lang, home.navSignIn)}
           </Link>
           <Link
             href="/register"
-            className="rounded-md bg-brand px-3.5 py-1.5 text-sm font-medium text-background transition-colors duration-150 hover:bg-brand/90"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-white shadow-[0_12px_30px_-16px_rgba(82,97,230,0.9)] transition-all duration-150 hover:-translate-y-0.5 hover:bg-brand/90 sm:px-7"
           >
-            {t(lang, home.navSignUp)}
+            {t(lang, home.navTryTiqloo)}
           </Link>
-        </nav>
+        </div>
       </div>
     </header>
   );
@@ -221,9 +281,9 @@ function DayTimeline({ lang }: { lang: Lang }) {
   );
 }
 
-function Hero({ lang }: { lang: Lang }) {
+function Hero({ lang, release }: { lang: Lang; release: MacosRelease | null }) {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
+    <section className="marketing-hero px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
         <div>
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
@@ -250,6 +310,15 @@ function Hero({ lang }: { lang: Lang }) {
               {t(lang, home.heroCtaStart)}
               <ArrowIcon />
             </Link>
+            {release && (
+              <a
+                href={release.downloadUrl}
+                className="inline-flex items-center gap-2 rounded-md border border-brand/25 bg-brand-soft px-5 py-2.5 text-sm font-medium text-brand transition-colors duration-150 hover:bg-brand-soft/70"
+              >
+                <Download size={16} aria-hidden="true" />
+                {t(lang, home.downloadAction)}
+              </a>
+            )}
             <Link
               href="/login"
               className="inline-flex items-center gap-2 rounded-md border border-line px-5 py-2.5 text-sm font-medium transition-colors duration-150 hover:bg-paper"
@@ -262,6 +331,38 @@ function Hero({ lang }: { lang: Lang }) {
           </p>
         </div>
         <DayTimeline lang={lang} />
+      </div>
+    </section>
+  );
+}
+
+function MacDownload({ lang, release }: { lang: Lang; release: MacosRelease | null }) {
+  return (
+    <section id="download" className="marketing-section-muted scroll-mt-[82px] border-y border-line/70 px-4 py-14 sm:px-6 sm:py-20">
+      <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <p className="font-mono text-xs tracking-wide text-brand uppercase">{t(lang, home.downloadEyebrow)}</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{t(lang, home.downloadTitle)}</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/65 sm:text-base">{t(lang, home.downloadBody)}</p>
+          {release ? (
+            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-foreground/65">
+              <div><dt className="inline font-medium text-foreground">{t(lang, home.downloadVersion)} </dt><dd className="inline">{release.version}</dd></div>
+              <div><dt className="inline font-medium text-foreground">{t(lang, home.downloadRequirement)} </dt><dd className="inline">macOS {release.minimumMacos}+</dd></div>
+              <div><dt className="inline font-medium text-foreground">{t(lang, home.downloadSize)} </dt><dd className="inline">{release.fileSize}</dd></div>
+            </dl>
+          ) : (
+            <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{t(lang, home.downloadUnavailable)}</p>
+          )}
+        </div>
+        {release && (
+          <div className="flex flex-col items-start gap-3 lg:items-end">
+            <a href={release.downloadUrl} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-brand px-6 font-semibold text-white shadow-[0_14px_32px_-18px_rgba(82,97,230,0.9)] transition-all hover:-translate-y-0.5 hover:bg-brand/90">
+              <Download size={18} aria-hidden="true" />
+              {t(lang, home.downloadAction)}
+            </a>
+            <code className="max-w-72 break-all text-right text-[10px] text-foreground/45" title={release.sha256}>SHA-256 {release.sha256}</code>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -281,7 +382,7 @@ function steps(lang: Lang): { title: string; body: string }[] {
 
 function HowItWorks({ lang }: { lang: Lang }) {
   return (
-    <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
+    <section id="how-it-works" className="marketing-section-muted scroll-mt-[82px] border-y border-line/70 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {t(lang, home.howItWorksTitle)}
@@ -341,7 +442,7 @@ function features(lang: Lang): {
 
 function Features({ lang }: { lang: Lang }) {
   return (
-    <section id="features" className="scroll-mt-14 px-4 py-14 sm:px-6 sm:py-20">
+    <section id="features" className="scroll-mt-[82px] px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {t(lang, home.featuresTitle)}
@@ -390,7 +491,7 @@ function pricingFeatures(lang: Lang): string[] {
 
 function Pricing({ lang }: { lang: Lang }) {
   return (
-    <section id="pricing" className="scroll-mt-14 border-t border-line px-4 py-14 sm:px-6 sm:py-20">
+    <section id="pricing" className="marketing-section-muted scroll-mt-[82px] border-y border-line/70 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-5xl">
         <div className="mx-auto max-w-xl text-center">
           <p className="font-mono text-xs tracking-wide text-foreground/50 uppercase">
@@ -455,7 +556,7 @@ function narrativeSections(lang: Lang): { tag: string; heading: string; body: st
 
 function Narrative({ lang }: { lang: Lang }) {
   return (
-    <section className="border-t border-line bg-paper px-4 py-14 sm:px-6 sm:py-20">
+    <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-12">
         {narrativeSections(lang).map((section) => (
           <div
@@ -503,7 +604,8 @@ function SiteFooter({ lang }: { lang: Lang }) {
             {t(lang, home.footerSupport)}
           </p>
         </div>
-        <div className="flex items-center gap-5 text-sm">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm">
+          <SocialIcons lang={lang} />
           <Link href="/login" className="text-text-secondary transition-colors duration-150 hover:text-foreground">
             {t(lang, home.navSignIn)}
           </Link>
