@@ -35,7 +35,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, CircleHelp, Clock } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
@@ -53,12 +53,16 @@ const focusRingClass =
 // plain text, unchanged, rather than retrofitting icons everywhere just
 // for consistency's sake — out of scope for this ticket. `icon` is
 // therefore optional, not a new shared convention.
-const NAV_LINKS: { href: string; label: Translated; icon?: React.ComponentType }[] = [
-  { href: "/dashboard", label: nav.today },
-  { href: "/dashboard/history", label: nav.history },
-  { href: "/dashboard/projects", label: nav.projects },
+const NAV_LINKS: {
+  href: string;
+  label: Translated;
+  icon?: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+}[] = [
+  { href: "/dashboard", label: nav.today, icon: CalendarDays },
+  { href: "/dashboard/history", label: nav.history, icon: History },
+  { href: "/dashboard/projects", label: nav.projects, icon: FolderKanban },
   { href: "/dashboard/support", label: nav.support, icon: SupportIcon },
-  { href: "/dashboard/settings", label: nav.settings },
+  { href: "/dashboard/settings", label: nav.settings, icon: Settings },
 ];
 
 // Ticket 048: hand-drawn Mark()/SupportIcon()/ChevronIcon() SVGs replaced
@@ -81,8 +85,8 @@ function Mark() {
   return <Clock size={18} strokeWidth={1.5} aria-hidden="true" />;
 }
 
-function SupportIcon() {
-  return <CircleHelp size={16} strokeWidth={1.75} aria-hidden="true" />;
+function SupportIcon({ size = 16, strokeWidth = 1.75 }: { size?: number; strokeWidth?: number }) {
+  return <CircleHelp size={size} strokeWidth={strokeWidth} aria-hidden="true" />;
 }
 
 function ChevronIcon() {
@@ -99,11 +103,17 @@ function UserMenu({
   displayName,
   pending,
   onLogout,
+  placement = "down",
+  tone = "light",
+  compact = false,
 }: {
   lang: Lang;
   displayName: string;
   pending: boolean;
   onLogout: () => void;
+  placement?: "up" | "down";
+  tone?: "light" | "dark";
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -140,21 +150,38 @@ function UserMenu({
   const itemClass = `block rounded-md px-3 py-2 text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground ${focusRingClass}`;
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
+    <div
+      ref={containerRef}
+      className="relative shrink-0"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="dashboard-user-menu"
-        className={`flex min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors duration-150 hover:text-foreground ${focusRingClass}`}
+        aria-label={compact ? displayName : undefined}
+        className={`flex min-w-0 items-center gap-2 rounded-xl border border-transparent py-1.5 pr-2 pl-1.5 text-sm transition-all duration-150 ${focusRingClass} ${
+          tone === "dark"
+            ? "text-white/65 hover:border-white/10 hover:bg-white/5 hover:text-white"
+            : "text-text-secondary hover:border-line hover:bg-surface hover:text-foreground"
+        }`}
       >
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[11px] font-bold uppercase ${tone === "dark" ? "bg-white/10 text-white" : "bg-brand-soft text-brand"}`}>
+          {displayName.trim().charAt(0) || "T"}
+        </span>
         {/* Ticket 024's truncate rule, reused verbatim per this ticket's
             own Edge Cases section rather than reinvented. */}
-        <span className="min-w-0 max-w-[8rem] truncate sm:max-w-[14rem]" title={displayName}>
-          {displayName}
-        </span>
-        <ChevronIcon />
+        {!compact && (
+          <>
+            <span className="min-w-0 max-w-[8rem] truncate sm:max-w-[14rem]" title={displayName}>
+              {displayName}
+            </span>
+            <ChevronIcon />
+          </>
+        )}
       </button>
       {open && (
         <div
@@ -171,7 +198,9 @@ function UserMenu({
           // (globals.css) is the ticket's explicit "Dropdown Fade +
           // translateY(4px)" animation requirement — this menu previously
           // appeared with a hard cut, no animation at all.
-          className="absolute right-0 top-full z-10 mt-2 w-48 animate-dropdown-in rounded-md border border-line bg-surface py-1 shadow-[0_4px_16px_-4px_rgba(24,24,23,0.12)]"
+          className={`absolute z-50 w-52 animate-dropdown-in rounded-xl border border-line bg-surface p-1.5 shadow-[0_18px_50px_-18px_rgba(24,24,23,0.42)] ${
+            placement === "up" ? "bottom-full left-0" : "top-full right-0"
+          }`}
         >
           <Link href="/dashboard/settings" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             {t(lang, nav.settings)}
@@ -207,6 +236,7 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
   const router = useRouter();
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   async function handleLogout() {
     setPending(true);
@@ -220,66 +250,84 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
     }
   }
 
+  function navigationLinks(vertical: boolean, compact = false) {
+    return NAV_LINKS.map((link) => {
+      const active =
+        link.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(link.href);
+      const Icon = link.icon;
+
+      return (
+        <Link
+          key={link.href}
+          href={link.href}
+          aria-current={active ? "page" : undefined}
+          title={compact ? t(lang, link.label) : undefined}
+          className={`group flex shrink-0 items-center rounded-xl transition-all duration-150 ${focusRingClass} ${
+            vertical ? "h-11 gap-3 px-3 text-sm" : "h-14 flex-1 flex-col justify-center gap-1 px-1 text-[10px]"
+          } ${
+            active
+              ? vertical
+                ? "bg-brand text-white"
+                : "bg-brand-soft text-brand"
+              : "text-text-secondary hover:bg-surface hover:text-foreground"
+          }`}
+        >
+          {Icon && <Icon size={17} strokeWidth={active ? 2 : 1.8} />}
+          {!compact && <span className={active ? "font-semibold" : "font-medium"}>{t(lang, link.label)}</span>}
+          {vertical && active && !compact && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />}
+        </Link>
+      );
+    });
+  }
+
   return (
-    <header className="border-b border-line px-4 sm:px-6">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4">
-        {/* min-w-0 lets this side actually shrink below its content width
-            inside the flex row above — without it, flexbox refuses to
-            shrink it past its content size and the overflow-x-auto below
-            has nothing to do (same min-w-0 dependency the old identity
-            link's own comment already called out for its own truncate). */}
-        <div className="flex min-w-0 items-center gap-6">
+    <>
+      <aside className={`dashboard-sidebar sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line/70 p-4 backdrop-blur-xl transition-[width] duration-200 lg:flex ${sidebarCollapsed ? "w-[84px]" : "w-[248px]"}`}>
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed((value) => !value)}
+          aria-label={sidebarCollapsed ? (lang === "de" ? "Seitenleiste einblenden" : "Expand sidebar") : (lang === "de" ? "Seitenleiste ausblenden" : "Collapse sidebar")}
+          title={sidebarCollapsed ? (lang === "de" ? "Seitenleiste einblenden" : "Expand sidebar") : (lang === "de" ? "Seitenleiste ausblenden" : "Collapse sidebar")}
+          className={`absolute top-8 -right-3 z-10 grid h-7 w-7 place-items-center rounded-full border border-brand/20 bg-surface text-brand transition-all duration-150 hover:scale-105 hover:border-brand/40 hover:bg-brand-soft ${focusRingClass}`}
+        >
+          {sidebarCollapsed ? <ChevronRight size={15} strokeWidth={2.2} /> : <ChevronLeft size={15} strokeWidth={2.2} />}
+        </button>
+        <div className="mb-8 flex items-center">
           <Link
             href="/dashboard"
-            className="flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight"
+            className="flex min-w-0 items-center gap-3 px-2 py-1 text-base font-bold tracking-[-0.025em]"
+            title={sidebarCollapsed ? "Tiqloo" : undefined}
           >
-            <Mark />
-            TimTracker
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white">
+              <Mark />
+            </span>
+            {!sidebarCollapsed && <span>Tiqloo</span>}
           </Link>
-          {/* Responsive/overflow protection (ticket AK) — the "Minimallösung"
-              named there: below ~450px width, 5 links no longer fit next to
-              the logo + account menu, so the link row scrolls horizontally
-              on its own rather than the fixed h-14 header breaking/wrapping.
-              Everything above/below it (logo, account menu) stays put via
-              shrink-0. */}
-          <nav className="flex items-center gap-1 overflow-x-auto">
-            {NAV_LINKS.map((link) => {
-              const active =
-                link.href === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname.startsWith(link.href);
-              const Icon = link.icon;
-              // Active state (Ticket 036): a --brand-tinted background pill
-              // in addition to the text-brand + font-medium Ticket 037
-              // already added — per the AK, plain font-weight/color wasn't
-              // a strong enough signal on its own. Ticket 048: bg-brand/10
-              // -> bg-brand-soft, the real named token now that one exists
-              // (see globals.css) instead of an ad hoc opacity value, and
-              // both branches get the same transition-colors duration-150
-              // — one consistent hover pattern for both states, not a
-              // static active pill next to an instantly-snapping inactive
-              // hover (the ticket's own "nicht fünf verschieden starke
-              // Hover-/Shadow-Effekte" note).
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ${focusRingClass} ${
-                    active
-                      ? "bg-brand-soft font-medium text-brand"
-                      : "text-foreground/60 hover:text-foreground"
-                  }`}
-                >
-                  {Icon && <Icon />}
-                  {t(lang, link.label)}
-                </Link>
-              );
-            })}
-          </nav>
         </div>
-        <UserMenu lang={lang} displayName={displayName} pending={pending} onLogout={handleLogout} />
-      </div>
-    </header>
+
+        {!sidebarCollapsed && <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.16em] text-text-secondary uppercase">Workspace</p>}
+        <nav className="flex flex-col gap-1">{navigationLinks(true, sidebarCollapsed)}</nav>
+
+        <div className="mt-auto border-t border-line pt-4">
+          <UserMenu lang={lang} displayName={displayName} pending={pending} onLogout={handleLogout} placement="up" compact={sidebarCollapsed} />
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-30 border-b border-line/70 bg-background/85 px-4 backdrop-blur-xl lg:hidden">
+        <div className="flex h-16 items-center justify-between gap-3">
+          <Link
+            href="/dashboard"
+            className="flex shrink-0 items-center gap-2 text-sm font-bold tracking-[-0.02em]"
+          >
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white"><Mark /></span>
+            Tiqloo
+          </Link>
+          <UserMenu lang={lang} displayName={displayName} pending={pending} onLogout={handleLogout} />
+        </div>
+      </header>
+      <nav className="fixed right-3 bottom-3 left-3 z-40 flex gap-1 rounded-2xl border border-line/80 bg-surface/95 p-1.5 shadow-[0_18px_50px_-20px_rgba(24,24,23,0.38)] backdrop-blur-xl lg:hidden">
+        {navigationLinks(false)}
+      </nav>
+    </>
   );
 }

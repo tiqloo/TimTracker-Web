@@ -68,7 +68,7 @@ async function createCsvExportResponse(request: Request): Promise<Response> {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="TimTracker-Export-${from}_${to}.csv"`,
+      "Content-Disposition": `attachment; filename="Tiqloo-Export-${from}_${to}.csv"`,
     },
   });
 }

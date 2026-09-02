@@ -54,9 +54,9 @@ export default async function DashboardLayout({
     // this route group (this layout doesn't remount on those navigations;
     // see ToastProvider.tsx's own comment for the full reasoning).
     <ToastProvider lang={lang}>
-      <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
+      <div className="dashboard-shell flex min-h-screen flex-1 flex-col bg-background text-foreground lg:flex-row">
         <DashboardNav lang={lang} displayName={displayName} />
-        <div className="mx-auto w-full max-w-5xl flex-1 px-6 sm:px-8">{children}</div>
+        <div className="mx-auto min-w-0 w-full max-w-6xl flex-1 px-5 pb-24 sm:px-8 lg:px-10 lg:pb-0 xl:px-12">{children}</div>
       </div>
     </ToastProvider>
   );

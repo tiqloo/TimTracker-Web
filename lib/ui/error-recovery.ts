@@ -6,8 +6,8 @@ export const errorRecovery = {
     en: "The dashboard could not be loaded.",
   },
   globalTitle: {
-    de: "TimTracker konnte nicht geladen werden.",
-    en: "TimTracker could not be loaded.",
+    de: "Tiqloo konnte nicht geladen werden.",
+    en: "Tiqloo could not be loaded.",
   },
   body: {
     de: "Deine Daten sind weiterhin sicher. Versuche es erneut oder kehre zum Dashboard zurück.",
@@ -30,4 +30,3 @@ export const errorRecovery = {
 export function languageFromDocument(documentLanguage: string | null | undefined): Lang {
   return documentLanguage?.toLowerCase().startsWith("en") ? "en" : "de";
 }
-

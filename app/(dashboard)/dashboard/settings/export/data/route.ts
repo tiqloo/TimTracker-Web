@@ -42,7 +42,7 @@ async function createDataExportResponse(): Promise<Response> {
   return new Response(json, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="TimTracker-Datenexport-${filenameDate}.json"`,
+      "Content-Disposition": `attachment; filename="Tiqloo-Datenexport-${filenameDate}.json"`,
     },
   });
 }
