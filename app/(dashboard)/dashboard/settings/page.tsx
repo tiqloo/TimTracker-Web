@@ -38,8 +38,16 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
-      <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, settings.pageTitle)}</h1>
+    <main className="flex animate-content-fade-in flex-col gap-7 py-8 sm:py-10">
+      <div>
+        <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-brand uppercase">Workspace</p>
+        <h1 className="text-[34px] font-semibold tracking-[-0.035em] sm:text-[40px]">{t(lang, settings.pageTitle)}</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">
+          {lang === "de"
+            ? "Verwalte dein Profil, deine persönlichen Präferenzen und alle Kontoeinstellungen an einem Ort."
+            : "Manage your profile, personal preferences, and account settings in one place."}
+        </p>
+      </div>
       <SettingsClient
         initialLanguage={language}
         profile={profile}

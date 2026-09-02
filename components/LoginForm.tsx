@@ -111,9 +111,9 @@ function LoginFormInner({ lang }: { lang: Lang }) {
           {t(lang, i18nLogin.accountDeleted)}
         </p>
       )}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="email" className="text-sm font-medium">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="email" className="text-sm font-medium text-foreground/80">
             {t(lang, common.email)}
           </label>
           <input
@@ -127,12 +127,12 @@ function LoginFormInner({ lang }: { lang: Lang }) {
             className={authInputClass}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between">
-            <label htmlFor="password" className="text-sm font-medium">
+            <label htmlFor="password" className="text-sm font-medium text-foreground/80">
               {t(lang, common.password)}
             </label>
-            <Link href="/reset-password" className="text-xs underline">
+            <Link href="/reset-password" className="text-xs font-medium text-brand hover:underline">
               {t(lang, i18nLogin.forgotPassword)}
             </Link>
           </div>
@@ -152,9 +152,9 @@ function LoginFormInner({ lang }: { lang: Lang }) {
           {pending ? t(lang, i18nLogin.signingIn) : t(lang, i18nLogin.submit)}
         </button>
       </form>
-      <p className="mt-6 text-sm">
+      <p className="mt-8 border-t border-line pt-6 text-center text-sm text-text-secondary">
         {t(lang, i18nLogin.noAccountYet)}{" "}
-        <Link href="/register" className="underline">
+        <Link href="/register" className="font-semibold text-brand hover:underline">
           {t(lang, i18nLogin.registerLink)}
         </Link>
       </p>

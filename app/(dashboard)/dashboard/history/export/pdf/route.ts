@@ -77,7 +77,7 @@ async function createPdfExportResponse(request: Request): Promise<Response> {
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="TimTracker-Export-${from}_${to}.pdf"`,
+      "Content-Disposition": `attachment; filename="Tiqloo-Export-${from}_${to}.pdf"`,
     },
   });
 }

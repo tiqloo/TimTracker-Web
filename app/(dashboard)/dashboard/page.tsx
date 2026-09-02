@@ -8,6 +8,7 @@ import { getDailyGoalHours } from "@/lib/application/daily-goal";
 import { canUseApp } from "@/lib/domain/subscription";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
+import { TodayLiveRefresh } from "@/components/TodayLiveRefresh";
 import { dayDetail, t, today } from "@/lib/i18n";
 
 // Wrapped so eslint's react-hooks/purity rule (which flags a direct
@@ -53,6 +54,9 @@ export default async function TodayPage() {
     allProjects.map((project) => [project.id, project.colorHex]),
   );
   const nowMs = currentTimeMs();
+  const entriesVersion = entries
+    .map((entry) => `${entry.id}:${entry.updatedAt}:${entry.endTime ?? "running"}`)
+    .join("|");
 
   return (
     // animate-content-fade-in (globals.css, Ticket 048): the ticket's
@@ -63,7 +67,8 @@ export default async function TodayPage() {
     // every page visit, not just the very first full load. Same class
     // reused verbatim on AuthCard.tsx's card and SupportClient.tsx's
     // wrapper rather than redefined per file.
-    <main className="flex animate-content-fade-in flex-col gap-8 py-8">
+    <main className="flex animate-content-fade-in flex-col gap-6 py-8 sm:py-10">
+      <TodayLiveRefresh />
       {/* Ticket 048: "Dashboard H1" tier of the new type scale (32-36px) —
           was text-2xl (24px) on every (dashboard)/* page's top heading, one
           identical arbitrary-value bump applied consistently across all of
@@ -73,21 +78,27 @@ export default async function TodayPage() {
           repo's "keep it simple" convention for dashboard chrome (the
           public homepage's Hero is the one heading that DOES need
           responsive sizing, see app/page.tsx). */}
-      <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, today.pageTitle)}</h1>
+      <div>
+        <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-brand uppercase">Übersicht</p>
+        <h1 className="text-[34px] font-semibold tracking-[-0.035em] sm:text-[40px]">{t(lang, today.pageTitle)}</h1>
+      </div>
 
-      <DayDetail
-        breakdown={breakdown}
-        entries={entries}
-        nowMs={nowMs}
-        emptyMessage={t(lang, dayDetail.noEntriesToday)}
-        emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
-        lang={lang}
-        projectColors={projectColors}
-        dailyGoalHours={dailyGoalHours}
-      />
+      <section className="rounded-2xl border border-line/90 bg-surface p-5 shadow-[0_18px_50px_-36px_rgba(24,24,23,0.35)] sm:p-8">
+        <DayDetail
+          key={entriesVersion}
+          breakdown={breakdown}
+          entries={entries}
+          nowMs={nowMs}
+          emptyMessage={t(lang, dayDetail.noEntriesToday)}
+          emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
+          lang={lang}
+          projectColors={projectColors}
+          dailyGoalHours={dailyGoalHours}
+        />
+      </section>
 
-      <Link href="/dashboard/history" className="text-sm text-foreground/70 hover:text-foreground">
-        {t(lang, today.goToHistory)}
+      <Link href="/dashboard/history" className="w-fit text-sm font-medium text-brand hover:underline">
+        {t(lang, today.goToHistory)} →
       </Link>
     </main>
   );
