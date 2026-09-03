@@ -227,6 +227,37 @@ export function dailyGoalProgressLabel(lang: Lang, actualLabel: string, goalLabe
   return lang === "de" ? `${actualLabel} von ${goalLabel}` : `${actualLabel} of ${goalLabel}`;
 }
 
+// Ticket 045: the hero number's week-comparison hint — "Y % mehr/weniger
+// als der bisherige Wochenschnitt" for a real gap, or a calmer "about the
+// same" phrasing once the gap is within lib/application/dashboard.ts's
+// SIMILAR_THRESHOLD_RATIO (that trend decision itself is the "Differenz"
+// aggregation the ticket's AK says belongs in the application layer, not
+// here — this function only turns an already-decided trend + percent +
+// pre-formatted average duration into a sentence, same "plain primitives
+// in, language-neutral template" shape as dailyGoalProgressLabel just
+// above and dayDetailSegmentTooltip further up; deliberately takes the
+// trend as a plain string literal rather than importing
+// WeekComparisonTrend from lib/application/dashboard.ts, so this
+// universally-imported i18n module stays decoupled from any one
+// application-layer module).
+export function weekComparisonLabel(
+  lang: Lang,
+  trend: "above" | "below" | "similar",
+  diffPercent: number,
+  averageLabel: string,
+): string {
+  if (trend === "similar") {
+    return lang === "de"
+      ? `Etwa wie dein bisheriger Wochenschnitt (${averageLabel})`
+      : `About the same as your week average so far (${averageLabel})`;
+  }
+  const moreOrLess =
+    trend === "above" ? (lang === "de" ? "mehr" : "more") : lang === "de" ? "weniger" : "less";
+  return lang === "de"
+    ? `${diffPercent} % ${moreOrLess} als dein bisheriger Wochenschnitt (${averageLabel})`
+    : `${diffPercent}% ${moreOrLess} than your week average so far (${averageLabel})`;
+}
+
 // --- components/HistoryChart.tsx -------------------------------------
 
 export const historyChart = {
