@@ -15,7 +15,3 @@ export function shouldValidateHistoryRange(pathname: string): boolean {
   // only owns the HTML history page, which has no Route Handler boundary.
   return pathname === "/dashboard/history";
 }
-
-export function authenticatedLandingPath(): string {
-  return PROTECTED_PREFIX;
-}

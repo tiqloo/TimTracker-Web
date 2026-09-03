@@ -5,8 +5,8 @@ import {
   InvalidHistoryRangeError,
   resolveHistoryDateRange,
 } from "@/lib/domain/calendar-day";
+import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
 import {
-  authenticatedLandingPath,
   isProtectedPath,
   shouldRedirectAuthenticatedUser,
   shouldValidateHistoryRange,
@@ -235,9 +235,26 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && shouldRedirectAuthenticatedUser(pathname)) {
+    // Ticket 094: unconditional "/dashboard" here dropped a `redirectTo`
+    // query param on the floor — the native Mac app opens
+    // `/login?redirectTo=/auth/desktop-complete` to hand a session back to
+    // the desktop app (Ticket 079), and a browser that ALREADY has a valid
+    // web session used to get redirected straight to the normal dashboard
+    // instead, silently abandoning the desktop handoff (confirmed bug
+    // report: "Nutzer meldet sich [...] ab [...] Browser bleibt angemeldet
+    // [...] Desktop-Authentifizierungsprozess wird nicht abgeschlossen").
+    // `normalizeDashboardRedirect` (already used for the POST-login
+    // redirect in `components/LoginForm.tsx`) is the same hardened
+    // allowlist — reusing it here means an already-authenticated visit to
+    // /login with that exact `redirectTo` now lands on
+    // `/auth/desktop-complete`, which already knows how to hand the
+    // EXISTING session's tokens back to the desktop app without asking for
+    // credentials again. Falls back to `/dashboard` for anything else,
+    // identical to the previous unconditional behavior.
+    const redirectTarget = normalizeDashboardRedirect(request.nextUrl.searchParams.get("redirectTo"));
     return copyCookies(
       response,
-      withCsp(NextResponse.redirect(new URL(authenticatedLandingPath(), request.url)), csp),
+      withCsp(NextResponse.redirect(new URL(redirectTarget, request.url)), csp),
     );
   }
 

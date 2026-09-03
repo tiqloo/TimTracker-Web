@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  authenticatedLandingPath,
   isProtectedPath,
   shouldRedirectAuthenticatedUser,
   shouldValidateHistoryRange,
@@ -17,7 +16,6 @@ test("proxy protection covers only the dashboard namespace", () => {
 });
 
 test("authenticated users are redirected away from login and registration only", () => {
-  assert.equal(authenticatedLandingPath(), "/dashboard");
   assert.equal(shouldRedirectAuthenticatedUser("/login"), true);
   assert.equal(shouldRedirectAuthenticatedUser("/register"), true);
   assert.equal(shouldRedirectAuthenticatedUser("/reset-password"), false);
