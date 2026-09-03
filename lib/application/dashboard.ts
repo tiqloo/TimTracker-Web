@@ -5,7 +5,7 @@ import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import { calendarDayInTimeZone } from "../domain/calendar-day.ts";
 import { ValidationError } from "../domain/application-error.ts";
-import { addDaysIso, startOfWeekIso } from "@/lib/format";
+import { addDaysIso, startOfWeekIso } from "../format.ts";
 
 // Exported (not just an internal helper) so app/* pages that need "today"
 // as a plain ISO string for their own purposes (e.g. building default
