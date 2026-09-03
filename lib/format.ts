@@ -284,9 +284,24 @@ export function buildChartBars(
 // German-fixed label in this function.
 const CSV_DELIMITER = ";";
 
+// Ticket 147: CSV-/Formel-Injection (CWE-1236). projectName/customerName
+// are free, user-controlled text (see lib/application/projects.ts — only
+// trims/checks length, no character restriction). Without this guard, a
+// project or customer name like `=HYPERLINK("http://evil.example";"Click")`
+// would be interpreted as a formula the moment the exported file is opened
+// in Excel/Numbers/LibreCalc/Sheets — genuinely dangerous here since
+// exports are typically handed to a third party (accounting, a client), not
+// just opened by the user who created the name. A leading apostrophe forces
+// text interpretation in every mainstream spreadsheet app without changing
+// the visible cell content. Applied to every field (not just
+// project/customer name) as defense in depth — simpler and more robust
+// against a future export column than a per-field decision.
+const FORMULA_TRIGGER_CHARACTERS = /^[=+\-@\t\r]/;
+
 function escapeCsvField(field: string): string {
-  if (!/[;"\n]/.test(field)) return field;
-  return `"${field.replace(/"/g, '""')}"`;
+  const guarded = FORMULA_TRIGGER_CHARACTERS.test(field) ? `'${field}` : field;
+  if (!/[;"\n]/.test(guarded)) return guarded;
+  return `"${guarded.replace(/"/g, '""')}"`;
 }
 
 function csvHours(seconds: number): string {

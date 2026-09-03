@@ -56,3 +56,32 @@ test("formatHistoryCsv: a project name containing the ';' delimiter is quoted/es
   const firstLine = csv.split("\r\n")[0];
   assert.equal(firstLine, 'Projekt-Filter;"Kunde A; Projekt ""X"""');
 });
+
+// Ticket 147: CSV-/Formel-Injection (CWE-1236) — a malicious project or
+// customer name must never reach the exported file with a leading
+// formula-trigger character, since the export is typically opened by a
+// third party (accounting, a client), not just the person who named the
+// project.
+test("formatHistoryCsv: a project name starting with '=' is neutralized with a leading apostrophe", () => {
+  const maliciousRow: ExportRow = { ...row, projectName: '=HYPERLINK("http://evil.example";"Click")' };
+  const csv = formatHistoryCsv([maliciousRow], [summary]);
+  const dataLine = csv.split("\r\n")[1];
+  assert.ok(!dataLine.includes(';=HYPERLINK'), `formula must not appear unguarded: ${dataLine}`);
+  assert.ok(dataLine.includes(";'=HYPERLINK") || dataLine.includes(';"\'=HYPERLINK'), `expected a leading apostrophe guard: ${dataLine}`);
+});
+
+test("formatHistoryCsv: customer names starting with other formula-trigger characters are neutralized", () => {
+  for (const trigger of ["+", "-", "@", "\tcmd"]) {
+    const maliciousRow: ExportRow = { ...row, customerName: `${trigger}SUM(1)` };
+    const csv = formatHistoryCsv([maliciousRow], [summary]);
+    const dataLine = csv.split("\r\n")[1];
+    assert.ok(!dataLine.includes(`;${trigger}SUM(1)`), `trigger character '${trigger}' must be neutralized: ${dataLine}`);
+  }
+});
+
+test("formatHistoryCsv: ordinary field values are unaffected by the formula guard", () => {
+  const csv = formatHistoryCsv([row], [summary]);
+  const dataLine = csv.split("\r\n")[1];
+  assert.ok(dataLine.includes("Seed-Projekt"));
+  assert.ok(dataLine.includes("Testkunde GmbH"));
+});
