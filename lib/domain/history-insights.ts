@@ -3,7 +3,7 @@ import type { Project } from "./project";
 import {
   PAUSE_PROJECT_ID,
   STANDARD_PROJECT_ID,
-  timeEntryDurationSeconds,
+  unionSeconds,
 } from "./time-entry-aggregation.ts";
 
 export interface HistorySummary {
@@ -39,16 +39,26 @@ export function buildProjectTimeTotals(
   now: Date,
 ): ProjectTimeTotal[] {
   const projectById = new Map(projects.map((project) => [project.id, project]));
-  const secondsByProject = new Map<string, number>();
+  const entriesByProject = new Map<string, TimeEntry[]>();
 
   for (const entry of entries) {
     if (entry.projectId === STANDARD_PROJECT_ID || entry.projectId === PAUSE_PROJECT_ID) continue;
     if (!projectById.has(entry.projectId)) continue;
-    secondsByProject.set(
-      entry.projectId,
-      (secondsByProject.get(entry.projectId) ?? 0) + timeEntryDurationSeconds(entry, now),
-    );
+    const bucket = entriesByProject.get(entry.projectId) ?? [];
+    bucket.push(entry);
+    entriesByProject.set(entry.projectId, bucket);
   }
+
+  // Ticket 086: same union-not-sum fix as `buildDailyBreakdowns`, applied
+  // per individual project here (this function's own grouping) instead of
+  // per the three day-breakdown categories — two overlapping entries for
+  // the SAME project must count their overlap once.
+  const secondsByProject = new Map<string, number>(
+    Array.from(entriesByProject.entries()).map(([projectId, projectEntries]) => [
+      projectId,
+      unionSeconds(projectEntries, now),
+    ]),
+  );
 
   const totalProjectSeconds = Array.from(secondsByProject.values()).reduce(
     (sum, seconds) => sum + seconds,

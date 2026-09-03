@@ -45,15 +45,57 @@ function startOfDayInstant(isoDay: string, timeZone: string): Date {
   return candidate;
 }
 
-export function timeEntryDurationSeconds(entry: TimeEntry, now: Date): number {
-  const start = new Date(entry.startTime).getTime();
+function timeEntryInterval(entry: TimeEntry, now: Date): { startMs: number; endMs: number } {
+  const startMs = new Date(entry.startTime).getTime();
   const today = calendarDayInTimeZone(now);
-  const end = entry.endTime
+  const endMs = entry.endTime
     ? new Date(entry.endTime).getTime()
     : entry.day < today
       ? startOfDayInstant(nextIsoDay(entry.day), PRODUCT_TIME_ZONE).getTime()
       : now.getTime();
-  return Math.max(0, Math.round((end - start) / 1000));
+  return { startMs, endMs: Math.max(startMs, endMs) };
+}
+
+export function timeEntryDurationSeconds(entry: TimeEntry, now: Date): number {
+  const { startMs, endMs } = timeEntryInterval(entry, now);
+  return Math.max(0, Math.round((endMs - startMs) / 1000));
+}
+
+/**
+ * Ticket 086: sums the WALL-CLOCK UNION of a set of entries' intervals
+ * instead of their individual durations — two entries that overlap in time
+ * (e.g. a duplicate/orphaned entry from Ticket 084) must count that
+ * overlap once, not twice. Sort-and-merge over each entry's own
+ * `timeEntryInterval` (already reused by `timeEntryDurationSeconds`, so the
+ * running-entry/negative-duration clamping stays identical either way).
+ */
+export function unionSeconds(entries: TimeEntry[], now: Date): number {
+  const intervals = entries
+    .map((entry) => timeEntryInterval(entry, now))
+    .filter(({ startMs, endMs }) => endMs > startMs)
+    .sort((a, b) => a.startMs - b.startMs);
+
+  let totalMs = 0;
+  let mergedStart: number | null = null;
+  let mergedEnd = 0;
+  for (const { startMs, endMs } of intervals) {
+    if (mergedStart === null) {
+      mergedStart = startMs;
+      mergedEnd = endMs;
+      continue;
+    }
+    if (startMs <= mergedEnd) {
+      mergedEnd = Math.max(mergedEnd, endMs);
+    } else {
+      totalMs += mergedEnd - mergedStart;
+      mergedStart = startMs;
+      mergedEnd = endMs;
+    }
+  }
+  if (mergedStart !== null) {
+    totalMs += mergedEnd - mergedStart;
+  }
+  return Math.round(totalMs / 1000);
 }
 
 export function buildDailyBreakdowns(
@@ -70,20 +112,20 @@ export function buildDailyBreakdowns(
   return Array.from(byDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, dayEntries]) => {
-      let standardSeconds = 0;
-      let projectSeconds = 0;
-      let pauseSeconds = 0;
+      // Ticket 086 AK, option (a): union WITHIN each of the three existing
+      // categories separately — an overlap between e.g. a project entry and
+      // a pause entry is intentionally NOT resolved across categories (no
+      // new cross-category priority rule), only duplicate/overlapping
+      // entries within the SAME category are deduplicated.
+      const standardEntries = dayEntries.filter((entry) => entry.projectId === STANDARD_PROJECT_ID);
+      const projectEntries = dayEntries.filter(
+        (entry) => entry.projectId !== STANDARD_PROJECT_ID && entry.projectId !== PAUSE_PROJECT_ID,
+      );
+      const pauseEntries = dayEntries.filter((entry) => entry.projectId === PAUSE_PROJECT_ID);
 
-      for (const entry of dayEntries) {
-        const seconds = timeEntryDurationSeconds(entry, now);
-        if (entry.projectId === PAUSE_PROJECT_ID) {
-          pauseSeconds += seconds;
-        } else if (entry.projectId === STANDARD_PROJECT_ID) {
-          standardSeconds += seconds;
-        } else {
-          projectSeconds += seconds;
-        }
-      }
+      const standardSeconds = unionSeconds(standardEntries, now);
+      const projectSeconds = unionSeconds(projectEntries, now);
+      const pauseSeconds = unionSeconds(pauseEntries, now);
 
       const totalSeconds = standardSeconds + projectSeconds;
       return {
