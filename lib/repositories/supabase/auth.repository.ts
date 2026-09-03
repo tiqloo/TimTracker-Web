@@ -151,6 +151,15 @@ export function createSupabaseAuthRepository(
       if (error) throw error;
     },
 
+    async getDesktopHandoffTokens() {
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session) return null;
+      return {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+      };
+    },
+
     async logout() {
       const { error } = await client.auth.signOut();
       if (error) throw error;

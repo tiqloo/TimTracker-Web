@@ -63,6 +63,14 @@ export async function completeOAuthSignIn(
   return repos.auth.exchangeOAuthCode(code);
 }
 
+// Ticket 079 (TimTracker-Starter repo, überarbeitet 2026-09-03) — siehe
+// lib/repositories/auth.repository.ts#getDesktopHandoffTokens's eigene Doku.
+export async function getDesktopHandoffTokens(
+  repos: Repositories,
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  return repos.auth.getDesktopHandoffTokens();
+}
+
 export async function logout(repos: Repositories): Promise<void> {
   return repos.auth.logout();
 }

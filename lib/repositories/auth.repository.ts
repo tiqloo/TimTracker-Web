@@ -119,6 +119,16 @@ export interface AuthRepository {
   //
   signInWithGoogle(destinationPath: string): Promise<void>;
   exchangeOAuthCode(code: string): Promise<void>;
+  // Ticket 079 (TimTracker-Starter repo, überarbeitet 2026-09-03): reicht
+  // die CURRENT session's access/refresh tokens an app/auth/desktop-complete
+  // weiter, die native Mac-App-Anmeldung läuft komplett über diese
+  // Web-Login-Seite ("genau wie bei Claude"). `null`, wenn keine Session
+  // besteht (z. B. Direktaufruf ohne vorherigen Login) — der Aufrufer zeigt
+  // dann einen Hinweis statt eines kaputten Rücksprungs. Bewusst
+  // `getSession()`, nicht `getUser()` wie sonst in dieser Datei: hier werden
+  // die rohen Tokens selbst gebraucht (für die native App), nicht nur eine
+  // serverseitig revalidierte Identität.
+  getDesktopHandoffTokens(): Promise<{ accessToken: string; refreshToken: string } | null>;
   logout(): Promise<void>;
   requestPasswordReset(email: string): Promise<void>;
   // Sets a new password for the CURRENT session — only meaningful while a

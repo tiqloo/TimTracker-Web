@@ -50,6 +50,25 @@ function GoogleIcon() {
   );
 }
 
+// Ticket 079 (TimTracker-Starter repo, überarbeitet 2026-09-03): der
+// normale Dashboard-Redirect bleibt eine client-seitige SPA-Navigation
+// (`router.push` + `router.refresh()`, schnell, kein Full-Page-Reload).
+// `/auth/desktop-complete` ist dagegen ein Route Handler (kein React-
+// Page-Baum), der einen echten Server-Redirect zu `tiqloo-auth://...`
+// ausführt — `router.push` kann Route Handler nicht sinnvoll aufrufen, UND
+// wichtiger: nur ein echter Full-Page-Load hält die Navigationskette lang
+// genug "vom Nutzerklick ausgelöst", damit der Browser den abschließenden
+// Sprung ins eigene URL-Schema nicht stillschweigend blockiert (siehe
+// app/auth/desktop-complete/route.ts's eigene Doku für den vollen Kontext).
+function navigateAfterSignIn(router: ReturnType<typeof useRouter>, redirectTo: string): void {
+  if (redirectTo === "/auth/desktop-complete") {
+    window.location.href = redirectTo;
+    return;
+  }
+  router.push(redirectTo);
+  router.refresh();
+}
+
 // useSearchParams() (for ?redirectTo=) requires a Suspense boundary
 // around it for Next.js's static-render bailout, hence the wrapper below.
 export function LoginForm({ lang }: { lang: Lang }) {
@@ -103,8 +122,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
     const repos = getRepositories();
     const unsubscribe = onAuthStateChange(repos, (event) => {
       if (event === "SIGNED_IN") {
-        router.push(redirectTo);
-        router.refresh();
+        navigateAfterSignIn(router, redirectTo);
       }
     });
     return unsubscribe;
@@ -117,8 +135,7 @@ function LoginFormInner({ lang }: { lang: Lang }) {
     try {
       const repos = getRepositories();
       await login(repos, email, password);
-      router.push(redirectTo);
-      router.refresh();
+      navigateAfterSignIn(router, redirectTo);
     } catch (err) {
       // Anti-enumeration (Ticket 009 in TimTracker-Starter, same rule
       // applied here): never distinguish "wrong password" from "unknown

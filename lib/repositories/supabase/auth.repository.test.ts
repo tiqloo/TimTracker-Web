@@ -89,3 +89,30 @@ test("immediate Supabase OAuth errors are preserved", async () => {
     globalThis.fetch = previousFetch;
   }
 });
+
+function sessionClient(session: { access_token: string; refresh_token: string } | null) {
+  const client = {
+    auth: {
+      async getSession() {
+        return { data: { session }, error: null };
+      },
+    },
+  } as unknown as SupabaseClient;
+  return client;
+}
+
+test("getDesktopHandoffTokens returns the current session's tokens", async () => {
+  const client = sessionClient({ access_token: "abc", refresh_token: "def" });
+
+  const result = await createSupabaseAuthRepository(client).getDesktopHandoffTokens();
+
+  assert.deepEqual(result, { accessToken: "abc", refreshToken: "def" });
+});
+
+test("getDesktopHandoffTokens returns null without a session", async () => {
+  const client = sessionClient(null);
+
+  const result = await createSupabaseAuthRepository(client).getDesktopHandoffTokens();
+
+  assert.equal(result, null);
+});
