@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
-import { getTodayBreakdown, getTodayEntries } from "@/lib/application/dashboard";
+import { getTodayBreakdown, getTodayEntries, getWeekComparison } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getDailyGoalHours } from "@/lib/application/daily-goal";
@@ -53,6 +53,11 @@ export default async function TodayPage() {
   const projectColors = Object.fromEntries(
     allProjects.map((project) => [project.id, project.colorHex]),
   );
+  // Ticket 045: needs today's already-fetched total (breakdown.day/
+  // .totalSeconds) as its comparison point, so it runs after the
+  // Promise.all above rather than inside it — one extra getHistory() call
+  // (reused, no new repository method) for the current week's prior days.
+  const weekComparison = await getWeekComparison(repos, breakdown.day, breakdown.totalSeconds);
   const nowMs = currentTimeMs();
   const entriesVersion = entries
     .map((entry) => `${entry.id}:${entry.updatedAt}:${entry.endTime ?? "running"}`)
@@ -94,6 +99,7 @@ export default async function TodayPage() {
           lang={lang}
           projectColors={projectColors}
           dailyGoalHours={dailyGoalHours}
+          weekComparison={weekComparison}
         />
       </section>
 

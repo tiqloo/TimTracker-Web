@@ -52,12 +52,14 @@ import type { Project } from "@/lib/domain/project";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import { getRepositories } from "@/lib/application/client";
 import { listProjects } from "@/lib/application/projects";
+import type { WeekComparison } from "@/lib/application/dashboard";
 import { AssignTimeAction } from "@/components/AssignTimeAction";
 import { computeDailyGoalProgress } from "@/lib/domain/daily-goal";
 import {
   dayDetail,
   dayDetailSegmentTooltip,
   dailyGoalProgressLabel,
+  weekComparisonLabel,
   t,
   type Lang,
 } from "@/lib/i18n";
@@ -231,6 +233,7 @@ export function DayDetail({
   lang,
   projectColors,
   dailyGoalHours,
+  weekComparison,
 }: {
   breakdown: DailyBreakdown;
   entries: TimeEntry[];
@@ -255,6 +258,17 @@ export function DayDetail({
   // lib/domain/daily-goal.ts#computeDailyGoalProgress, which is what
   // actually decides whether any progress UI renders below.
   dailyGoalHours?: number | null;
+  // Ticket 045 (follow-up to 044) — optional, only "Heute"
+  // (app/(dashboard)/dashboard/page.tsx) passes this today, same
+  // "Heute"-only scoping as dailyGoalHours above (the ticket's own AK
+  // frames this as a Heute-specific hero-number companion, not a general
+  // day-detail feature — the "Historie" day-detail page leaves it
+  // undefined on purpose). null means "no meaningful comparison available"
+  // (see lib/application/dashboard.ts#getWeekComparison's own edge-case
+  // handling: Monday/first day of the week, fewer than two comparison
+  // days, or a brand-new account) — DayDetail then renders no hint at all
+  // rather than a misleading 0%/empty comparison.
+  weekComparison?: WeekComparison | null;
 }) {
   // Ticket 034: local, client-side copies of the server-fetched initial
   // props — updated in place after a successful assign (see
@@ -396,6 +410,26 @@ export function DayDetail({
               />
             </div>
           </div>
+        )}
+        {/* Ticket 045: week-comparison hint — deliberately the lightest-
+            weight text in this section (text-xs + a muted foreground
+            opacity, vs. the goal caption's text-sm above and the hero
+            number's text-5xl/6xl) so the visual ranking the AK asks for
+            (Hero -> Ziel-Fortschritt (044) -> Wochenvergleich) holds even
+            when both are shown at once — no bar/graphic of its own, just a
+            single quiet sentence, on purpose (ticket's own "Bewusst
+            außerhalb dieses Tickets": no combined widget with the goal
+            progress bar). Rendered whether or not a goal is set — this is
+            an independent comparison, not a variant of the goal feature. */}
+        {weekComparison && (
+          <p className="mt-1 text-xs text-foreground/50">
+            {weekComparisonLabel(
+              lang,
+              weekComparison.trend,
+              weekComparison.diffPercent,
+              formatDuration(weekComparison.averageSecondsBeforeToday, locale),
+            )}
+          </p>
         )}
         <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
           <SecondaryStat
