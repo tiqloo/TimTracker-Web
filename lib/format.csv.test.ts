@@ -85,3 +85,17 @@ test("formatHistoryCsv: ordinary field values are unaffected by the formula guar
   assert.ok(dataLine.includes("Seed-Projekt"));
   assert.ok(dataLine.includes("Testkunde GmbH"));
 });
+
+// escapeCsvField's quoting guard only checked for ';', '"', and '\n' —
+// not '\r', even though '\r' is itself one of the formula-trigger
+// characters and rows are joined with "\r\n". A field containing a raw,
+// embedded '\r' (e.g. pasted from a Classic-Mac or Windows-formatted
+// clipboard) got the leading-apostrophe guard but stayed unquoted — many
+// CSV parsers (Excel, Numbers) treat a lone '\r' as a line terminator and
+// would break the row structure mid-field, independent of the formula
+// question.
+test("formatHistoryCsv: a field containing a raw carriage return is quoted", () => {
+  const rowWithCr: ExportRow = { ...row, projectName: "Zeile1\rZeile2" };
+  const csv = formatHistoryCsv([rowWithCr], [summary]);
+  assert.ok(csv.includes('"Zeile1\rZeile2"'), `expected the field to be quoted: ${JSON.stringify(csv)}`);
+});

@@ -300,7 +300,12 @@ const FORMULA_TRIGGER_CHARACTERS = /^[=+\-@\t\r]/;
 
 function escapeCsvField(field: string): string {
   const guarded = FORMULA_TRIGGER_CHARACTERS.test(field) ? `'${field}` : field;
-  if (!/[;"\n]/.test(guarded)) return guarded;
+  // '\r' must trigger quoting too, not just ';'/'"'/'\n' — rows are joined
+  // with "\r\n" below, and a raw, embedded '\r' left unquoted (e.g. pasted
+  // from a Classic-Mac or Windows-formatted clipboard) would look like a
+  // line terminator to many CSV parsers (Excel, Numbers), breaking the row
+  // structure mid-field regardless of the formula-injection question.
+  if (!/[;"\n\r]/.test(guarded)) return guarded;
   return `"${guarded.replace(/"/g, '""')}"`;
 }
 
