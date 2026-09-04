@@ -90,6 +90,61 @@ test("immediate Supabase OAuth errors are preserved", async () => {
   }
 });
 
+// The "not enabled" preflight check's own comment claims it "fails open"
+// (falls through to the normal signInWithOAuth() call) for anything other
+// than a confirmed "google: false" response — a network hiccup, a non-ok
+// response, or unexpected JSON must never themselves block sign-in. Only
+// the happy paths (fetch resolving with google:true/false) were tested
+// before this — none of the three failure shapes the try/catch is meant to
+// swallow were. All three below assert the OAuth call still goes through.
+
+test("Google OAuth preflight check failing open: fetch throws", async () => {
+  const previousFetch = globalThis.fetch;
+  const fake = oauthClient({ error: null });
+  globalThis.fetch = async () => {
+    throw new TypeError("network error");
+  };
+  try {
+    await withOAuthEnvironment(() =>
+      createSupabaseAuthRepository(fake.client).signInWithGoogle("/dashboard"),
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+
+  assert.equal(fake.calls.length, 1, "a failed preflight request must not block the real OAuth call");
+});
+
+test("Google OAuth preflight check failing open: settings endpoint returns non-ok", async () => {
+  const previousFetch = globalThis.fetch;
+  const fake = oauthClient({ error: null });
+  globalThis.fetch = async () => new Response("service unavailable", { status: 503 });
+  try {
+    await withOAuthEnvironment(() =>
+      createSupabaseAuthRepository(fake.client).signInWithGoogle("/dashboard"),
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+
+  assert.equal(fake.calls.length, 1, "a non-ok preflight response must not block the real OAuth call");
+});
+
+test("Google OAuth preflight check failing open: settings endpoint returns malformed JSON", async () => {
+  const previousFetch = globalThis.fetch;
+  const fake = oauthClient({ error: null });
+  globalThis.fetch = async () => new Response("not json", { status: 200 });
+  try {
+    await withOAuthEnvironment(() =>
+      createSupabaseAuthRepository(fake.client).signInWithGoogle("/dashboard"),
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+
+  assert.equal(fake.calls.length, 1, "malformed preflight JSON must not block the real OAuth call");
+});
+
 function sessionClient(session: { access_token: string; refresh_token: string } | null) {
   const client = {
     auth: {
