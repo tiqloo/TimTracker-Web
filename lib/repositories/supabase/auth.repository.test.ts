@@ -1,7 +1,63 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { AuthApiError, type SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAuthRepository } from "./auth.repository.ts";
+import { EmailAlreadyRegisteredError } from "../auth.repository.ts";
+
+function signUpClient(result: { data: unknown; error: Error | null }) {
+  const client = {
+    auth: {
+      async signUp() {
+        return result;
+      },
+    },
+  } as unknown as SupabaseClient;
+  return client;
+}
+
+// Ticket 074's register() detects an already-registered email two
+// different ways depending on the project's mailer_autoconfirm setting —
+// see the function's own comments for the full explanation of both
+// branches. Neither branch had a test before this: the "user_already_exists"
+// error-code path (local/dev autoconfirm-on config) and the "empty
+// identities array" success-shape path (production autoconfirm-off
+// config, Supabase's documented anti-enumeration behavior) are both
+// exercised below, plus the genuine-new-signup case that must NOT throw.
+
+test("register(): a Supabase user_already_exists error code is translated to EmailAlreadyRegisteredError", async () => {
+  const client = signUpClient({
+    data: { user: null, session: null },
+    error: new AuthApiError("User already registered", 422, "user_already_exists"),
+  });
+
+  await assert.rejects(
+    createSupabaseAuthRepository(client).register("taken@example.com", "password123"),
+    EmailAlreadyRegisteredError,
+  );
+});
+
+test("register(): an already-registered email returning the anti-enumeration success shape (empty identities) is also translated to EmailAlreadyRegisteredError", async () => {
+  const client = signUpClient({
+    data: { user: { identities: [] }, session: null },
+    error: null,
+  });
+
+  await assert.rejects(
+    createSupabaseAuthRepository(client).register("taken@example.com", "password123"),
+    EmailAlreadyRegisteredError,
+  );
+});
+
+test("register(): a genuine new signup (non-empty identities) does not throw", async () => {
+  const client = signUpClient({
+    data: { user: { identities: [{ id: "provider-identity" }] }, session: null },
+    error: null,
+  });
+
+  const result = await createSupabaseAuthRepository(client).register("new@example.com", "password123");
+
+  assert.deepEqual(result, { emailConfirmationRequired: true });
+});
 
 function oauthClient(result: { error: Error | null }) {
   const calls: unknown[] = [];
