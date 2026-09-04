@@ -22,7 +22,8 @@ import {
   listProjects,
   renameProject,
 } from "./projects.ts";
-import { UnauthorizedError, ValidationError } from "../domain/application-error.ts";
+import { requireWorkspaceMembership, resolveActiveWorkspaceId } from "./workspace.ts";
+import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
 import type { Subscription } from "../domain/subscription.ts";
@@ -65,6 +66,11 @@ interface MemoryState {
   entries: TimeEntry[];
   subscription: Subscription;
   dailyGoal: number | null;
+  personalWorkspaceId: string;
+  // workspaceId -> role, for every workspace this fake's user is
+  // (supposedly) a member of. The personal workspace is a member by
+  // default, same as real Ticket 097 backfill guarantees.
+  memberships: Record<string, "owner" | "admin" | "member">;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -83,6 +89,8 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     entries: [ENTRY],
     subscription: { status: "active", currentPeriodEnd: null },
     dailyGoal: null,
+    personalWorkspaceId: "workspace-personal-1",
+    memberships: { "workspace-personal-1": "owner" },
     calls: [],
     ...overrides,
   };
@@ -137,6 +145,17 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     dailyGoal: {
       async get() { record("goal.get"); return state.dailyGoal; },
       async set(hours) { record("goal.set", hours); state.dailyGoal = hours; },
+    },
+    workspace: {
+      async getMembership(userId, workspaceId) {
+        record("workspace.getMembership", userId, workspaceId);
+        const role = state.memberships[workspaceId];
+        return role ? { workspaceId, role } : null;
+      },
+      async getPersonalWorkspaceId(userId) {
+        record("workspace.personalId", userId);
+        return state.personalWorkspaceId;
+      },
     },
   };
   return { repos, state };
@@ -221,6 +240,50 @@ test("auth use cases normalize identity fields but leave passwords opaque", asyn
 test("requireUser raises the typed unauthorized error for an anonymous session", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(requireUser(repos), UnauthorizedError);
+});
+
+// Ticket 099 — the non-negotiable server-side membership check: a client
+// sending a workspaceId it doesn't actually belong to must never gain
+// access, and must get a 403 (ForbiddenError), never a silent pass or a
+// 404 (see the ticket's own reference to Ticket 063's error contract).
+test("requireWorkspaceMembership returns the membership for a real member", async () => {
+  const { repos } = memoryRepositories({ memberships: { "workspace-personal-1": "owner", "workspace-team-1": "member" } });
+  assert.deepEqual(await requireWorkspaceMembership(repos, "user-1", "workspace-team-1"), {
+    workspaceId: "workspace-team-1",
+    role: "member",
+  });
+});
+
+test("requireWorkspaceMembership rejects a workspace id the caller isn't a member of, with ForbiddenError (403), not a silent pass", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(
+    requireWorkspaceMembership(repos, "user-1", "workspace-someone-elses"),
+    ForbiddenError,
+  );
+});
+
+test("requireWorkspaceMembership rejects a workspace id that doesn't exist at all identically to a foreign one (must not leak existence)", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(
+    requireWorkspaceMembership(repos, "user-1", "workspace-does-not-exist"),
+    ForbiddenError,
+  );
+});
+
+test("resolveActiveWorkspaceId honors an explicitly requested workspace once membership is verified", async () => {
+  const { repos } = memoryRepositories({ memberships: { "workspace-personal-1": "owner", "workspace-team-1": "member" } });
+  assert.equal(await resolveActiveWorkspaceId(repos, "user-1", "workspace-team-1"), "workspace-team-1");
+});
+
+test("resolveActiveWorkspaceId falls back to the personal workspace when no workspace was requested (not-yet-workspace-aware caller)", async () => {
+  const { repos } = memoryRepositories();
+  assert.equal(await resolveActiveWorkspaceId(repos, "user-1", null), "workspace-personal-1");
+  assert.equal(await resolveActiveWorkspaceId(repos, "user-1", undefined), "workspace-personal-1");
+});
+
+test("resolveActiveWorkspaceId falls back to the personal workspace instead of throwing when the requested workspace no longer resolves to a membership (e.g. it was deleted)", async () => {
+  const { repos } = memoryRepositories();
+  assert.equal(await resolveActiveWorkspaceId(repos, "user-1", "workspace-deleted"), "workspace-personal-1");
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

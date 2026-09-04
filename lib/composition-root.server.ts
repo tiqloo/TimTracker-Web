@@ -3,6 +3,7 @@ import { createSupabaseProjectsRepository } from "@/lib/repositories/supabase/pr
 import { createSupabaseTimeEntriesRepository } from "@/lib/repositories/supabase/time-entries.repository";
 import { createSupabaseSubscriptionRepository } from "@/lib/repositories/supabase/subscription.repository";
 import { createSupabaseAuthRepository } from "@/lib/repositories/supabase/auth.repository";
+import { createSupabaseWorkspaceRepository } from "@/lib/repositories/supabase/workspace.repository";
 import { createCookieLanguageRepository } from "@/lib/repositories/cookie/language.server";
 import { createCookieDailyGoalRepository } from "@/lib/repositories/cookie/daily-goal.server";
 import type { Repositories } from "@/lib/repositories/repositories";
@@ -21,5 +22,6 @@ export async function getServerRepositories(): Promise<Repositories> {
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),
     dailyGoal: createCookieDailyGoalRepository(),
+    workspace: createSupabaseWorkspaceRepository(client),
   };
 }

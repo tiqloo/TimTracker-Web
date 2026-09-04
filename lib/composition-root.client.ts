@@ -3,6 +3,7 @@ import { createSupabaseProjectsRepository } from "@/lib/repositories/supabase/pr
 import { createSupabaseTimeEntriesRepository } from "@/lib/repositories/supabase/time-entries.repository";
 import { createSupabaseSubscriptionRepository } from "@/lib/repositories/supabase/subscription.repository";
 import { createSupabaseAuthRepository } from "@/lib/repositories/supabase/auth.repository";
+import { createSupabaseWorkspaceRepository } from "@/lib/repositories/supabase/workspace.repository";
 import { createCookieLanguageRepository } from "@/lib/repositories/cookie/language.client";
 import { createCookieDailyGoalRepository } from "@/lib/repositories/cookie/daily-goal.client";
 import type { Repositories } from "@/lib/repositories/repositories";
@@ -41,6 +42,7 @@ export function getBrowserRepositories(): Repositories {
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),
     dailyGoal: createCookieDailyGoalRepository(),
+    workspace: createSupabaseWorkspaceRepository(client),
   };
 }
 

@@ -4,6 +4,7 @@ import type { SubscriptionRepository } from "./subscription.repository";
 import type { AuthRepository } from "./auth.repository";
 import type { LanguageRepository } from "./language.repository";
 import type { DailyGoalRepository } from "./daily-goal.repository";
+import type { WorkspaceRepository } from "./workspace.repository";
 
 // Pure aggregate of the driven ports — no adapter/Supabase import here,
 // on purpose. This is what lib/application/* is allowed to depend on.
@@ -17,4 +18,6 @@ export interface Repositories {
   language: LanguageRepository;
   // Ticket 044 — same cookie-backed port shape as `language` above.
   dailyGoal: DailyGoalRepository;
+  // Ticket 099 — server-side workspace-membership checks.
+  workspace: WorkspaceRepository;
 }
