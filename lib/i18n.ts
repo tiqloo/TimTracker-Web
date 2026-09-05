@@ -1230,3 +1230,26 @@ export const exportGate = {
     en: "No active trial or subscription. Please manage your subscription to regain access to your data.",
   },
 } satisfies Record<string, Translated>;
+
+// --- app/(dashboard)/dashboard/workspaces/new (Ticket 100) --------------
+export const workspaces = {
+  pageTitle: { de: "Unternehmens-Workspace erstellen", en: "Create organization workspace" },
+  pageDescription: {
+    de: "Erstelle einen eigenen Workspace, um Tiqloo gemeinsam mit deinem Team zu nutzen. Dein persönlicher Workspace bleibt davon unberührt bestehen.",
+    en: "Create your own workspace to use Tiqloo together with your team. Your personal workspace stays exactly as it is.",
+  },
+  nameLabel: { de: "Unternehmensname", en: "Organization name" },
+  namePlaceholder: { de: "z. B. PROMOS Consult", en: "e.g. Acme Inc." },
+  createButton: { de: "Workspace erstellen", en: "Create workspace" },
+  creating: { de: "Wird erstellt…", en: "Creating…" },
+  nameRequiredError: { de: "Bitte gib einen Unternehmensnamen ein.", en: "Please enter an organization name." },
+  nameTooLongError: {
+    de: "Der Name darf höchstens 100 Zeichen lang sein.",
+    en: "The name must not exceed 100 characters.",
+  },
+  createError: {
+    de: "Der Workspace konnte nicht erstellt werden. Bitte versuche es erneut.",
+    en: "The workspace could not be created. Please try again.",
+  },
+  createSuccess: { de: "Workspace wurde erstellt.", en: "Workspace was created." },
+} satisfies Record<string, Translated>;

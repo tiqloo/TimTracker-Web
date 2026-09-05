@@ -22,7 +22,7 @@ import {
   listProjects,
   renameProject,
 } from "./projects.ts";
-import { requireWorkspaceMembership, resolveActiveWorkspaceId } from "./workspace.ts";
+import { createOrganizationWorkspace, requireWorkspaceMembership, resolveActiveWorkspaceId } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -156,6 +156,10 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         record("workspace.personalId", userId);
         return state.personalWorkspaceId;
       },
+      async createOrganization(name) {
+        record("workspace.createOrganization", name);
+        return { id: "workspace-new-org-1", name, slug: "new-org-1", workspaceType: "ORGANIZATION" };
+      },
     },
   };
   return { repos, state };
@@ -284,6 +288,31 @@ test("resolveActiveWorkspaceId falls back to the personal workspace when no work
 test("resolveActiveWorkspaceId falls back to the personal workspace instead of throwing when the requested workspace no longer resolves to a membership (e.g. it was deleted)", async () => {
   const { repos } = memoryRepositories();
   assert.equal(await resolveActiveWorkspaceId(repos, "user-1", "workspace-deleted"), "workspace-personal-1");
+});
+
+// Ticket 100 — create_organization_workspace.
+test("createOrganizationWorkspace trims the name and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  const workspace = await createOrganizationWorkspace(repos, "  PROMOS Consult  ");
+  assert.deepEqual(workspace, { id: "workspace-new-org-1", name: "PROMOS Consult", slug: "new-org-1", workspaceType: "ORGANIZATION" });
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.createOrganization", args: ["PROMOS Consult"] });
+});
+
+test("createOrganizationWorkspace rejects an empty/whitespace-only name before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(createOrganizationWorkspace(repos, "   "), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "workspace.createOrganization"));
+});
+
+test("createOrganizationWorkspace rejects an excessively long name before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(createOrganizationWorkspace(repos, "a".repeat(101)), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "workspace.createOrganization"));
+});
+
+test("createOrganizationWorkspace requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(createOrganizationWorkspace(repos, "PROMOS Consult"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

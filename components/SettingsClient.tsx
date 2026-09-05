@@ -43,6 +43,7 @@ import {
   settings,
   t,
   themeLabels,
+  workspaces as i18nWorkspaces,
   type Lang,
 } from "@/lib/i18n";
 import {
@@ -95,6 +96,7 @@ export function SettingsClient({
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <ProfileSection profile={profile} lang={lang} />
+      <WorkspaceSection lang={lang} />
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
       <DesignSection lang={lang} />
       {/* Ticket 044: placed right after LanguageSection, per the ticket's
@@ -110,6 +112,25 @@ export function SettingsClient({
       <DataExportSection lang={lang} />
       <DeleteAccountSection lang={lang} />
     </div>
+  );
+}
+
+// Ticket 100 — entry point into the new "Unternehmens-Workspace
+// erstellen" flow (its own page, app/(dashboard)/dashboard/workspaces/new,
+// not folded into this file — see that page's own comment for why). Just
+// a link/description card, same shape as DataExportSection below minus
+// the async handler, since the actual work happens on the target page.
+function WorkspaceSection({ lang }: { lang: Lang }) {
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl border border-line/90 bg-surface p-6 shadow-[0_16px_45px_-38px_rgba(24,24,23,0.45)]">
+      <h2 className="text-base font-semibold tracking-tight">{t(lang, i18nWorkspaces.pageTitle)}</h2>
+      <p className="text-sm text-foreground/70">{t(lang, i18nWorkspaces.pageDescription)}</p>
+      <div>
+        <Link href="/dashboard/workspaces/new" className={buttonClass}>
+          {t(lang, i18nWorkspaces.createButton)}
+        </Link>
+      </div>
+    </section>
   );
 }
 

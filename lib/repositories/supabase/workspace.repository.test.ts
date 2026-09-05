@@ -69,3 +69,37 @@ test("getPersonalWorkspaceId throws rather than silently returning an unusable v
   const { client } = queryClient({ data: null, error: null });
   await assert.rejects(createSupabaseWorkspaceRepository(client).getPersonalWorkspaceId("user-1"), /No personal workspace found/);
 });
+
+// Ticket 100 — createOrganization calls the create_organization_workspace
+// RPC (a SECURITY DEFINER Postgres function, TimTracker-Starter repo),
+// never a raw table insert.
+function rpcClient(result: { data: unknown; error: unknown }): { client: SupabaseClient; calls: { fn: string; args: unknown }[] } {
+  const calls: { fn: string; args: unknown }[] = [];
+  const client = {
+    rpc: (fn: string, args: unknown) => {
+      calls.push({ fn, args });
+      return Promise.resolve(result);
+    },
+  } as unknown as SupabaseClient;
+  return { client, calls };
+}
+
+test("createOrganization calls create_organization_workspace with the given name and maps the returned row", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ id: "ws-1", name: "PROMOS Consult", slug: "promos-consult", workspace_type: "ORGANIZATION" }],
+    error: null,
+  });
+  const workspace = await createSupabaseWorkspaceRepository(client).createOrganization("PROMOS Consult");
+  assert.deepEqual(workspace, { id: "ws-1", name: "PROMOS Consult", slug: "promos-consult", workspaceType: "ORGANIZATION" });
+  assert.deepEqual(calls, [{ fn: "create_organization_workspace", args: { workspace_name: "PROMOS Consult" } }]);
+});
+
+test("createOrganization propagates an RPC error (e.g. the server-side name validation failing) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Workspace name must not be empty") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).createOrganization(""), /must not be empty/);
+});
+
+test("createOrganization throws rather than returning an unusable value if the RPC unexpectedly returns no row", async () => {
+  const { client } = rpcClient({ data: [], error: null });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).createOrganization("x"), /no row/);
+});

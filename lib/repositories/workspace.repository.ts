@@ -10,10 +10,18 @@
 // user actually a member of this workspace, and what's their personal
 // workspace as a fallback."
 export type WorkspaceRole = "owner" | "admin" | "member";
+export type WorkspaceType = "PERSONAL" | "ORGANIZATION" | "SYSTEM";
 
 export interface WorkspaceMembership {
   workspaceId: string;
   role: WorkspaceRole;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  workspaceType: WorkspaceType;
 }
 
 export interface WorkspaceRepository {
@@ -27,4 +35,16 @@ export interface WorkspaceRepository {
   // + trigger guarantee this for every account, existing and new) — the
   // fallback target whenever no explicit/valid workspace is in play.
   getPersonalWorkspaceId(userId: string): Promise<string>;
+
+  // Ticket 100 — creates a new ORGANIZATION workspace with the calling
+  // user recorded as its owner. Backed by a SECURITY DEFINER Postgres RPC
+  // (TimTracker-Starter repo, create_organization_workspace()), not a
+  // plain table insert — Ticket 096 deliberately never granted
+  // INSERT on `workspaces`/`workspace_memberships` to `authenticated`,
+  // and creating a workspace is a two-table, must-be-atomic operation
+  // (workspace + its first membership), not a fit for RLS-gated
+  // client-side inserts. Name validation (non-empty, length) happens both
+  // here-adjacent in the application layer AND server-side in the RPC —
+  // never trust only one side.
+  createOrganization(name: string): Promise<Workspace>;
 }

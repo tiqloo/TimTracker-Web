@@ -3,11 +3,14 @@
 // call these, never lib/repositories/* directly" rule as
 // lib/application/auth.ts.
 import type { Repositories } from "@/lib/repositories/repositories";
-import type { WorkspaceMembership } from "@/lib/repositories/workspace.repository";
-import { ForbiddenError } from "../domain/application-error.ts";
+import type { Workspace, WorkspaceMembership } from "@/lib/repositories/workspace.repository";
+import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
+import { requireUser } from "./auth.ts";
 
-export type { WorkspaceMembership, WorkspaceRole } from "@/lib/repositories/workspace.repository";
+export type { Workspace, WorkspaceMembership, WorkspaceRole, WorkspaceType } from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
+
+const WORKSPACE_NAME_MAX_LENGTH = 100;
 
 // THE non-negotiable primitive from Ticket 099: every workspace-scoped
 // operation (reading/writing projects or time entries once Ticket 098's
@@ -51,4 +54,20 @@ export async function resolveActiveWorkspaceId(
     if (membership) return requestedWorkspaceId;
   }
   return repos.workspace.getPersonalWorkspaceId(userId);
+}
+
+// Ticket 100 — "Unternehmens-Workspace erstellen". Trims and validates the
+// name the same way createProject() (lib/application/projects.ts) does for
+// its own name field — same validation layer as every other "create X with
+// a name" form in this app, per the ticket's own AC. The server-side RPC
+// (create_organization_workspace) validates again independently; this is
+// the fast, user-facing check, not the authoritative one.
+export async function createOrganizationWorkspace(repos: Repositories, rawName: string): Promise<Workspace> {
+  await requireUser(repos);
+  const name = rawName.trim();
+  if (!name) throw new ValidationError("Workspace name must not be empty.");
+  if (name.length > WORKSPACE_NAME_MAX_LENGTH) {
+    throw new ValidationError(`Workspace name must not exceed ${WORKSPACE_NAME_MAX_LENGTH} characters.`);
+  }
+  return repos.workspace.createOrganization(name);
 }

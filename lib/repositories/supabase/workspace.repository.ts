@@ -1,9 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { WorkspaceRepository, WorkspaceRole } from "../workspace.repository.ts";
+import type { WorkspaceRepository, WorkspaceRole, WorkspaceType } from "../workspace.repository.ts";
 
 interface MembershipRow {
   workspace_id: string;
   role: WorkspaceRole;
+}
+
+interface WorkspaceRow {
+  id: string;
+  name: string;
+  slug: string;
+  workspace_type: WorkspaceType;
 }
 
 export function createSupabaseWorkspaceRepository(client: SupabaseClient): WorkspaceRepository {
@@ -42,6 +49,24 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
         throw new Error(`No personal workspace found for user ${userId}`);
       }
       return (data as { workspace_id: string }).workspace_id;
+    },
+
+    async createOrganization(name) {
+      // `create_organization_workspace` (TimTracker-Starter repo,
+      // supabase/migrations/20260905120000_create_organization_workspace_rpc.sql)
+      // is a SECURITY DEFINER RPC, not a table insert — it atomically
+      // creates the workspace row AND the caller's owner-membership row,
+      // and generates a unique slug server-side. Returns a single row (the
+      // function is declared `returns table (...)`, hence `.select()`
+      // giving an array from PostgREST, not `.maybeSingle()`-shaped).
+      const { data, error } = await client.rpc("create_organization_workspace", {
+        workspace_name: name,
+      });
+      if (error) throw error;
+      const rows = data as WorkspaceRow[];
+      const row = rows[0];
+      if (!row) throw new Error("create_organization_workspace returned no row");
+      return { id: row.id, name: row.name, slug: row.slug, workspaceType: row.workspace_type };
     },
   };
 }
