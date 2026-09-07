@@ -1336,3 +1336,45 @@ export const acceptInvite = {
   acceptedTitle: { de: "Willkommen im Team", en: "Welcome to the team" },
   goToDashboardButton: { de: "Zum Dashboard", en: "Go to dashboard" },
 } satisfies Record<string, Translated>;
+
+// --- Ticket 110: Workspace-Mitgliederübersicht --------------------------
+export const workspaceMembers = {
+  pageTitle: { de: "Mitglieder", en: "Members" },
+  pageDescription: {
+    de: "Alle Mitglieder und offenen Einladungen dieses Workspace.",
+    en: "Every member and open invitation for this workspace.",
+  },
+  columnName: { de: "Name", en: "Name" },
+  columnEmail: { de: "E-Mail", en: "Email" },
+  columnRole: { de: "Rolle", en: "Role" },
+  columnStatus: { de: "Status", en: "Status" },
+  columnSince: { de: "Seit", en: "Since" },
+  roleOwner: { de: "Owner", en: "Owner" },
+  roleAdmin: { de: "Admin", en: "Admin" },
+  roleMember: { de: "Mitglied", en: "Member" },
+  statusActive: { de: "Aktiv", en: "Active" },
+  statusInvited: { de: "Eingeladen", en: "Invited" },
+  statusInvitationExpired: { de: "Einladung abgelaufen", en: "Invitation expired" },
+  statusInvitationRevoked: { de: "Deaktiviert", en: "Deactivated" },
+  noDisplayNameFallback: { de: "(kein Name hinterlegt)", en: "(no name set)" },
+  emptyState: { de: "Dieser Workspace hat noch keine Mitglieder.", en: "This workspace has no members yet." },
+  loadError: {
+    de: "Die Mitgliederliste konnte nicht geladen werden.",
+    en: "The member list could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Nur Owner und Admins können die Mitgliederübersicht sehen.",
+    en: "Only owners and admins can view the members overview.",
+  },
+  roleChangeError: {
+    de: "Die Rolle konnte nicht geändert werden. Bitte versuche es erneut.",
+    en: "The role could not be changed. Please try again.",
+  },
+  roleChangeSuccess: { de: "Rolle wurde geändert.", en: "Role was changed." },
+  // Ticket 111/115 haben eigene Regeln (Entfernen/Erneut senden) — diese
+  // Übersicht zeigt bewusst noch keine Buttons dafür, siehe Ticket-Doku.
+  moreActionsComingSoon: {
+    de: "Entfernen und erneutes Senden folgen in eigenen Schritten.",
+    en: "Remove and resend are coming in their own steps.",
+  },
+} satisfies Record<string, Translated>;

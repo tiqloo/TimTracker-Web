@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   InvitationRole,
+  WorkspaceMemberStatus,
   WorkspaceRepository,
   WorkspaceRole,
   WorkspaceType,
@@ -136,6 +137,42 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       const row = rows[0];
       if (!row) throw new Error("accept_workspace_invitation returned no row");
       return { workspaceId: row.workspace_id, workspaceName: row.workspace_name, role: row.role };
+    },
+
+    async listMembers(workspaceId) {
+      const { data, error } = await client.rpc("list_workspace_members", {
+        target_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      const rows = data as {
+        user_id: string | null;
+        email: string;
+        display_name: string | null;
+        role: WorkspaceRole;
+        status: WorkspaceMemberStatus;
+        since: string;
+      }[];
+      return rows.map((row) => ({
+        userId: row.user_id,
+        email: row.email,
+        displayName: row.display_name,
+        role: row.role,
+        status: row.status,
+        since: row.since,
+      }));
+    },
+
+    async updateMemberRole(workspaceId, userId, role) {
+      const { data, error } = await client.rpc("update_workspace_member_role", {
+        target_workspace_id: workspaceId,
+        target_user_id: userId,
+        new_role: role,
+      });
+      if (error) throw error;
+      const rows = data as { user_id: string; role: InvitationRole }[];
+      const row = rows[0];
+      if (!row) throw new Error("update_workspace_member_role returned no row");
+      return { userId: row.user_id, role: row.role };
     },
   };
 }

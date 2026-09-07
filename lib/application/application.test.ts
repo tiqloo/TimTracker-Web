@@ -28,11 +28,14 @@ import {
   createOrganizationWorkspace,
   getWorkspaceSwitcherData,
   inviteWorkspaceMember,
+  listWorkspaceMembers,
   previewWorkspaceInvitation,
   requireWorkspaceMembership,
   resolveActiveWorkspaceId,
   switchActiveWorkspace,
+  updateWorkspaceMemberRole,
 } from "./workspace.ts";
+import type { WorkspaceMemberRow } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -90,6 +93,8 @@ interface MemoryState {
   activeWorkspaceCookie: string | null;
   // token -> invitation, for the Ticket 102 fakes below.
   invitations: Record<string, { email: string; workspaceId: string; workspaceName: string; role: "admin" | "member"; accepted: boolean }>;
+  // workspaceId -> member/invitation rows, for the Ticket 110 fakes below.
+  memberRowsByWorkspace: Record<string, WorkspaceMemberRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -113,6 +118,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     workspaceDetails: { "workspace-personal-1": { name: "Persönlich", type: "PERSONAL" } },
     activeWorkspaceCookie: null,
     invitations: {},
+    memberRowsByWorkspace: {},
     calls: [],
     ...overrides,
   };
@@ -213,6 +219,18 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         if (invitation.accepted) throw new Error("This invitation has already been accepted");
         invitation.accepted = true;
         return { workspaceId: invitation.workspaceId, workspaceName: invitation.workspaceName, role: invitation.role };
+      },
+      async listMembers(workspaceId) {
+        record("workspace.listMembers", workspaceId);
+        return state.memberRowsByWorkspace[workspaceId] ?? [];
+      },
+      async updateMemberRole(workspaceId, userId, role) {
+        record("workspace.updateMemberRole", workspaceId, userId, role);
+        const rows = state.memberRowsByWorkspace[workspaceId] ?? [];
+        const row = rows.find((r) => r.userId === userId);
+        if (!row) throw new Error("This user is not a member of this workspace");
+        row.role = role;
+        return { userId, role };
       },
     },
     activeWorkspace: {
@@ -497,6 +515,61 @@ test("acceptWorkspaceInvitation delegates to the repository once authenticated",
   const accepted = await acceptWorkspaceInvitation(repos, invitation.token);
   assert.equal(accepted.workspaceId, "workspace-team-1");
   assert.equal(accepted.role, "member");
+});
+
+// Ticket 110 — Workspace-Mitgliederübersicht.
+test("listWorkspaceMembers requires authentication and delegates to the repository", async () => {
+  const memberRow: WorkspaceMemberRow = {
+    userId: "user-2",
+    email: "colleague@example.test",
+    displayName: "Colleague",
+    role: "member",
+    status: "active",
+    since: "2026-09-01T00:00:00.000Z",
+  };
+  const { repos, state } = memoryRepositories({
+    memberRowsByWorkspace: { "workspace-team-1": [memberRow] },
+  });
+
+  const members = await listWorkspaceMembers(repos, "workspace-team-1");
+
+  assert.deepEqual(members, [memberRow]);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.listMembers", args: ["workspace-team-1"] });
+});
+
+test("listWorkspaceMembers requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(listWorkspaceMembers(repos, "workspace-team-1"), UnauthorizedError);
+});
+
+test("updateWorkspaceMemberRole delegates to the repository for a valid role", async () => {
+  const { repos, state } = memoryRepositories({
+    memberRowsByWorkspace: {
+      "workspace-team-1": [
+        { userId: "user-2", email: "colleague@example.test", displayName: null, role: "member", status: "active", since: "2026-09-01T00:00:00.000Z" },
+      ],
+    },
+  });
+
+  const updated = await updateWorkspaceMemberRole(repos, "workspace-team-1", "user-2", "admin");
+
+  assert.deepEqual(updated, { userId: "user-2", role: "admin" });
+  assert.deepEqual(state.memberRowsByWorkspace["workspace-team-1"][0].role, "admin");
+});
+
+test("updateWorkspaceMemberRole rejects an invalid role before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(
+    // @ts-expect-error deliberately invalid at the boundary, same as the server-side RPC guards against it
+    updateWorkspaceMemberRole(repos, "workspace-team-1", "user-2", "owner"),
+    ValidationError,
+  );
+  assert.ok(!state.calls.some((call) => call.method === "workspace.updateMemberRole"));
+});
+
+test("updateWorkspaceMemberRole requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(updateWorkspaceMemberRole(repos, "workspace-team-1", "user-2", "admin"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

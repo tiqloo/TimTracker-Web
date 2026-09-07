@@ -211,3 +211,36 @@ test("acceptInvitation propagates an RPC error (e.g. already accepted) instead o
   const { client } = rpcClient({ data: null, error: new Error("This invitation has already been accepted") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).acceptInvitation("some-token"), /already been accepted/);
 });
+
+test("listMembers calls list_workspace_members and maps every row, including a pending invitation with no user_id", async () => {
+  const { client, calls } = rpcClient({
+    data: [
+      { user_id: "user-1", email: "owner@example.test", display_name: "Owner Person", role: "owner", status: "active", since: "2026-09-01T00:00:00.000Z" },
+      { user_id: null, email: "pending@example.test", display_name: null, role: "member", status: "invited", since: "2026-09-05T00:00:00.000Z" },
+    ],
+    error: null,
+  });
+  const members = await createSupabaseWorkspaceRepository(client).listMembers("ws-1");
+  assert.deepEqual(members, [
+    { userId: "user-1", email: "owner@example.test", displayName: "Owner Person", role: "owner", status: "active", since: "2026-09-01T00:00:00.000Z" },
+    { userId: null, email: "pending@example.test", displayName: null, role: "member", status: "invited", since: "2026-09-05T00:00:00.000Z" },
+  ]);
+  assert.deepEqual(calls, [{ fn: "list_workspace_members", args: { target_workspace_id: "ws-1" } }]);
+});
+
+test("listMembers propagates an RPC error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view the member list") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).listMembers("ws-1"), /owners\/admins may view/);
+});
+
+test("updateMemberRole calls update_workspace_member_role and maps the returned row", async () => {
+  const { client, calls } = rpcClient({ data: [{ user_id: "user-2", role: "admin" }], error: null });
+  const updated = await createSupabaseWorkspaceRepository(client).updateMemberRole("ws-1", "user-2", "admin");
+  assert.deepEqual(updated, { userId: "user-2", role: "admin" });
+  assert.deepEqual(calls, [{ fn: "update_workspace_member_role", args: { target_workspace_id: "ws-1", target_user_id: "user-2", new_role: "admin" } }]);
+});
+
+test("updateMemberRole propagates an RPC error (e.g. target isn't a member) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("This user is not a member of this workspace") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).updateMemberRole("ws-1", "user-2", "admin"), /not a member/);
+});

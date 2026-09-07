@@ -36,6 +36,22 @@ export interface Workspace {
   workspaceType: WorkspaceType;
 }
 
+// Ticket 110 — one row of "everyone associated with this workspace",
+// combining real memberships AND still-open/expired/revoked invitations
+// into one list (exactly what the members overview shows in one table).
+// `userId`/`displayName` are only ever set for an "active" row — an
+// invitation that hasn't been accepted yet has no account to point at.
+export type WorkspaceMemberStatus = "active" | "invited" | "invitation_expired" | "invitation_revoked";
+
+export interface WorkspaceMemberRow {
+  userId: string | null;
+  email: string;
+  displayName: string | null;
+  role: WorkspaceRole;
+  status: WorkspaceMemberStatus;
+  since: string;
+}
+
 // Ticket 102 — invitation role is intentionally narrower than
 // WorkspaceRole above: an invitation can never directly grant 'owner'
 // (that only ever happens via workspace creation, Ticket 100, or an
@@ -112,6 +128,17 @@ export interface WorkspaceRepository {
   // invitation's — enforced server-side (Ticket 099's non-negotiable
   // rule applies here too: this port never decides that itself).
   acceptInvitation(token: string): Promise<AcceptedInvitation>;
+
+  // Ticket 110 — backed by a SECURITY DEFINER RPC
+  // (list_workspace_members, TimTracker-Starter repo) that itself checks
+  // the caller is an owner/admin of workspaceId; this port makes no
+  // promises about who's allowed to call it.
+  listMembers(workspaceId: string): Promise<WorkspaceMemberRow[]>;
+
+  // Ticket 110 — the one member-management action with no other ticket
+  // of its own (unlike remove-member, Ticket 111, or resend-invitation,
+  // Ticket 115). Never grants 'owner' — enforced server-side.
+  updateMemberRole(workspaceId: string, userId: string, role: InvitationRole): Promise<{ userId: string; role: InvitationRole }>;
 }
 
 // Ticket 103 — the one fallback rule every "which workspace should this

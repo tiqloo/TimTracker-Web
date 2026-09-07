@@ -11,6 +11,7 @@ import type {
   Workspace,
   WorkspaceMembership,
   WorkspaceMembershipSummary,
+  WorkspaceMemberRow,
 } from "@/lib/repositories/workspace.repository";
 import { resolveWorkspaceIdWithFallback } from "../repositories/workspace.repository.ts";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
@@ -24,6 +25,8 @@ export type {
   Workspace,
   WorkspaceMembership,
   WorkspaceMembershipSummary,
+  WorkspaceMemberRow,
+  WorkspaceMemberStatus,
   WorkspaceRole,
   WorkspaceType,
 } from "@/lib/repositories/workspace.repository";
@@ -160,4 +163,33 @@ export async function switchActiveWorkspace(repos: Repositories, workspaceId: st
   const userId = await requireUser(repos);
   await requireWorkspaceMembership(repos, userId, workspaceId);
   await repos.activeWorkspace.set(workspaceId);
+}
+
+// Ticket 110 — "Workspace-Mitgliederübersicht". No requireWorkspaceMembership
+// call here on purpose: the RPC itself is the authoritative owner/admin
+// check (list_workspace_members raises for anyone else, including a
+// member of a DIFFERENT workspace) — same "the RPC is the sole
+// authoritative check" reasoning already established for the invite page
+// (app/(dashboard)/dashboard/workspaces/[workspaceId]/invite/page.tsx's
+// own comment).
+export async function listWorkspaceMembers(repos: Repositories, workspaceId: string): Promise<WorkspaceMemberRow[]> {
+  await requireUser(repos);
+  return repos.workspace.listMembers(workspaceId);
+}
+
+// Ticket 110 — the caller-facing guard (never a direct 'owner' grant) is
+// enforced server-side too (RPC rejects with a 22023), this is only the
+// fast, user-facing check, same relationship as every other
+// validate-then-delegate function in this file.
+export async function updateWorkspaceMemberRole(
+  repos: Repositories,
+  workspaceId: string,
+  userId: string,
+  role: InvitationRole,
+): Promise<{ userId: string; role: InvitationRole }> {
+  await requireUser(repos);
+  if (role !== "admin" && role !== "member") {
+    throw new ValidationError("Role must be either admin or member.");
+  }
+  return repos.workspace.updateMemberRole(workspaceId, userId, role);
 }
