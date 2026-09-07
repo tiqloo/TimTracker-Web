@@ -1398,6 +1398,7 @@ export const workspaceMembers = {
   // ändern/Link kopieren) lebt auf einer eigenen Seite, siehe
   // WorkspaceInvitationsClient.tsx.
   manageInvitationsLink: { de: "Einladungen verwalten", en: "Manage invitations" },
+  workspaceSettingsLink: { de: "Workspace-Einstellungen", en: "Workspace settings" },
 } satisfies Record<string, Translated>;
 
 // --- Ticket 115: Einladungsverwaltung ------------------------------------
@@ -1466,6 +1467,76 @@ export const workspaceInvitations = {
     de: "Die Rolle konnte nicht geändert werden. Bitte versuche es erneut.",
     en: "The role could not be changed. Please try again.",
   },
+} satisfies Record<string, Translated>;
+
+// --- Ticket 117: Workspace-Einstellungen ---------------------------------
+export const workspaceSettings = {
+  pageTitle: { de: "Workspace-Einstellungen", en: "Workspace settings" },
+  pageDescription: {
+    de: "Name, Zeitzone, Sprache und Formate dieses Workspace verwalten.",
+    en: "Manage this workspace's name, timezone, language and formats.",
+  },
+  loadError: {
+    de: "Die Einstellungen konnten nicht geladen werden.",
+    en: "The settings could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Du bist kein Mitglied dieses Workspace.",
+    en: "You are not a member of this workspace.",
+  },
+  nameLabel: { de: "Name", en: "Name" },
+  timezoneLabel: { de: "Zeitzone", en: "Timezone" },
+  defaultLanguageLabel: { de: "Standardsprache", en: "Default language" },
+  languageDe: { de: "Deutsch", en: "German" },
+  languageEn: { de: "Englisch", en: "English" },
+  weekStartLabel: { de: "Wochenbeginn", en: "Week start" },
+  weekStartMonday: { de: "Montag", en: "Monday" },
+  weekStartSunday: { de: "Sonntag", en: "Sunday" },
+  dateFormatLabel: { de: "Datumsformat", en: "Date format" },
+  timeFormatLabel: { de: "Zeitformat", en: "Time format" },
+  timeFormat24h: { de: "24-Stunden (14:30)", en: "24-hour (14:30)" },
+  timeFormat12h: { de: "12-Stunden (2:30 PM)", en: "12-hour (2:30 PM)" },
+  saveButton: { de: "Speichern", en: "Save" },
+  saving: { de: "Wird gespeichert…", en: "Saving…" },
+  saveSuccess: { de: "Einstellungen wurden gespeichert.", en: "Settings were saved." },
+  saveError: {
+    de: "Die Einstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+    en: "The settings could not be saved. Please try again.",
+  },
+  nameRequiredError: { de: "Bitte gib einen Namen ein.", en: "Please enter a name." },
+  nameTooLongError: {
+    de: "Der Name darf höchstens 100 Zeichen lang sein.",
+    en: "The name must not exceed 100 characters.",
+  },
+  // Nur Owner/Admin dürfen ändern (AK) — get_workspace_settings selbst ist
+  // für jedes Mitglied lesbar (dieselbe "READ vs. WRITE"-Trennung wie
+  // list_workspace_members/-invitations, 110/115), das Formular wird
+  // deshalb schreibgeschützt statt ausgeblendet angezeigt.
+  readOnlyNotice: {
+    de: "Nur Owner und Admins können diese Einstellungen ändern.",
+    en: "Only owners and admins can change these settings.",
+  },
+  logoTitle: { de: "Logo", en: "Logo" },
+  logoUploadButton: { de: "Logo hochladen", en: "Upload logo" },
+  logoUploading: { de: "Wird hochgeladen…", en: "Uploading…" },
+  logoUploadSuccess: { de: "Logo wurde hochgeladen.", en: "Logo was uploaded." },
+  logoUploadError: {
+    de: "Das Logo konnte nicht hochgeladen werden. Bitte versuche es erneut.",
+    en: "The logo could not be uploaded. Please try again.",
+  },
+  logoTypeError: {
+    de: "Das Logo muss eine PNG-, JPEG- oder WebP-Datei sein.",
+    en: "The logo must be a PNG, JPEG or WebP file.",
+  },
+  logoSizeError: { de: "Das Logo darf höchstens 2 MB groß sein.", en: "The logo must not exceed 2 MB." },
+  logoRemoveButton: { de: "Logo entfernen", en: "Remove logo" },
+  logoRemoving: { de: "Wird entfernt…", en: "Removing…" },
+  logoRemoveSuccess: { de: "Logo wurde entfernt.", en: "Logo was removed." },
+  logoRemoveError: {
+    de: "Das Logo konnte nicht entfernt werden. Bitte versuche es erneut.",
+    en: "The logo could not be removed. Please try again.",
+  },
+  logoEmptyState: { de: "Noch kein Logo hochgeladen.", en: "No logo uploaded yet." },
 } satisfies Record<string, Translated>;
 
 // --- Ticket 112: Workspace verlassen ------------------------------------

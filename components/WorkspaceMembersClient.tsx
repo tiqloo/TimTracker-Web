@@ -274,9 +274,14 @@ export function WorkspaceMembersClient({
           </tbody>
         </table>
       </div>
-      <Link href={`/dashboard/workspaces/${workspaceId}/invitations`} className="text-xs font-medium text-brand hover:underline">
-        {t(lang, i18nWorkspaceMembers.manageInvitationsLink)}
-      </Link>
+      <div className="flex flex-wrap gap-4">
+        <Link href={`/dashboard/workspaces/${workspaceId}/invitations`} className="text-xs font-medium text-brand hover:underline">
+          {t(lang, i18nWorkspaceMembers.manageInvitationsLink)}
+        </Link>
+        <Link href={`/dashboard/workspaces/${workspaceId}/settings`} className="text-xs font-medium text-brand hover:underline">
+          {t(lang, i18nWorkspaceMembers.workspaceSettingsLink)}
+        </Link>
+      </div>
     </div>
   );
 }

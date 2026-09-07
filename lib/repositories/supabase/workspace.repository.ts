@@ -269,5 +269,101 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       if (!row) throw new Error("update_workspace_invitation_role returned no row");
       return { id: row.id, role: row.role };
     },
+
+    async getSettings(workspaceId) {
+      const { data, error } = await client.rpc("get_workspace_settings", {
+        target_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      const rows = data as {
+        id: string;
+        name: string;
+        timezone: string;
+        default_language: "de" | "en";
+        week_start: "monday" | "sunday";
+        date_format: "DD.MM.YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+        time_format: "24h" | "12h";
+        logo_path: string | null;
+      }[];
+      const row = rows[0];
+      if (!row) throw new Error("get_workspace_settings returned no row");
+      return {
+        id: row.id,
+        name: row.name,
+        timezone: row.timezone,
+        defaultLanguage: row.default_language,
+        weekStart: row.week_start,
+        dateFormat: row.date_format,
+        timeFormat: row.time_format,
+        logoPath: row.logo_path,
+      };
+    },
+
+    async updateSettings(workspaceId, input) {
+      const { data, error } = await client.rpc("update_workspace_settings", {
+        target_workspace_id: workspaceId,
+        new_name: input.name,
+        new_timezone: input.timezone,
+        new_default_language: input.defaultLanguage,
+        new_week_start: input.weekStart,
+        new_date_format: input.dateFormat,
+        new_time_format: input.timeFormat,
+      });
+      if (error) throw error;
+      const rows = data as {
+        id: string;
+        name: string;
+        timezone: string;
+        default_language: "de" | "en";
+        week_start: "monday" | "sunday";
+        date_format: "DD.MM.YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+        time_format: "24h" | "12h";
+      }[];
+      const row = rows[0];
+      if (!row) throw new Error("update_workspace_settings returned no row");
+      return {
+        id: row.id,
+        name: row.name,
+        timezone: row.timezone,
+        defaultLanguage: row.default_language,
+        weekStart: row.week_start,
+        dateFormat: row.date_format,
+        timeFormat: row.time_format,
+      };
+    },
+
+    async uploadLogo(workspaceId, file) {
+      const path = `${workspaceId}/logo`;
+      const { error: uploadError } = await client.storage
+        .from("workspace-logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { error: rpcError } = await client.rpc("update_workspace_logo", {
+        target_workspace_id: workspaceId,
+        new_logo_path: path,
+      });
+      if (rpcError) throw rpcError;
+      return path;
+    },
+
+    async removeLogo(workspaceId) {
+      const path = `${workspaceId}/logo`;
+      const { error: rpcError } = await client.rpc("update_workspace_logo", {
+        target_workspace_id: workspaceId,
+        new_logo_path: null,
+      });
+      if (rpcError) throw rpcError;
+      // Best-effort: the pointer is already cleared above, so a failure
+      // here only leaves a harmless orphaned object, never a broken image.
+      await client.storage.from("workspace-logos").remove([path]);
+    },
+
+    async getLogoUrl(logoPath) {
+      const { data, error } = await client.storage
+        .from("workspace-logos")
+        .createSignedUrl(logoPath, 60 * 5);
+      if (error) throw error;
+      return data.signedUrl;
+    },
   };
 }

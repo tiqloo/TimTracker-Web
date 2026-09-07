@@ -26,12 +26,15 @@ import {
 import {
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
+  getWorkspaceLogoUrl,
+  getWorkspaceSettings,
   getWorkspaceSwitcherData,
   inviteWorkspaceMember,
   leaveWorkspace,
   listWorkspaceInvitations,
   listWorkspaceMembers,
   previewWorkspaceInvitation,
+  removeWorkspaceLogo,
   removeWorkspaceMember,
   requireWorkspaceMembership,
   resendWorkspaceInvitation,
@@ -41,8 +44,10 @@ import {
   transferWorkspaceOwnership,
   updateWorkspaceInvitationRole,
   updateWorkspaceMemberRole,
+  updateWorkspaceSettings,
+  uploadWorkspaceLogo,
 } from "./workspace.ts";
-import type { WorkspaceInvitationRow, WorkspaceMemberRow } from "./workspace.ts";
+import type { WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -105,6 +110,8 @@ interface MemoryState {
   // workspaceId -> invitation rows (own id, unlike memberRowsByWorkspace
   // above), for the Ticket 115 fakes below.
   invitationRowsByWorkspace: Record<string, WorkspaceInvitationRow[]>;
+  // workspaceId -> settings row, for the Ticket 117 fakes below.
+  settingsByWorkspace: Record<string, WorkspaceSettings>;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -130,6 +137,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     invitations: {},
     memberRowsByWorkspace: {},
     invitationRowsByWorkspace: {},
+    settingsByWorkspace: {},
     calls: [],
     ...overrides,
   };
@@ -305,6 +313,37 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
           }
         }
         throw new Error("This invitation does not exist");
+      },
+      async getSettings(workspaceId) {
+        record("workspace.getSettings", workspaceId);
+        const settings = state.settingsByWorkspace[workspaceId];
+        if (!settings) throw new Error("This workspace does not exist");
+        return settings;
+      },
+      async updateSettings(workspaceId, input) {
+        record("workspace.updateSettings", workspaceId, input);
+        const settings = state.settingsByWorkspace[workspaceId];
+        if (!settings) throw new Error("This workspace does not exist");
+        Object.assign(settings, input);
+        return settings;
+      },
+      async uploadLogo(workspaceId, file) {
+        record("workspace.uploadLogo", workspaceId, file);
+        const settings = state.settingsByWorkspace[workspaceId];
+        if (!settings) throw new Error("This workspace does not exist");
+        const path = `${workspaceId}/logo`;
+        settings.logoPath = path;
+        return path;
+      },
+      async removeLogo(workspaceId) {
+        record("workspace.removeLogo", workspaceId);
+        const settings = state.settingsByWorkspace[workspaceId];
+        if (!settings) throw new Error("This workspace does not exist");
+        settings.logoPath = null;
+      },
+      async getLogoUrl(logoPath) {
+        record("workspace.getLogoUrl", logoPath);
+        return `https://signed.example.test/${logoPath}`;
       },
     },
     activeWorkspace: {
@@ -810,6 +849,134 @@ test("updateWorkspaceInvitationRole rejects an invalid role before ever reaching
 test("updateWorkspaceInvitationRole requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(updateWorkspaceInvitationRole(repos, "invite-1", "admin"), UnauthorizedError);
+});
+
+// Ticket 117 — Workspace-Einstellungen.
+const DEFAULT_SETTINGS: WorkspaceSettings = {
+  id: "workspace-team-1",
+  name: "SettingsCo",
+  timezone: "UTC",
+  defaultLanguage: "de",
+  weekStart: "monday",
+  dateFormat: "DD.MM.YYYY",
+  timeFormat: "24h",
+  logoPath: null,
+};
+
+test("getWorkspaceSettings requires authentication and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS } },
+  });
+
+  const settings = await getWorkspaceSettings(repos, "workspace-team-1");
+
+  assert.deepEqual(settings, DEFAULT_SETTINGS);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.getSettings", args: ["workspace-team-1"] });
+});
+
+test("getWorkspaceSettings requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getWorkspaceSettings(repos, "workspace-team-1"), UnauthorizedError);
+});
+
+test("updateWorkspaceSettings trims the name and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS } },
+  });
+
+  const updated = await updateWorkspaceSettings(repos, "workspace-team-1", {
+    name: "  Renamed Co  ",
+    timezone: "Europe/Berlin",
+    defaultLanguage: "en",
+    weekStart: "sunday",
+    dateFormat: "MM/DD/YYYY",
+    timeFormat: "12h",
+  });
+
+  assert.equal(updated.name, "Renamed Co");
+  assert.equal(state.settingsByWorkspace["workspace-team-1"].timezone, "Europe/Berlin");
+});
+
+test("updateWorkspaceSettings rejects a blank name before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS } },
+  });
+  await assert.rejects(
+    updateWorkspaceSettings(repos, "workspace-team-1", { name: "   ", timezone: "UTC", defaultLanguage: "de", weekStart: "monday", dateFormat: "DD.MM.YYYY", timeFormat: "24h" }),
+    ValidationError,
+  );
+  assert.ok(!state.calls.some((call) => call.method === "workspace.updateSettings"));
+});
+
+test("updateWorkspaceSettings requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(
+    updateWorkspaceSettings(repos, "workspace-team-1", { name: "x", timezone: "UTC", defaultLanguage: "de", weekStart: "monday", dateFormat: "DD.MM.YYYY", timeFormat: "24h" }),
+    UnauthorizedError,
+  );
+});
+
+function fakeImageFile(sizeBytes: number, type: string): File {
+  return new File([new Uint8Array(sizeBytes)], "logo.png", { type });
+}
+
+test("uploadWorkspaceLogo delegates to the repository for a valid image", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS } },
+  });
+
+  const path = await uploadWorkspaceLogo(repos, "workspace-team-1", fakeImageFile(1024, "image/png"));
+
+  assert.equal(path, "workspace-team-1/logo");
+  assert.equal(state.settingsByWorkspace["workspace-team-1"].logoPath, "workspace-team-1/logo");
+});
+
+test("uploadWorkspaceLogo rejects an unsupported file type before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS } },
+  });
+  await assert.rejects(uploadWorkspaceLogo(repos, "workspace-team-1", fakeImageFile(1024, "image/svg+xml")), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "workspace.uploadLogo"));
+});
+
+test("uploadWorkspaceLogo rejects a file over 2 MB before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS } },
+  });
+  await assert.rejects(uploadWorkspaceLogo(repos, "workspace-team-1", fakeImageFile(3 * 1024 * 1024, "image/png")), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "workspace.uploadLogo"));
+});
+
+test("uploadWorkspaceLogo requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(uploadWorkspaceLogo(repos, "workspace-team-1", fakeImageFile(1024, "image/png")), UnauthorizedError);
+});
+
+test("removeWorkspaceLogo delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    settingsByWorkspace: { "workspace-team-1": { ...DEFAULT_SETTINGS, logoPath: "workspace-team-1/logo" } },
+  });
+
+  await removeWorkspaceLogo(repos, "workspace-team-1");
+
+  assert.equal(state.settingsByWorkspace["workspace-team-1"].logoPath, null);
+});
+
+test("removeWorkspaceLogo requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(removeWorkspaceLogo(repos, "workspace-team-1"), UnauthorizedError);
+});
+
+test("getWorkspaceLogoUrl requires authentication and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  const url = await getWorkspaceLogoUrl(repos, "workspace-team-1/logo");
+  assert.equal(url, "https://signed.example.test/workspace-team-1/logo");
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.getLogoUrl", args: ["workspace-team-1/logo"] });
+});
+
+test("getWorkspaceLogoUrl requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getWorkspaceLogoUrl(repos, "workspace-team-1/logo"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

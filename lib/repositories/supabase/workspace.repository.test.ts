@@ -389,3 +389,154 @@ test("updateInvitationRole propagates an RPC error (e.g. invitation revoked) ins
   const { client } = rpcClient({ data: null, error: new Error("This invitation has been revoked") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).updateInvitationRole("invite-1", "admin"), /has been revoked/);
 });
+
+// Ticket 117 — getSettings/updateSettings, same "SECURITY DEFINER RPC"
+// shape as every method above.
+test("getSettings calls get_workspace_settings and maps the returned row, including the logo path", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ id: "ws-1", name: "SettingsCo", timezone: "Europe/Berlin", default_language: "de", week_start: "monday", date_format: "DD.MM.YYYY", time_format: "24h", logo_path: "ws-1/logo" }],
+    error: null,
+  });
+  const settings = await createSupabaseWorkspaceRepository(client).getSettings("ws-1");
+  assert.deepEqual(settings, {
+    id: "ws-1",
+    name: "SettingsCo",
+    timezone: "Europe/Berlin",
+    defaultLanguage: "de",
+    weekStart: "monday",
+    dateFormat: "DD.MM.YYYY",
+    timeFormat: "24h",
+    logoPath: "ws-1/logo",
+  });
+  assert.deepEqual(calls, [{ fn: "get_workspace_settings", args: { target_workspace_id: "ws-1" } }]);
+});
+
+test("getSettings propagates an RPC error (e.g. caller isn't a member) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("You are not a member of this workspace") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).getSettings("ws-1"), /not a member/);
+});
+
+test("updateSettings calls update_workspace_settings with every field and maps the returned row (no logo path)", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ id: "ws-1", name: "Renamed Co", timezone: "UTC", default_language: "en", week_start: "sunday", date_format: "MM/DD/YYYY", time_format: "12h" }],
+    error: null,
+  });
+  const updated = await createSupabaseWorkspaceRepository(client).updateSettings("ws-1", {
+    name: "Renamed Co",
+    timezone: "UTC",
+    defaultLanguage: "en",
+    weekStart: "sunday",
+    dateFormat: "MM/DD/YYYY",
+    timeFormat: "12h",
+  });
+  assert.deepEqual(updated, { id: "ws-1", name: "Renamed Co", timezone: "UTC", defaultLanguage: "en", weekStart: "sunday", dateFormat: "MM/DD/YYYY", timeFormat: "12h" });
+  assert.deepEqual(calls, [
+    {
+      fn: "update_workspace_settings",
+      args: { target_workspace_id: "ws-1", new_name: "Renamed Co", new_timezone: "UTC", new_default_language: "en", new_week_start: "sunday", new_date_format: "MM/DD/YYYY", new_time_format: "12h" },
+    },
+  ]);
+});
+
+test("updateSettings propagates an RPC error (e.g. unknown timezone) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Unknown timezone") });
+  await assert.rejects(
+    createSupabaseWorkspaceRepository(client).updateSettings("ws-1", { name: "x", timezone: "Mars/Olympus_Mons", defaultLanguage: "de", weekStart: "monday", dateFormat: "DD.MM.YYYY", timeFormat: "24h" }),
+    /Unknown timezone/,
+  );
+});
+
+// Ticket 117 — uploadLogo/removeLogo/getLogoUrl need `.storage`, not just
+// `.rpc` — own fake, same "own, smaller fake" precedent as
+// listMembershipsClient/transferOwnershipClient above.
+function storageClient(options: {
+  uploadResult?: { data: unknown; error: unknown };
+  removeResult?: { data: unknown; error: unknown };
+  signedUrlResult?: { data: unknown; error: unknown };
+  rpcResult?: { data: unknown; error: unknown };
+}): { client: SupabaseClient; storageCalls: { method: string; args: unknown[] }[]; rpcCalls: { fn: string; args: unknown }[] } {
+  const storageCalls: { method: string; args: unknown[] }[] = [];
+  const rpcCalls: { fn: string; args: unknown }[] = [];
+  const uploadResult = options.uploadResult ?? { data: { path: "ws-1/logo" }, error: null };
+  const removeResult = options.removeResult ?? { data: [], error: null };
+  const signedUrlResult = options.signedUrlResult ?? { data: { signedUrl: "https://signed.example.test/ws-1/logo" }, error: null };
+  const rpcResult = options.rpcResult ?? { data: null, error: null };
+  const client = {
+    storage: {
+      from: (bucket: string) => {
+        storageCalls.push({ method: "from", args: [bucket] });
+        return {
+          upload: async (...args: unknown[]) => {
+            storageCalls.push({ method: "upload", args });
+            return uploadResult;
+          },
+          remove: async (...args: unknown[]) => {
+            storageCalls.push({ method: "remove", args });
+            return removeResult;
+          },
+          createSignedUrl: async (...args: unknown[]) => {
+            storageCalls.push({ method: "createSignedUrl", args });
+            return signedUrlResult;
+          },
+        };
+      },
+    },
+    rpc: (fn: string, args: unknown) => {
+      rpcCalls.push({ fn, args });
+      return Promise.resolve(rpcResult);
+    },
+  } as unknown as SupabaseClient;
+  return { client, storageCalls, rpcCalls };
+}
+
+test("uploadLogo uploads to a fixed per-workspace path with upsert, then points the workspace at it via the RPC", async () => {
+  const { client, storageCalls, rpcCalls } = storageClient({});
+  const file = new File(["fake-bytes"], "logo.png", { type: "image/png" });
+  const path = await createSupabaseWorkspaceRepository(client).uploadLogo("ws-1", file);
+  assert.equal(path, "ws-1/logo");
+  assert.deepEqual(storageCalls[0], { method: "from", args: ["workspace-logos"] });
+  assert.equal(storageCalls[1].method, "upload");
+  assert.deepEqual(storageCalls[1].args[0], "ws-1/logo");
+  assert.deepEqual(storageCalls[1].args[2], { upsert: true, contentType: "image/png" });
+  assert.deepEqual(rpcCalls, [{ fn: "update_workspace_logo", args: { target_workspace_id: "ws-1", new_logo_path: "ws-1/logo" } }]);
+});
+
+test("uploadLogo propagates a Storage error without ever calling the RPC", async () => {
+  const { client, rpcCalls } = storageClient({ uploadResult: { data: null, error: new Error("The object exceeded the maximum allowed size") } });
+  const file = new File(["fake-bytes"], "logo.png", { type: "image/png" });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).uploadLogo("ws-1", file), /maximum allowed size/);
+  assert.deepEqual(rpcCalls, [], "the RPC must never be reached if the upload itself failed");
+});
+
+test("uploadLogo propagates an RPC error (e.g. caller isn't an owner/admin) after a successful upload", async () => {
+  const { client } = storageClient({ rpcResult: { data: null, error: new Error("Only workspace owners/admins may change the workspace logo") } });
+  const file = new File(["fake-bytes"], "logo.png", { type: "image/png" });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).uploadLogo("ws-1", file), /owners\/admins may change/);
+});
+
+test("removeLogo clears the RPC pointer BEFORE attempting the Storage delete", async () => {
+  const { client, storageCalls, rpcCalls } = storageClient({});
+  await createSupabaseWorkspaceRepository(client).removeLogo("ws-1");
+  assert.deepEqual(rpcCalls, [{ fn: "update_workspace_logo", args: { target_workspace_id: "ws-1", new_logo_path: null } }]);
+  const removeCall = storageCalls.find((call) => call.method === "remove");
+  assert.deepEqual(removeCall?.args[0], ["ws-1/logo"]);
+});
+
+test("removeLogo propagates an RPC error without ever attempting the Storage delete", async () => {
+  const { client, storageCalls } = storageClient({ rpcResult: { data: null, error: new Error("Only workspace owners/admins may change the workspace logo") } });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).removeLogo("ws-1"), /owners\/admins may change/);
+  assert.ok(!storageCalls.some((call) => call.method === "remove"), "a failed pointer clear must never still attempt to delete the file");
+});
+
+test("getLogoUrl requests a signed URL for the given path and returns it", async () => {
+  const { client, storageCalls } = storageClient({});
+  const url = await createSupabaseWorkspaceRepository(client).getLogoUrl("ws-1/logo");
+  assert.equal(url, "https://signed.example.test/ws-1/logo");
+  const signedUrlCall = storageCalls.find((call) => call.method === "createSignedUrl");
+  assert.deepEqual(signedUrlCall?.args, ["ws-1/logo", 300]);
+});
+
+test("getLogoUrl propagates a Storage error (e.g. the caller lost access) instead of swallowing it", async () => {
+  const { client } = storageClient({ signedUrlResult: { data: null, error: new Error("Object not found") } });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).getLogoUrl("ws-1/logo"), /not found/);
+});

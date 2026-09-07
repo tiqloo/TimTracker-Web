@@ -215,6 +215,80 @@ export interface WorkspaceRepository {
   // TimTracker-Starter repo). Never grants 'owner' — enforced server-side,
   // same rule as updateMemberRole above.
   updateInvitationRole(invitationId: string, role: InvitationRole): Promise<{ id: string; role: InvitationRole }>;
+
+  // Ticket 117 — backed by a SECURITY DEFINER RPC (get_workspace_settings,
+  // TimTracker-Starter repo). Readable by any member (not just owner/admin
+  // — the RPC's own check), unlike every write below.
+  getSettings(workspaceId: string): Promise<WorkspaceSettings>;
+
+  // Ticket 117 — backed by a SECURITY DEFINER RPC (update_workspace_settings,
+  // TimTracker-Starter repo) that validates every field server-side (name
+  // length, a real IANA timezone, the fixed enums) and rejects a non-
+  // owner/admin caller; this port makes no promises about either check.
+  // Does not touch the logo — see uploadLogo/removeLogo below.
+  updateSettings(workspaceId: string, input: WorkspaceSettingsInput): Promise<WorkspaceSettingsFields>;
+
+  // Ticket 117 — uploads to the private 'workspace-logos' Storage bucket
+  // (TimTracker-Starter repo migration) at a FIXED per-workspace path
+  // (`{workspaceId}/logo`, upsert) — re-uploading always overwrites in
+  // place, so there is never an orphaned previous file to separately
+  // clean up. Storage RLS enforces the owner/admin check on the upload
+  // itself; the bucket's own file-size/mime-type limits enforce the
+  // AK's Typ-/Größenprüfung independent of this port. Returns the object
+  // path (not a URL — the bucket is private, see getLogoUrl below) so the
+  // caller can persist it via a second call (update_workspace_logo RPC,
+  // wrapped inside this same method) — upload-then-point-at-it are two
+  // physically separate systems (Storage vs. Postgres), not one atomic
+  // operation, same as any Supabase Storage + DB-pointer pattern.
+  uploadLogo(workspaceId: string, file: File): Promise<string>;
+
+  // Ticket 117 — clears the workspace's logo pointer (update_workspace_logo
+  // RPC with a null path) BEFORE attempting to delete the underlying
+  // Storage object, not after: if the storage delete itself fails, a
+  // stale-but-harmless orphaned file is an acceptable outcome, whereas a
+  // pointer to an already-deleted file would render as a broken image.
+  removeLogo(workspaceId: string): Promise<void>;
+
+  // Ticket 117 — the bucket is private; every display of a workspace logo
+  // needs a fresh, time-limited signed URL rather than a stored public
+  // one. Callers only invoke this when `logoPath` is non-null.
+  getLogoUrl(logoPath: string): Promise<string>;
+}
+
+// Ticket 117 — "Workspace-Einstellungen". `WorkspaceSettingsFields` is
+// everything update_workspace_settings itself can change and return; the
+// logo lives in its own pointer (`logoPath` below, only ever touched by
+// uploadLogo/removeLogo) because it comes from an entirely different
+// Supabase subsystem (Storage, not a table column this RPC writes to).
+export type WeekStart = "monday" | "sunday";
+export type WorkspaceDateFormat = "DD.MM.YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+export type WorkspaceTimeFormat = "24h" | "12h";
+// Deliberately its own type, NOT domain/language.ts's `AppLanguage` — that
+// one includes "system" (a per-USER preference meaning "follow the
+// browser"), which has no meaning for a workspace-wide default.
+export type WorkspaceDefaultLanguage = "de" | "en";
+
+export interface WorkspaceSettingsFields {
+  id: string;
+  name: string;
+  timezone: string;
+  defaultLanguage: WorkspaceDefaultLanguage;
+  weekStart: WeekStart;
+  dateFormat: WorkspaceDateFormat;
+  timeFormat: WorkspaceTimeFormat;
+}
+
+export interface WorkspaceSettings extends WorkspaceSettingsFields {
+  logoPath: string | null;
+}
+
+export interface WorkspaceSettingsInput {
+  name: string;
+  timezone: string;
+  defaultLanguage: WorkspaceDefaultLanguage;
+  weekStart: WeekStart;
+  dateFormat: WorkspaceDateFormat;
+  timeFormat: WorkspaceTimeFormat;
 }
 
 // Ticket 103 — the one fallback rule every "which workspace should this

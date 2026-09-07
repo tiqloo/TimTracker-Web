@@ -14,6 +14,9 @@ import type {
   WorkspaceMembership,
   WorkspaceMembershipSummary,
   WorkspaceMemberRow,
+  WorkspaceSettings,
+  WorkspaceSettingsFields,
+  WorkspaceSettingsInput,
 } from "@/lib/repositories/workspace.repository";
 import { resolveWorkspaceIdWithFallback } from "../repositories/workspace.repository.ts";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
@@ -32,7 +35,14 @@ export type {
   WorkspaceMemberRow,
   WorkspaceMemberStatus,
   WorkspaceRole,
+  WorkspaceSettings,
+  WorkspaceSettingsFields,
+  WorkspaceSettingsInput,
   WorkspaceType,
+  WeekStart,
+  WorkspaceDateFormat,
+  WorkspaceDefaultLanguage,
+  WorkspaceTimeFormat,
 } from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
 
@@ -265,4 +275,66 @@ export async function updateWorkspaceInvitationRole(
     throw new ValidationError("Role must be either admin or member.");
   }
   return repos.workspace.updateInvitationRole(invitationId, role);
+}
+
+// Ticket 117 — "Workspace-Einstellungen". No requireWorkspaceMembership
+// call here, same reasoning as listWorkspaceMembers/listWorkspaceInvitations
+// above: get_workspace_settings itself is the authoritative membership
+// check (readable by any member, not just owner/admin).
+export async function getWorkspaceSettings(repos: Repositories, workspaceId: string): Promise<WorkspaceSettings> {
+  await requireUser(repos);
+  return repos.workspace.getSettings(workspaceId);
+}
+
+// The server-side RPC (update_workspace_settings) independently
+// re-validates every field (name length, a real IANA timezone, the fixed
+// enums) and the owner/admin check — this is the fast, user-facing check
+// for the one field worth catching early, same relationship as every
+// other validate-then-delegate function in this file.
+export async function updateWorkspaceSettings(
+  repos: Repositories,
+  workspaceId: string,
+  input: WorkspaceSettingsInput,
+): Promise<WorkspaceSettingsFields> {
+  await requireUser(repos);
+  const name = input.name.trim();
+  if (!name) throw new ValidationError("Workspace name must not be empty.");
+  if (name.length > WORKSPACE_NAME_MAX_LENGTH) {
+    throw new ValidationError(`Workspace name must not exceed ${WORKSPACE_NAME_MAX_LENGTH} characters.`);
+  }
+  return repos.workspace.updateSettings(workspaceId, { ...input, name });
+}
+
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const LOGO_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+// Fast, user-facing mirror of the 'workspace-logos' Storage bucket's own
+// file_size_limit/allowed_mime_types (TimTracker-Starter repo migration)
+// — the bucket enforces both authoritatively regardless of this check,
+// same "client check is a courtesy, server check is the real gate"
+// relationship as every validated field in this file.
+export async function uploadWorkspaceLogo(repos: Repositories, workspaceId: string, file: File): Promise<string> {
+  await requireUser(repos);
+  if (!LOGO_ALLOWED_TYPES.includes(file.type)) {
+    throw new ValidationError("The logo must be a PNG, JPEG or WebP image.");
+  }
+  if (file.size > LOGO_MAX_BYTES) {
+    throw new ValidationError("The logo must not exceed 2 MB.");
+  }
+  return repos.workspace.uploadLogo(workspaceId, file);
+}
+
+export async function removeWorkspaceLogo(repos: Repositories, workspaceId: string): Promise<void> {
+  await requireUser(repos);
+  await repos.workspace.removeLogo(workspaceId);
+}
+
+// Storage RLS (the bucket's own SELECT policy, TimTracker-Starter repo
+// migration) is the sole authoritative "is this caller actually a member
+// of the owning workspace" check for whether the signed URL request
+// itself succeeds — this function does not duplicate that check, same
+// relationship as every other RPC/Storage-backed read in this file.
+export async function getWorkspaceLogoUrl(repos: Repositories, logoPath: string): Promise<string> {
+  await requireUser(repos);
+  return repos.workspace.getLogoUrl(logoPath);
 }
