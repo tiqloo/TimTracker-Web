@@ -39,6 +39,20 @@ const resolveActiveWorkspaceIdForRequest = cache(
   },
 );
 
+// Ticket 118 — same request-scoped dedup reasoning as
+// resolveActiveWorkspaceIdForRequest above: getTodayBreakdown/
+// getTodayEntries/getBreakdown(via the time-entries adapter) can all be
+// called within the same "Heute"/"Historie" render, each needing the
+// active workspace's timezone — without cache() they'd each independently
+// re-resolve the workspace id AND re-fetch its settings.
+const resolveActiveWorkspaceTimeZoneForRequest = cache(
+  async (client: SupabaseClient, workspace: WorkspaceRepository, activeWorkspace: ActiveWorkspaceRepository): Promise<string> => {
+    const workspaceId = await resolveActiveWorkspaceIdForRequest(client, workspace, activeWorkspace);
+    const settings = await workspace.getSettings(workspaceId);
+    return settings.timezone;
+  },
+);
+
 // Composition root — SERVER half. See composition-root.client.ts for the
 // full reasoning behind the 2026-08-25 split; this file exists so
 // lib/application/server.ts (Server Components / Route Handlers) can get
@@ -49,9 +63,10 @@ export async function getServerRepositories(): Promise<Repositories> {
   const workspace = createSupabaseWorkspaceRepository(client);
   const activeWorkspace = createCookieActiveWorkspaceRepository();
   const getActiveWorkspaceId = () => resolveActiveWorkspaceIdForRequest(client, workspace, activeWorkspace);
+  const getActiveWorkspaceTimeZone = () => resolveActiveWorkspaceTimeZoneForRequest(client, workspace, activeWorkspace);
   return {
     projects: createSupabaseProjectsRepository(client, getActiveWorkspaceId),
-    timeEntries: createSupabaseTimeEntriesRepository(client, getActiveWorkspaceId),
+    timeEntries: createSupabaseTimeEntriesRepository(client, getActiveWorkspaceId, getActiveWorkspaceTimeZone),
     subscription: createSupabaseSubscriptionRepository(client),
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),

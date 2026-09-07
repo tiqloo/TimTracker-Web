@@ -26,6 +26,7 @@ import {
 import {
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
+  getActiveWorkspaceTimeZone,
   getWorkspaceLogoUrl,
   getWorkspaceSettings,
   getWorkspaceSwitcherData,
@@ -137,7 +138,15 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     invitations: {},
     memberRowsByWorkspace: {},
     invitationRowsByWorkspace: {},
-    settingsByWorkspace: {},
+    // Ticket 118: getActiveWorkspaceTimeZone() now underlies every
+    // day-boundary-sensitive use case (getTodayBreakdown/getTodayEntries/
+    // getFullDataExport/...), so every test's default personal workspace
+    // needs a settings row even when the test itself has nothing to do
+    // with workspace settings — same "sane baseline for every fixture"
+    // reasoning as personalWorkspaceId/memberships above.
+    settingsByWorkspace: {
+      "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1" },
+    },
     calls: [],
     ...overrides,
   };
@@ -524,6 +533,35 @@ test("getWorkspaceSwitcherData falls back to the personal workspace instead of t
   const { repos } = memoryRepositories({ activeWorkspaceCookie: "workspace-no-longer-a-member-of" });
   const data = await getWorkspaceSwitcherData(repos);
   assert.equal(data.activeWorkspaceId, "workspace-personal-1");
+});
+
+// Ticket 118 — every day-boundary-sensitive read resolves the active
+// workspace's OWN configured timezone through this one function, same
+// cookie+fallback resolution rule as getWorkspaceSwitcherData above.
+test("getActiveWorkspaceTimeZone resolves the active (cookie-selected) workspace's own timezone", async () => {
+  const { repos } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "member" },
+    activeWorkspaceCookie: "workspace-org-1",
+    settingsByWorkspace: {
+      "workspace-org-1": { ...DEFAULT_SETTINGS, id: "workspace-org-1", timezone: "America/New_York" },
+    },
+  });
+  assert.equal(await getActiveWorkspaceTimeZone(repos), "America/New_York");
+});
+
+test("getActiveWorkspaceTimeZone falls back to the personal workspace's timezone for a stale/foreign cookie", async () => {
+  const { repos } = memoryRepositories({
+    activeWorkspaceCookie: "workspace-no-longer-a-member-of",
+    settingsByWorkspace: {
+      "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1", timezone: "Europe/Berlin" },
+    },
+  });
+  assert.equal(await getActiveWorkspaceTimeZone(repos), "Europe/Berlin");
+});
+
+test("getActiveWorkspaceTimeZone requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getActiveWorkspaceTimeZone(repos), UnauthorizedError);
 });
 
 test("switchActiveWorkspace persists the new workspace once membership is verified", async () => {

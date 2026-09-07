@@ -179,6 +179,23 @@ export async function switchActiveWorkspace(repos: Repositories, workspaceId: st
   await repos.activeWorkspace.set(workspaceId);
 }
 
+// Ticket 118 — the one piece every day-boundary-sensitive read
+// (lib/application/dashboard.ts's "Heute", the CSV/PDF/full-data exports,
+// the analytics project totals) needs: which IANA timezone the currently
+// active workspace is configured with (Ticket 117's own setting). Same
+// resolution rule as getWorkspaceSwitcherData above (stored cookie value,
+// falling back to the personal workspace) rather than a second, divergent
+// lookup — kept as its own small function (not folded into
+// getWorkspaceSwitcherData) since most callers here only ever need this
+// one string, not the whole switcher payload.
+export async function getActiveWorkspaceTimeZone(repos: Repositories): Promise<string> {
+  const userId = await requireUser(repos);
+  const cookieValue = await repos.activeWorkspace.get();
+  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const settings = await repos.workspace.getSettings(workspaceId);
+  return settings.timezone;
+}
+
 // Ticket 110 — "Workspace-Mitgliederübersicht". No requireWorkspaceMembership
 // call here on purpose: the RPC itself is the authoritative owner/admin
 // check (list_workspace_members raises for anyone else, including a

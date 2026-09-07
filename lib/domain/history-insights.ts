@@ -1,5 +1,6 @@
 import type { DailyBreakdown, TimeEntry } from "./time-entry";
 import type { Project } from "./project";
+import { PRODUCT_TIME_ZONE } from "./calendar-day.ts";
 import {
   PAUSE_PROJECT_ID,
   STANDARD_PROJECT_ID,
@@ -37,6 +38,7 @@ export function buildProjectTimeTotals(
   entries: TimeEntry[],
   projects: Project[],
   now: Date,
+  timeZone: string = PRODUCT_TIME_ZONE,
 ): ProjectTimeTotal[] {
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const entriesByProject = new Map<string, TimeEntry[]>();
@@ -56,7 +58,7 @@ export function buildProjectTimeTotals(
   const secondsByProject = new Map<string, number>(
     Array.from(entriesByProject.entries()).map(([projectId, projectEntries]) => [
       projectId,
-      unionSeconds(projectEntries, now),
+      unionSeconds(projectEntries, now, timeZone),
     ]),
   );
 

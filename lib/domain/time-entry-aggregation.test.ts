@@ -5,6 +5,7 @@ import {
   PAUSE_PROJECT_ID,
   STANDARD_PROJECT_ID,
   timeEntryDurationSeconds,
+  unionSeconds,
 } from "./time-entry-aggregation.ts";
 import type { TimeEntry } from "./time-entry.ts";
 
@@ -82,6 +83,45 @@ test("old running entries stop at the next Berlin midnight", () => {
   );
   assert.equal(timeEntryDurationSeconds(winter, new Date("2026-01-03T12:00:00Z")), 3600);
   assert.equal(timeEntryDurationSeconds(summer, new Date("2026-07-03T12:00:00Z")), 7200);
+});
+
+// Ticket 118 — the SAME entry's end-of-day clamp must genuinely depend on
+// an explicitly passed workspace timezone, not silently keep using the
+// PRODUCT_TIME_ZONE (Berlin) default regardless of what's passed in.
+test("timeEntryDurationSeconds uses an explicitly passed workspace timezone instead of the Berlin default", () => {
+  const winter = entry(
+    "winter",
+    STANDARD_PROJECT_ID,
+    "2026-01-01",
+    "2026-01-01T22:00:00Z",
+    null,
+  );
+  const now = new Date("2026-01-03T12:00:00Z");
+  assert.equal(timeEntryDurationSeconds(winter, now, "Europe/Berlin"), 3600);
+  assert.equal(timeEntryDurationSeconds(winter, now, "America/New_York"), 25200);
+});
+
+// Same "no day skipped/duplicated across the discontinuity" property as
+// calendar-day.test.ts's own DST tests, but exercised through the
+// aggregation layer's end-of-day clamp specifically, for a workspace
+// timezone OTHER than the hardcoded Berlin default — an entry left
+// running into the next calendar day, with "now" observed on the far side
+// of that timezone's own DST transition, must still clamp to exactly that
+// timezone's real local midnight instant.
+test("unionSeconds' end-of-day clamp is correct across a non-Berlin DST transition", () => {
+  // Sydney's 2026 spring-forward is 2026-10-03T15:00Z (02:00 -> 03:00
+  // local) — an entry from 2026-10-03 left running clamps at Sydney's next
+  // midnight (2026-10-04 00:00 local = 2026-10-03T14:00Z, still AEST/+10,
+  // one hour before that day's own transition).
+  const runningIntoDst = entry(
+    "running-into-dst",
+    STANDARD_PROJECT_ID,
+    "2026-10-03",
+    "2026-10-03T10:00:00Z",
+    null,
+  );
+  const now = new Date("2026-10-05T00:00:00Z");
+  assert.equal(unionSeconds([runningIntoDst], now, "Australia/Sydney"), 4 * 3600);
 });
 
 test("negative durations clamp to zero and overlaps count as their union, not an additive sum", () => {

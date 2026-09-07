@@ -88,9 +88,16 @@ async function fetchRange(
 
 // Ticket 103 — same lazy-thunk reasoning as
 // projects.repository.ts#createSupabaseProjectsRepository's own comment.
+// Ticket 118 — `getActiveWorkspaceTimeZone` is a second, independent
+// thunk (not folded into a single "workspace context" object) for the
+// same reason getActiveWorkspaceId itself is a thunk and not a resolved
+// value: composition roots wire this factory before request-scoped
+// resolution has necessarily happened, and Client-Component callers need
+// a value resolved FRESH on every call, never captured once.
 export function createSupabaseTimeEntriesRepository(
   client: SupabaseClient,
   getActiveWorkspaceId: () => Promise<string>,
+  getActiveWorkspaceTimeZone: () => Promise<string>,
 ): TimeEntriesRepository {
   return {
     async getForDay(day: string) {
@@ -123,9 +130,9 @@ export function createSupabaseTimeEntriesRepository(
     },
 
     async getBreakdown(fromDay: string, toDay: string, projectId?: string) {
-      const workspaceId = await getActiveWorkspaceId();
+      const [workspaceId, timeZone] = await Promise.all([getActiveWorkspaceId(), getActiveWorkspaceTimeZone()]);
       const entries = await fetchRange(client, workspaceId, fromDay, toDay, projectId);
-      return buildDailyBreakdowns(entries, new Date());
+      return buildDailyBreakdowns(entries, new Date(), timeZone);
     },
   };
 }

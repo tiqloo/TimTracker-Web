@@ -58,14 +58,28 @@ async function resolveActiveWorkspaceIdForRequest(
   return resolveWorkspaceIdWithFallback(workspace, data.user.id, cookieValue);
 }
 
+// Ticket 118 — same resolution as resolveActiveWorkspaceIdForRequest
+// above, plus one settings fetch; not cache()-wrapped for the identical
+// reason that function isn't either (see this file's own top comment).
+async function resolveActiveWorkspaceTimeZoneForRequest(
+  client: SupabaseClient,
+  workspace: ReturnType<typeof createSupabaseWorkspaceRepository>,
+  activeWorkspace: ReturnType<typeof createCookieActiveWorkspaceRepository>,
+): Promise<string> {
+  const workspaceId = await resolveActiveWorkspaceIdForRequest(client, workspace, activeWorkspace);
+  const settings = await workspace.getSettings(workspaceId);
+  return settings.timezone;
+}
+
 export function getBrowserRepositories(): Repositories {
   const client = createBrowserSupabaseClient();
   const workspace = createSupabaseWorkspaceRepository(client);
   const activeWorkspace = createCookieActiveWorkspaceRepository();
   const getActiveWorkspaceId = () => resolveActiveWorkspaceIdForRequest(client, workspace, activeWorkspace);
+  const getActiveWorkspaceTimeZone = () => resolveActiveWorkspaceTimeZoneForRequest(client, workspace, activeWorkspace);
   return {
     projects: createSupabaseProjectsRepository(client, getActiveWorkspaceId),
-    timeEntries: createSupabaseTimeEntriesRepository(client, getActiveWorkspaceId),
+    timeEntries: createSupabaseTimeEntriesRepository(client, getActiveWorkspaceId, getActiveWorkspaceTimeZone),
     subscription: createSupabaseSubscriptionRepository(client),
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),

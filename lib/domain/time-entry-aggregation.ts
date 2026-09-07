@@ -45,19 +45,28 @@ function startOfDayInstant(isoDay: string, timeZone: string): Date {
   return candidate;
 }
 
-function timeEntryInterval(entry: TimeEntry, now: Date): { startMs: number; endMs: number } {
+// Ticket 118 — `timeZone` defaults to the historical hardcoded
+// PRODUCT_TIME_ZONE so every pre-existing caller (and this file's own
+// tests) keeps compiling/behaving unchanged; real callers with a resolved
+// workspace timezone (lib/application/dashboard.ts, export.ts,
+// history-insights.ts) pass it explicitly instead. This only affects the
+// end-of-day CLAMP for a still-open entry from a past day — which day an
+// entry itself belongs to (`entry.day`) is decided once, at creation time,
+// by whichever app wrote it (see time_entries.repository.ts's own
+// comment); this function never re-derives or changes that.
+function timeEntryInterval(entry: TimeEntry, now: Date, timeZone: string = PRODUCT_TIME_ZONE): { startMs: number; endMs: number } {
   const startMs = new Date(entry.startTime).getTime();
-  const today = calendarDayInTimeZone(now);
+  const today = calendarDayInTimeZone(now, timeZone);
   const endMs = entry.endTime
     ? new Date(entry.endTime).getTime()
     : entry.day < today
-      ? startOfDayInstant(nextIsoDay(entry.day), PRODUCT_TIME_ZONE).getTime()
+      ? startOfDayInstant(nextIsoDay(entry.day), timeZone).getTime()
       : now.getTime();
   return { startMs, endMs: Math.max(startMs, endMs) };
 }
 
-export function timeEntryDurationSeconds(entry: TimeEntry, now: Date): number {
-  const { startMs, endMs } = timeEntryInterval(entry, now);
+export function timeEntryDurationSeconds(entry: TimeEntry, now: Date, timeZone: string = PRODUCT_TIME_ZONE): number {
+  const { startMs, endMs } = timeEntryInterval(entry, now, timeZone);
   return Math.max(0, Math.round((endMs - startMs) / 1000));
 }
 
@@ -69,9 +78,9 @@ export function timeEntryDurationSeconds(entry: TimeEntry, now: Date): number {
  * `timeEntryInterval` (already reused by `timeEntryDurationSeconds`, so the
  * running-entry/negative-duration clamping stays identical either way).
  */
-export function unionSeconds(entries: TimeEntry[], now: Date): number {
+export function unionSeconds(entries: TimeEntry[], now: Date, timeZone: string = PRODUCT_TIME_ZONE): number {
   const intervals = entries
-    .map((entry) => timeEntryInterval(entry, now))
+    .map((entry) => timeEntryInterval(entry, now, timeZone))
     .filter(({ startMs, endMs }) => endMs > startMs)
     .sort((a, b) => a.startMs - b.startMs);
 
@@ -101,6 +110,7 @@ export function unionSeconds(entries: TimeEntry[], now: Date): number {
 export function buildDailyBreakdowns(
   entries: TimeEntry[],
   now: Date,
+  timeZone: string = PRODUCT_TIME_ZONE,
 ): DailyBreakdown[] {
   const byDay = new Map<string, TimeEntry[]>();
   for (const entry of entries) {
@@ -123,9 +133,9 @@ export function buildDailyBreakdowns(
       );
       const pauseEntries = dayEntries.filter((entry) => entry.projectId === PAUSE_PROJECT_ID);
 
-      const standardSeconds = unionSeconds(standardEntries, now);
-      const projectSeconds = unionSeconds(projectEntries, now);
-      const pauseSeconds = unionSeconds(pauseEntries, now);
+      const standardSeconds = unionSeconds(standardEntries, now, timeZone);
+      const projectSeconds = unionSeconds(projectEntries, now, timeZone);
+      const pauseSeconds = unionSeconds(pauseEntries, now, timeZone);
 
       const totalSeconds = standardSeconds + projectSeconds;
       return {

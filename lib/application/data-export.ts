@@ -25,6 +25,7 @@ import { getProfile } from "./auth.ts";
 import { listProjects } from "./projects.ts";
 import { getSubscriptionStatus } from "./billing.ts";
 import { isoToday } from "./dashboard.ts";
+import { getActiveWorkspaceTimeZone } from "./workspace.ts";
 
 // Only what this app's own Supabase schema actually holds (per the
 // ticket's own "Bewusst außerhalb" note: Stripe-side raw data like
@@ -60,10 +61,11 @@ export interface DataExport {
 export async function getFullDataExport(repos: Repositories): Promise<DataExport> {
   const profile = await getProfile(repos);
   const accountCreatedDay = profile.createdAt.slice(0, 10);
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
 
   const [projects, timeEntries, subscription] = await Promise.all([
     listProjects(repos),
-    repos.timeEntries.getForRange(accountCreatedDay, isoToday()),
+    repos.timeEntries.getForRange(accountCreatedDay, isoToday(new Date(), timeZone)),
     getSubscriptionStatus(repos),
   ]);
 

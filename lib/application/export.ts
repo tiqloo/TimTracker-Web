@@ -43,6 +43,7 @@ export function buildExportRows(
   entries: TimeEntry[],
   projects: Project[],
   now: Date,
+  timeZone?: string,
 ): ExportRow[] {
   const projectById = new Map(projects.map((project) => [project.id, project]));
 
@@ -59,7 +60,7 @@ export function buildExportRows(
         customerName: project?.customer ? project.customer : "–",
         startTime: entry.startTime,
         endTime: entry.endTime,
-        durationSeconds: timeEntryDurationSeconds(entry, now),
+        durationSeconds: timeEntryDurationSeconds(entry, now, timeZone),
         isRunning: entry.endTime === null,
       } satisfies ExportRow;
     });
@@ -74,11 +75,12 @@ export async function getHistoryExportData(
   toDay: string,
   projects: Project[],
   projectId?: string,
+  timeZone?: string,
 ): Promise<HistoryExportData> {
   const entries = await repos.timeEntries.getForRange(fromDay, toDay, projectId);
   const now = new Date();
   return {
-    rows: buildExportRows(entries, projects, now),
-    summaries: buildDailyBreakdowns(entries, now),
+    rows: buildExportRows(entries, projects, now, timeZone),
+    summaries: buildDailyBreakdowns(entries, now, timeZone),
   };
 }

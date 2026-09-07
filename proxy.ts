@@ -186,6 +186,17 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (shouldValidateHistoryRange(pathname)) {
     try {
+      // Ticket 118 — deliberately still the PRODUCT_TIME_ZONE default, not
+      // the active workspace's own configured timezone: middleware runs on
+      // EVERY navigation, and resolving the real workspace timezone here
+      // would add a DB round trip (auth + membership + settings lookup) to
+      // that hot path for a purely cosmetic effect — this only shapes the
+      // "future date range" 400 rejection boundary, never the actual data
+      // returned (the page/route handlers below already resolve and use
+      // the real workspace timezone for that). Worst case this boundary is
+      // off by the gap between Europe/Berlin and the real workspace zone,
+      // right at the "is this range in the future" edge — not a
+      // data-correctness issue.
       resolveHistoryDateRange(calendarDayInTimeZone(new Date()), {
         from: request.nextUrl.searchParams.get("from") ?? undefined,
         to: request.nextUrl.searchParams.get("to") ?? undefined,

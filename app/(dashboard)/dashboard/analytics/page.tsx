@@ -10,6 +10,7 @@ import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEntriesForRange, getHistory, isoToday } from "@/lib/application/dashboard";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getRepositories } from "@/lib/application/server";
+import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { buildHistorySummary, buildProjectTimeTotals } from "@/lib/domain/history-insights";
@@ -26,7 +27,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) return <AccessGate title={t(lang, history.analyticsTitle)} status={subscription.status} lang={lang} />;
 
-  const today = isoToday();
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  const today = isoToday(new Date(), timeZone);
   const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
   const allProjects = await repos.projects.getAll();
@@ -35,7 +37,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const projectId = activeProject?.id;
   const projectQuery = projectId ? `&project=${encodeURIComponent(projectId)}` : "";
   const [breakdowns, entries] = await Promise.all([getHistory(repos, from, to, projectId), getEntriesForRange(repos, from, to, projectId)]);
-  const projectTotals = buildProjectTimeTotals(entries, allProjects, currentTime());
+  const projectTotals = buildProjectTimeTotals(entries, allProjects, currentTime(), timeZone);
   const summary = buildHistorySummary(breakdowns, projectTotals);
   const granularity = resolveChartGranularity(from, to);
   const chartBars = buildChartBars(breakdowns, from, to, granularity);

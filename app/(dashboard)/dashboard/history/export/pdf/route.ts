@@ -1,6 +1,7 @@
 import { getRepositories } from "@/lib/application/server";
 import { isoToday } from "@/lib/application/dashboard";
 import { getHistoryExportData } from "@/lib/application/export";
+import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel, resolveHistoryRange } from "@/lib/format";
@@ -40,8 +41,9 @@ async function createPdfExportResponse(request: Request): Promise<Response> {
     throw new ForbiddenError("An active subscription is required for this export.");
   }
 
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
   const url = new URL(request.url);
-  const { from, to } = resolveHistoryRange(isoToday(), {
+  const { from, to } = resolveHistoryRange(isoToday(new Date(), timeZone), {
     from: url.searchParams.get("from") ?? undefined,
     to: url.searchParams.get("to") ?? undefined,
   });
@@ -67,6 +69,7 @@ async function createPdfExportResponse(request: Request): Promise<Response> {
     to,
     allProjects,
     projectId,
+    timeZone,
   );
 
   const periodLabel = `${formatDayLabel(from)} – ${formatDayLabel(to)}${

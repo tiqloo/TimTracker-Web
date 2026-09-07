@@ -67,6 +67,13 @@ function methodCalls(calls: QueryCall[], method: string): unknown[][] {
 // need, the thunk's own resolution logic (cookie + membership fallback) is
 // covered by workspace.repository.test.ts instead.
 const activeWorkspaceId = async () => "ws-1";
+// Ticket 118: createSupabaseTimeEntriesRepository's third argument, same
+// "fixed value is all these tests need" reasoning — none of these tests
+// exercise getBreakdown's own timezone handling (that's
+// time-entry-aggregation.test.ts's job for the pure function, and this
+// file's own "getBreakdown resolves the active workspace's timezone" test
+// below for the adapter wiring).
+const activeWorkspaceTimeZone = async () => "Europe/Berlin";
 
 const projectRow = {
   id: "project-1",
@@ -202,7 +209,7 @@ test("project archive requires and accepts a returned mutation row", async () =>
 test("time-entry range read selects, filters soft-deletes, orders and maps DTOs", async () => {
   const fake = queryClient({ data: [timeEntryRow], error: null });
 
-  const entries = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).getForRange(
+  const entries = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId, activeWorkspaceTimeZone).getForRange(
     "2026-08-01",
     "2026-08-31",
     "project-1",
@@ -236,7 +243,7 @@ test("time-entry range read selects, filters soft-deletes, orders and maps DTOs"
 test("time-entry day read has no project filter and accepts an empty response", async () => {
   const fake = queryClient({ data: null, error: null });
 
-  const entries = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).getForDay(
+  const entries = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId, activeWorkspaceTimeZone).getForDay(
     "2026-08-31",
   );
 
@@ -250,7 +257,7 @@ test("time-entry range read preserves backend errors", async () => {
   const backendError = new Error("entries unavailable");
   const fake = queryClient({ data: null, error: backendError });
   await assert.rejects(
-    createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).getForRange("2026-08-01", "2026-08-31"),
+    createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId, activeWorkspaceTimeZone).getForRange("2026-08-01", "2026-08-31"),
     (error: unknown) => error === backendError,
   );
 });
@@ -258,7 +265,7 @@ test("time-entry range read preserves backend errors", async () => {
 test("time-entry assignment sends and maps the mutation result", async () => {
   const fake = queryClient({ data: timeEntryRow, error: null });
 
-  const updated = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).updateProject(
+  const updated = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId, activeWorkspaceTimeZone).updateProject(
     "entry-1",
     "project-1",
   );
@@ -274,6 +281,46 @@ test("time-entry assignment sends and maps the mutation result", async () => {
   assert.equal(update.project_id, "project-1");
   assert.equal(Number.isNaN(Date.parse(update.updated_at)), false);
   assert.deepEqual(methodCalls(fake.calls, "select"), [[TIME_ENTRY_COLUMNS]]);
+});
+
+// Ticket 118 — getBreakdown resolves BOTH thunks and threads the
+// timezone one through to buildDailyBreakdowns, which only matters for a
+// still-open (no end_time) entry from a PAST day: its end-of-day clamp
+// instant depends on which timezone "midnight of the following day"
+// means. A fixed past day with no end_time, checked under two very
+// different zones, proves the thunk's value actually reaches the
+// aggregation — not just that it's accepted without error.
+test("getBreakdown resolves the active workspace's timezone and uses it for a still-open past-day entry's end-of-day clamp", async () => {
+  const openPastEntryRow = {
+    id: "entry-open",
+    project_id: "project-1",
+    day: "2020-01-01T00:00:00+00:00",
+    start_time: "2020-01-01T23:00:00.000Z",
+    end_time: null,
+    source: "manual",
+    note: null,
+    updated_at: "2020-01-01T23:00:00.000Z",
+  };
+
+  const utcFake = queryClient({ data: [openPastEntryRow], error: null });
+  const [utcBreakdown] = await createSupabaseTimeEntriesRepository(
+    utcFake.client,
+    activeWorkspaceId,
+    async () => "UTC",
+  ).getBreakdown("2020-01-01", "2020-01-01");
+  // Midnight UTC the next day is exactly 1 hour after the 23:00 UTC start.
+  assert.equal(utcBreakdown.totalSeconds, 3600);
+
+  // Pacific/Kiritimati is UTC+14 — "midnight of the following day" there
+  // falls BEFORE this entry's own start_time (23:00 UTC), so the clamp
+  // (Math.max(startMs, endMs)) collapses the interval to zero instead.
+  const extremeFake = queryClient({ data: [openPastEntryRow], error: null });
+  const [extremeBreakdown] = await createSupabaseTimeEntriesRepository(
+    extremeFake.client,
+    activeWorkspaceId,
+    async () => "Pacific/Kiritimati",
+  ).getBreakdown("2020-01-01", "2020-01-01");
+  assert.equal(extremeBreakdown.totalSeconds, 0);
 });
 
 test("subscription read uses explicit columns and maps its DTO", async () => {

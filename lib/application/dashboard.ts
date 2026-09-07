@@ -3,9 +3,10 @@
 // functions, never lib/repositories/* directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
-import { calendarDayInTimeZone } from "../domain/calendar-day.ts";
+import { calendarDayInTimeZone, PRODUCT_TIME_ZONE } from "../domain/calendar-day.ts";
 import { ValidationError } from "../domain/application-error.ts";
 import { addDaysIso, startOfWeekIso } from "../format.ts";
+import { getActiveWorkspaceTimeZone } from "./workspace.ts";
 
 // Exported (not just an internal helper) so app/* pages that need "today"
 // as a plain ISO string for their own purposes (e.g. building default
@@ -14,8 +15,15 @@ import { addDaysIso, startOfWeekIso } from "../format.ts";
 // need a direct `new Date()` call in a component body (flagged by
 // eslint's react-hooks/purity rule — see the currentTimeMs() comment in
 // app/(dashboard)/page.tsx for the same workaround pattern).
-export function isoToday(now: Date = new Date()): string {
-  return calendarDayInTimeZone(now);
+//
+// `timeZone` defaults to the historical hardcoded PRODUCT_TIME_ZONE
+// (Ticket 118) — callers that already have a Repositories instance should
+// prefer getTodayBreakdown/getTodayEntries below (which resolve the real
+// active workspace's timezone) or pass getActiveWorkspaceTimeZone(repos)
+// in explicitly; callers with no repository context at all (proxy.ts's
+// pure request-validation check) keep using the default.
+export function isoToday(now: Date = new Date(), timeZone: string = PRODUCT_TIME_ZONE): string {
+  return calendarDayInTimeZone(now, timeZone);
 }
 
 const EMPTY_BREAKDOWN = (day: string): DailyBreakdown => ({
@@ -61,13 +69,15 @@ export async function getEntriesForRange(
 export async function getTodayBreakdown(
   repos: Repositories,
 ): Promise<DailyBreakdown> {
-  return getBreakdownForDay(repos, isoToday());
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  return getBreakdownForDay(repos, isoToday(new Date(), timeZone));
 }
 
 export async function getTodayEntries(
   repos: Repositories,
 ): Promise<TimeEntry[]> {
-  return getEntriesForDay(repos, isoToday());
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  return getEntriesForDay(repos, isoToday(new Date(), timeZone));
 }
 
 // `projectId` (Ticket 043 — Historie calendar + project filter): optional,

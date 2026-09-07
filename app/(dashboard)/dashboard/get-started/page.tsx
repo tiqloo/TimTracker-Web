@@ -6,6 +6,7 @@ import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getProfile } from "@/lib/application/auth";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEntriesForRange, isoToday } from "@/lib/application/dashboard";
+import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
 import { getPublicMacosRelease } from "@/lib/domain/macos-release";
 import { onboarding, t, type Lang } from "@/lib/i18n";
 
@@ -52,7 +53,8 @@ export default async function GetStartedPage() {
     getProfile(repos),
     getSubscriptionStatus(repos),
   ]);
-  const today = isoToday();
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  const today = isoToday(new Date(), timeZone);
   const entries = await getEntriesForRange(repos, profile.createdAt.slice(0, 10), today);
   const hasSyncedEntry = entries.length > 0;
   const release = getPublicMacosRelease();

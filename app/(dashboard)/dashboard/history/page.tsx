@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getHistory, isoToday } from "@/lib/application/dashboard";
+import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { languageCodeToLocale } from "@/lib/domain/language";
@@ -48,7 +49,8 @@ export default async function HistoryPage({
     return <AccessGate title={t(lang, history.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
-  const today = isoToday();
+  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  const today = isoToday(new Date(), timeZone);
   const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
 

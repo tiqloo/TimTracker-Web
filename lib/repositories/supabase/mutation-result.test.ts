@@ -74,6 +74,7 @@ test("time-entry assignment rejects an update with zero visible rows", async () 
   const repository = createSupabaseTimeEntriesRepository(
     mutationClient({ data: null, error: null }),
     neverCalled,
+    neverCalled,
   );
   await assert.rejects(
     repository.updateProject("missing", "project-1"),
@@ -95,6 +96,6 @@ test("project archive preserves backend failures", async () => {
 
 test("time-entry assignment preserves backend failures", async () => {
   await assertBackendFailure((client) =>
-    createSupabaseTimeEntriesRepository(client, neverCalled).updateProject("entry-1", "project-1"),
+    createSupabaseTimeEntriesRepository(client, neverCalled, neverCalled).updateProject("entry-1", "project-1"),
   );
 });
