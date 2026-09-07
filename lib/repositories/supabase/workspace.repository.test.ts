@@ -244,3 +244,14 @@ test("updateMemberRole propagates an RPC error (e.g. target isn't a member) inst
   const { client } = rpcClient({ data: null, error: new Error("This user is not a member of this workspace") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).updateMemberRole("ws-1", "user-2", "admin"), /not a member/);
 });
+
+test("removeMember calls remove_workspace_member with the workspace and target user", async () => {
+  const { client, calls } = rpcClient({ data: null, error: null });
+  await createSupabaseWorkspaceRepository(client).removeMember("ws-1", "user-2");
+  assert.deepEqual(calls, [{ fn: "remove_workspace_member", args: { target_workspace_id: "ws-1", target_user_id: "user-2" } }]);
+});
+
+test("removeMember propagates an RPC error (e.g. target is the owner) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("An owner cannot be removed this way — transfer ownership first") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).removeMember("ws-1", "user-2"), /cannot be removed/);
+});

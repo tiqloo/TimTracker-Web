@@ -36,6 +36,8 @@ export default async function WorkspaceMembersPage({
     );
   }
 
+  const currentUserId = await repos.auth.getAuthenticatedUserId();
+
   let members: WorkspaceMemberRow[] | null = null;
   let isForbidden = false;
   try {
@@ -58,7 +60,7 @@ export default async function WorkspaceMembersPage({
         </p>
       </div>
       {members ? (
-        <WorkspaceMembersClient workspaceId={workspaceId} initialMembers={members} lang={lang} />
+        <WorkspaceMembersClient workspaceId={workspaceId} initialMembers={members} currentUserId={currentUserId} lang={lang} />
       ) : (
         <p {...errorFeedbackProps} className={errorMessageClass}>
           {t(lang, isForbidden ? i18nWorkspaceMembers.forbiddenError : i18nWorkspaceMembers.loadError)}

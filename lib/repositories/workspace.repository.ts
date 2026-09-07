@@ -139,6 +139,13 @@ export interface WorkspaceRepository {
   // of its own (unlike remove-member, Ticket 111, or resend-invitation,
   // Ticket 115). Never grants 'owner' — enforced server-side.
   updateMemberRole(workspaceId: string, userId: string, role: InvitationRole): Promise<{ userId: string; role: InvitationRole }>;
+
+  // Ticket 111 — backed by a SECURITY DEFINER RPC (remove_workspace_member,
+  // TimTracker-Starter repo) that itself rejects self-removal (Ticket
+  // 112's own "leave workspace" flow) and removing an owner (Ticket 113's
+  // own ownership-transfer flow); this port makes no promises about
+  // either case, the RPC is the sole authority.
+  removeMember(workspaceId: string, userId: string): Promise<void>;
 }
 
 // Ticket 103 — the one fallback rule every "which workspace should this

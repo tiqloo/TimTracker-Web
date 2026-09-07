@@ -30,6 +30,7 @@ import {
   inviteWorkspaceMember,
   listWorkspaceMembers,
   previewWorkspaceInvitation,
+  removeWorkspaceMember,
   requireWorkspaceMembership,
   resolveActiveWorkspaceId,
   switchActiveWorkspace,
@@ -231,6 +232,13 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         if (!row) throw new Error("This user is not a member of this workspace");
         row.role = role;
         return { userId, role };
+      },
+      async removeMember(workspaceId, userId) {
+        record("workspace.removeMember", workspaceId, userId);
+        const rows = state.memberRowsByWorkspace[workspaceId] ?? [];
+        const index = rows.findIndex((r) => r.userId === userId);
+        if (index === -1) throw new Error("This user is not a member of this workspace");
+        rows.splice(index, 1);
       },
     },
     activeWorkspace: {
@@ -570,6 +578,31 @@ test("updateWorkspaceMemberRole rejects an invalid role before ever reaching the
 test("updateWorkspaceMemberRole requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(updateWorkspaceMemberRole(repos, "workspace-team-1", "user-2", "admin"), UnauthorizedError);
+});
+
+test("removeWorkspaceMember delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    memberRowsByWorkspace: {
+      "workspace-team-1": [
+        { userId: "user-2", email: "colleague@example.test", displayName: null, role: "member", status: "active", since: "2026-09-01T00:00:00.000Z" },
+      ],
+    },
+  });
+
+  await removeWorkspaceMember(repos, "workspace-team-1", "user-2");
+
+  assert.deepEqual(state.memberRowsByWorkspace["workspace-team-1"], []);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.removeMember", args: ["workspace-team-1", "user-2"] });
+});
+
+test("removeWorkspaceMember propagates a repository error (e.g. the RPC rejects removing an owner) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories({ memberRowsByWorkspace: { "workspace-team-1": [] } });
+  await assert.rejects(removeWorkspaceMember(repos, "workspace-team-1", "user-2"), /not a member/);
+});
+
+test("removeWorkspaceMember requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(removeWorkspaceMember(repos, "workspace-team-1", "user-2"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

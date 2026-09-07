@@ -1371,10 +1371,21 @@ export const workspaceMembers = {
     en: "The role could not be changed. Please try again.",
   },
   roleChangeSuccess: { de: "Rolle wurde geändert.", en: "Role was changed." },
-  // Ticket 111/115 haben eigene Regeln (Entfernen/Erneut senden) — diese
-  // Übersicht zeigt bewusst noch keine Buttons dafür, siehe Ticket-Doku.
+  // Ticket 111.
+  removeButton: { de: "Entfernen", en: "Remove" },
+  confirmRemove: { de: "Wirklich entfernen?", en: "Really remove?" },
+  cancelRemove: { de: "Abbrechen", en: "Cancel" },
+  removing: { de: "Wird entfernt…", en: "Removing…" },
+  removeSuccess: { de: "Mitglied wurde entfernt.", en: "Member was removed." },
+  removeError: {
+    de: "Das Mitglied konnte nicht entfernt werden. Bitte versuche es erneut.",
+    en: "The member could not be removed. Please try again.",
+  },
+  // Ticket 115 hat eigene Regeln (Einladung erneut senden/widerrufen) —
+  // diese Übersicht zeigt bewusst noch keinen Button dafür, siehe
+  // Ticket-Doku.
   moreActionsComingSoon: {
-    de: "Entfernen und erneutes Senden folgen in eigenen Schritten.",
-    en: "Remove and resend are coming in their own steps.",
+    de: "Einladungen verwalten (erneut senden, widerrufen) folgt in einem eigenen Schritt.",
+    en: "Managing invitations (resend, revoke) is coming in its own step.",
   },
 } satisfies Record<string, Translated>;

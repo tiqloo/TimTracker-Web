@@ -193,3 +193,12 @@ export async function updateWorkspaceMemberRole(
   }
   return repos.workspace.updateMemberRole(workspaceId, userId, role);
 }
+
+// Ticket 111 — "Mitglied entfernen". Self-removal and owner-removal are
+// rejected server-side (the RPC's own job, see WorkspaceRepository#removeMember's
+// doc) — this function does not duplicate those checks, same relationship
+// as every other RPC-backed write in this file.
+export async function removeWorkspaceMember(repos: Repositories, workspaceId: string, userId: string): Promise<void> {
+  await requireUser(repos);
+  await repos.workspace.removeMember(workspaceId, userId);
+}

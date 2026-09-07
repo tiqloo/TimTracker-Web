@@ -174,5 +174,13 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       if (!row) throw new Error("update_workspace_member_role returned no row");
       return { userId: row.user_id, role: row.role };
     },
+
+    async removeMember(workspaceId, userId) {
+      const { error } = await client.rpc("remove_workspace_member", {
+        target_workspace_id: workspaceId,
+        target_user_id: userId,
+      });
+      if (error) throw error;
+    },
   };
 }
