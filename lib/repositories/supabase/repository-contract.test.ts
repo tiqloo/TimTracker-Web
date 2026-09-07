@@ -47,6 +47,13 @@ function queryClient(result: QueryResult): FakeClient {
       calls.push({ method: "from", args: [table] });
       return query;
     },
+    // Ticket 103: projects.repository.ts's create() reads the current
+    // user id itself (needed to send an explicit `user_id` on insert) —
+    // only exercised by the project-create test below, harmless for every
+    // other test here that never touches `.auth`.
+    auth: {
+      getUser: async () => ({ data: { user: { id: "user-1" } }, error: null }),
+    },
   } as unknown as SupabaseClient;
   return { client, calls };
 }
@@ -54,6 +61,12 @@ function queryClient(result: QueryResult): FakeClient {
 function methodCalls(calls: QueryCall[], method: string): unknown[][] {
   return calls.filter((call) => call.method === method).map((call) => call.args);
 }
+
+// Ticket 103: both factories now take a lazily-invoked "which workspace is
+// active" thunk as their second argument — a fixed id is all these tests
+// need, the thunk's own resolution logic (cookie + membership fallback) is
+// covered by workspace.repository.test.ts instead.
+const activeWorkspaceId = async () => "ws-1";
 
 const projectRow = {
   id: "project-1",
@@ -80,7 +93,7 @@ const timeEntryRow = {
 test("projects getAll selects explicit columns, orders deterministically and maps DTOs", async () => {
   const fake = queryClient({ data: [projectRow], error: null });
 
-  const projects = await createSupabaseProjectsRepository(fake.client).getAll();
+  const projects = await createSupabaseProjectsRepository(fake.client, activeWorkspaceId).getAll();
 
   assert.deepEqual(projects, [{
     id: "project-1",
@@ -94,6 +107,9 @@ test("projects getAll selects explicit columns, orders deterministically and map
   }]);
   assert.deepEqual(methodCalls(fake.calls, "from"), [["projects"]]);
   assert.deepEqual(methodCalls(fake.calls, "select"), [[PROJECT_COLUMNS]]);
+  // Ticket 103: getAll is scoped to the active workspace, not every
+  // workspace the user is a member of across the board.
+  assert.deepEqual(methodCalls(fake.calls, "eq"), [["workspace_id", "ws-1"]]);
   assert.deepEqual(methodCalls(fake.calls, "order"), [
     ["updated_at", { ascending: false }],
     ["id", { ascending: true }],
@@ -103,34 +119,45 @@ test("projects getAll selects explicit columns, orders deterministically and map
 
 test("projects getAll maps a null PostgREST response to an empty list", async () => {
   const fake = queryClient({ data: null, error: null });
-  assert.deepEqual(await createSupabaseProjectsRepository(fake.client).getAll(), []);
+  assert.deepEqual(await createSupabaseProjectsRepository(fake.client, activeWorkspaceId).getAll(), []);
 });
 
 test("projects getAll preserves backend errors", async () => {
   const backendError = new Error("projects unavailable");
   const fake = queryClient({ data: null, error: backendError });
   await assert.rejects(
-    createSupabaseProjectsRepository(fake.client).getAll(),
+    createSupabaseProjectsRepository(fake.client, activeWorkspaceId).getAll(),
     (error: unknown) => error === backendError,
   );
 });
 
-test("project create sends defaults, explicitly selects and maps the mutation result", async () => {
+test("project create sends the active workspace, the caller's own user id, explicitly selects and maps the mutation result", async () => {
   const fake = queryClient({ data: projectRow, error: null });
 
-  const created = await createSupabaseProjectsRepository(fake.client).create({
+  const created = await createSupabaseProjectsRepository(fake.client, activeWorkspaceId).create({
     name: "Website",
     colorHex: "4C8FBF",
   });
 
   assert.equal(created.id, "project-1");
   assert.equal(created.colorHex, "4C8FBF");
-  assert.deepEqual(methodCalls(fake.calls, "insert"), [[{
+  // Ticket 103 (fixes docs/audit-findings.md's "create() sendet weder id
+  // noch user_id" finding, confirmed live: `projects.id` has no DB default
+  // at all, a 400 not just a defense-in-depth gap): all three are now
+  // required — `id` by the table's own NOT NULL constraint, `user_id`/
+  // `workspace_id` by the RLS insert policy — and this is the only place
+  // that can supply them.
+  const [insertPayload] = methodCalls(fake.calls, "insert")[0] as [Record<string, unknown>];
+  assert.match(insertPayload.id as string, /^[0-9a-f-]{36}$/i, "id must be a client-generated UUID");
+  assert.deepEqual(insertPayload, {
+    id: insertPayload.id,
+    user_id: "user-1",
+    workspace_id: "ws-1",
     name: "Website",
     color_hex: "4C8FBF",
     customer: "",
     notes: "",
-  }]]);
+  });
   assert.deepEqual(methodCalls(fake.calls, "select"), [[PROJECT_COLUMNS]]);
   assert.equal(methodCalls(fake.calls, "maybeSingle").length, 1);
 });
@@ -138,7 +165,7 @@ test("project create sends defaults, explicitly selects and maps the mutation re
 test("project rename maps the returned row and constrains the update by id", async () => {
   const fake = queryClient({ data: projectRow, error: null });
 
-  const renamed = await createSupabaseProjectsRepository(fake.client).rename(
+  const renamed = await createSupabaseProjectsRepository(fake.client, activeWorkspaceId).rename(
     "project-1",
     "Website",
     "Launch",
@@ -160,7 +187,7 @@ test("project rename maps the returned row and constrains the update by id", asy
 test("project archive requires and accepts a returned mutation row", async () => {
   const fake = queryClient({ data: { id: "project-1" }, error: null });
 
-  await createSupabaseProjectsRepository(fake.client).setArchived("project-1", true);
+  await createSupabaseProjectsRepository(fake.client, activeWorkspaceId).setArchived("project-1", true);
 
   assert.deepEqual(methodCalls(fake.calls, "eq"), [["id", "project-1"]]);
   const [update] = methodCalls(fake.calls, "update")[0] as [{
@@ -175,7 +202,7 @@ test("project archive requires and accepts a returned mutation row", async () =>
 test("time-entry range read selects, filters soft-deletes, orders and maps DTOs", async () => {
   const fake = queryClient({ data: [timeEntryRow], error: null });
 
-  const entries = await createSupabaseTimeEntriesRepository(fake.client).getForRange(
+  const entries = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).getForRange(
     "2026-08-01",
     "2026-08-31",
     "project-1",
@@ -196,7 +223,9 @@ test("time-entry range read selects, filters soft-deletes, orders and maps DTOs"
   assert.deepEqual(methodCalls(fake.calls, "gte"), [["day", "2026-08-01"]]);
   assert.deepEqual(methodCalls(fake.calls, "lte"), [["day", "2026-08-31"]]);
   assert.deepEqual(methodCalls(fake.calls, "is"), [["deleted_at", null]]);
-  assert.deepEqual(methodCalls(fake.calls, "eq"), [["project_id", "project-1"]]);
+  // Ticket 103: workspace_id filter applied first, then the optional
+  // project_id filter — matches fetchRange()'s own call order.
+  assert.deepEqual(methodCalls(fake.calls, "eq"), [["workspace_id", "ws-1"], ["project_id", "project-1"]]);
   assert.deepEqual(methodCalls(fake.calls, "order"), [
     ["start_time", { ascending: true }],
     ["id", { ascending: true }],
@@ -207,21 +236,21 @@ test("time-entry range read selects, filters soft-deletes, orders and maps DTOs"
 test("time-entry day read has no project filter and accepts an empty response", async () => {
   const fake = queryClient({ data: null, error: null });
 
-  const entries = await createSupabaseTimeEntriesRepository(fake.client).getForDay(
+  const entries = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).getForDay(
     "2026-08-31",
   );
 
   assert.deepEqual(entries, []);
   assert.deepEqual(methodCalls(fake.calls, "gte"), [["day", "2026-08-31"]]);
   assert.deepEqual(methodCalls(fake.calls, "lte"), [["day", "2026-08-31"]]);
-  assert.deepEqual(methodCalls(fake.calls, "eq"), []);
+  assert.deepEqual(methodCalls(fake.calls, "eq"), [["workspace_id", "ws-1"]]);
 });
 
 test("time-entry range read preserves backend errors", async () => {
   const backendError = new Error("entries unavailable");
   const fake = queryClient({ data: null, error: backendError });
   await assert.rejects(
-    createSupabaseTimeEntriesRepository(fake.client).getForRange("2026-08-01", "2026-08-31"),
+    createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).getForRange("2026-08-01", "2026-08-31"),
     (error: unknown) => error === backendError,
   );
 });
@@ -229,7 +258,7 @@ test("time-entry range read preserves backend errors", async () => {
 test("time-entry assignment sends and maps the mutation result", async () => {
   const fake = queryClient({ data: timeEntryRow, error: null });
 
-  const updated = await createSupabaseTimeEntriesRepository(fake.client).updateProject(
+  const updated = await createSupabaseTimeEntriesRepository(fake.client, activeWorkspaceId).updateProject(
     "entry-1",
     "project-1",
   );

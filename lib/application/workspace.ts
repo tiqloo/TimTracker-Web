@@ -10,7 +10,9 @@ import type {
   InvitationRole,
   Workspace,
   WorkspaceMembership,
+  WorkspaceMembershipSummary,
 } from "@/lib/repositories/workspace.repository";
+import { resolveWorkspaceIdWithFallback } from "../repositories/workspace.repository.ts";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
 import { requireUser } from "./auth.ts";
 
@@ -21,6 +23,7 @@ export type {
   InvitationRole,
   Workspace,
   WorkspaceMembership,
+  WorkspaceMembershipSummary,
   WorkspaceRole,
   WorkspaceType,
 } from "@/lib/repositories/workspace.repository";
@@ -70,11 +73,7 @@ export async function resolveActiveWorkspaceId(
   userId: string,
   requestedWorkspaceId: string | null | undefined,
 ): Promise<string> {
-  if (requestedWorkspaceId) {
-    const membership = await repos.workspace.getMembership(userId, requestedWorkspaceId);
-    if (membership) return requestedWorkspaceId;
-  }
-  return repos.workspace.getPersonalWorkspaceId(userId);
+  return resolveWorkspaceIdWithFallback(repos.workspace, userId, requestedWorkspaceId);
 }
 
 // Ticket 100 — "Unternehmens-Workspace erstellen". Trims and validates the
@@ -126,4 +125,39 @@ export async function previewWorkspaceInvitation(repos: Repositories, token: str
 export async function acceptWorkspaceInvitation(repos: Repositories, token: string): Promise<AcceptedInvitation> {
   await requireUser(repos);
   return repos.workspace.acceptInvitation(token);
+}
+
+// Ticket 103 — everything the workspace switcher needs in one call: every
+// workspace the caller belongs to, plus which one is CURRENTLY active
+// (resolved with the same fallback rule projects/time-entries themselves
+// use — see resolveWorkspaceIdWithFallback — never the raw, potentially
+// stale cookie value, so the switcher can never highlight a workspace the
+// user isn't actually seeing data from).
+export interface WorkspaceSwitcherData {
+  workspaces: WorkspaceMembershipSummary[];
+  activeWorkspaceId: string;
+}
+
+export async function getWorkspaceSwitcherData(repos: Repositories): Promise<WorkspaceSwitcherData> {
+  const userId = await requireUser(repos);
+  const [workspaces, cookieValue] = await Promise.all([
+    repos.workspace.listMemberships(userId),
+    repos.activeWorkspace.get(),
+  ]);
+  const activeWorkspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  return { workspaces, activeWorkspaceId };
+}
+
+// Switches the active workspace: validates the caller is actually a
+// member of `workspaceId` (requireWorkspaceMembership — the switcher UI
+// only ever offers workspaces the caller already belongs to, but this is
+// never trusted client-side, same rule as every other workspace-scoped
+// write in this file) before persisting it as the new cookie value.
+// Callers are responsible for reloading data afterwards (a full navigation
+// — see components/WorkspaceSwitcher.tsx's own comment for why a soft
+// router.refresh() isn't enough here).
+export async function switchActiveWorkspace(repos: Repositories, workspaceId: string): Promise<void> {
+  const userId = await requireUser(repos);
+  await requireWorkspaceMembership(repos, userId, workspaceId);
+  await repos.activeWorkspace.set(workspaceId);
 }

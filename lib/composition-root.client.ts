@@ -4,8 +4,12 @@ import { createSupabaseTimeEntriesRepository } from "@/lib/repositories/supabase
 import { createSupabaseSubscriptionRepository } from "@/lib/repositories/supabase/subscription.repository";
 import { createSupabaseAuthRepository } from "@/lib/repositories/supabase/auth.repository";
 import { createSupabaseWorkspaceRepository } from "@/lib/repositories/supabase/workspace.repository";
+import { resolveWorkspaceIdWithFallback } from "@/lib/repositories/workspace.repository";
 import { createCookieLanguageRepository } from "@/lib/repositories/cookie/language.client";
 import { createCookieDailyGoalRepository } from "@/lib/repositories/cookie/daily-goal.client";
+import { createCookieActiveWorkspaceRepository } from "@/lib/repositories/cookie/active-workspace.client";
+import { UnauthorizedError } from "@/lib/domain/application-error";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Repositories } from "@/lib/repositories/repositories";
 
 // Composition root — BROWSER half. Analogous to
@@ -33,16 +37,41 @@ import type { Repositories } from "@/lib/repositories/repositories";
 // standard fix for this class of problem; lib/composition-root.ts itself
 // is kept as a thin type-only re-export so existing type imports of
 // `Repositories` from it keep working.
+// Ticket 103 — same resolution rule as composition-root.server.ts's own
+// resolveActiveWorkspaceIdForRequest, but NOT cache()-wrapped: React's
+// cache() is a Server Components/RSC-render primitive, unavailable here
+// (getBrowserRepositories() itself stays synchronous — see this file's own
+// comment above — precisely because it's called fresh on every render by
+// many Client Components, so there's no single "one request" scope to
+// dedupe within anyway). The extra query this costs per getAll()/
+// getForRange() call is the accepted tradeoff for keeping this factory
+// synchronous; see projects.repository.ts's own comment for the full
+// reasoning.
+async function resolveActiveWorkspaceIdForRequest(
+  client: SupabaseClient,
+  workspace: ReturnType<typeof createSupabaseWorkspaceRepository>,
+  activeWorkspace: ReturnType<typeof createCookieActiveWorkspaceRepository>,
+): Promise<string> {
+  const { data, error } = await client.auth.getUser();
+  if (error || !data.user) throw new UnauthorizedError();
+  const cookieValue = await activeWorkspace.get();
+  return resolveWorkspaceIdWithFallback(workspace, data.user.id, cookieValue);
+}
+
 export function getBrowserRepositories(): Repositories {
   const client = createBrowserSupabaseClient();
+  const workspace = createSupabaseWorkspaceRepository(client);
+  const activeWorkspace = createCookieActiveWorkspaceRepository();
+  const getActiveWorkspaceId = () => resolveActiveWorkspaceIdForRequest(client, workspace, activeWorkspace);
   return {
-    projects: createSupabaseProjectsRepository(client),
-    timeEntries: createSupabaseTimeEntriesRepository(client),
+    projects: createSupabaseProjectsRepository(client, getActiveWorkspaceId),
+    timeEntries: createSupabaseTimeEntriesRepository(client, getActiveWorkspaceId),
     subscription: createSupabaseSubscriptionRepository(client),
     auth: createSupabaseAuthRepository(client),
     language: createCookieLanguageRepository(),
     dailyGoal: createCookieDailyGoalRepository(),
-    workspace: createSupabaseWorkspaceRepository(client),
+    workspace,
+    activeWorkspace,
   };
 }
 

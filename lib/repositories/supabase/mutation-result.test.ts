@@ -16,6 +16,13 @@ function mutationClient(result: { data: unknown; error: unknown }): SupabaseClie
   return { from: () => query } as unknown as SupabaseClient;
 }
 
+// Ticket 103: rename/setArchived/updateProject never need the active
+// workspace (they mutate one already-known row by id) — asserting this
+// thunk is never even called here doubles as a regression check for that.
+const neverCalled = async (): Promise<string> => {
+  throw new Error("getActiveWorkspaceId should not be called by this method");
+};
+
 function assertBackendFailure(
   action: (client: SupabaseClient) => Promise<unknown>,
 ): Promise<void> {
@@ -44,6 +51,7 @@ test("requireUpdatedRow rejects a zero-row update hidden by RLS", () => {
 test("project rename rejects an update with zero visible rows", async () => {
   const repository = createSupabaseProjectsRepository(
     mutationClient({ data: null, error: null }),
+    neverCalled,
   );
   await assert.rejects(
     repository.rename("missing", "Renamed", ""),
@@ -54,6 +62,7 @@ test("project rename rejects an update with zero visible rows", async () => {
 test("project archive rejects an update with zero visible rows", async () => {
   const repository = createSupabaseProjectsRepository(
     mutationClient({ data: null, error: null }),
+    neverCalled,
   );
   await assert.rejects(
     repository.setArchived("missing", true),
@@ -64,6 +73,7 @@ test("project archive rejects an update with zero visible rows", async () => {
 test("time-entry assignment rejects an update with zero visible rows", async () => {
   const repository = createSupabaseTimeEntriesRepository(
     mutationClient({ data: null, error: null }),
+    neverCalled,
   );
   await assert.rejects(
     repository.updateProject("missing", "project-1"),
@@ -73,18 +83,18 @@ test("time-entry assignment rejects an update with zero visible rows", async () 
 
 test("project rename preserves backend failures", async () => {
   await assertBackendFailure((client) =>
-    createSupabaseProjectsRepository(client).rename("project-1", "Renamed", ""),
+    createSupabaseProjectsRepository(client, neverCalled).rename("project-1", "Renamed", ""),
   );
 });
 
 test("project archive preserves backend failures", async () => {
   await assertBackendFailure((client) =>
-    createSupabaseProjectsRepository(client).setArchived("project-1", true),
+    createSupabaseProjectsRepository(client, neverCalled).setArchived("project-1", true),
   );
 });
 
 test("time-entry assignment preserves backend failures", async () => {
   await assertBackendFailure((client) =>
-    createSupabaseTimeEntriesRepository(client).updateProject("entry-1", "project-1"),
+    createSupabaseTimeEntriesRepository(client, neverCalled).updateProject("entry-1", "project-1"),
   );
 });

@@ -1,9 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { InvitationRole, WorkspaceRepository, WorkspaceRole, WorkspaceType } from "../workspace.repository.ts";
+import type {
+  InvitationRole,
+  WorkspaceRepository,
+  WorkspaceRole,
+  WorkspaceType,
+} from "../workspace.repository.ts";
 
 interface MembershipRow {
   workspace_id: string;
   role: WorkspaceRole;
+}
+
+interface MembershipSummaryRow {
+  workspace_id: string;
+  role: WorkspaceRole;
+  workspaces: { name: string; workspace_type: WorkspaceType };
 }
 
 interface WorkspaceRow {
@@ -49,6 +60,29 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
         throw new Error(`No personal workspace found for user ${userId}`);
       }
       return (data as { workspace_id: string }).workspace_id;
+    },
+
+    async listMemberships(userId) {
+      // Ordered PERSONAL-first (`order("workspaces(workspace_type)")` isn't
+      // reliably sortable this way via PostgREST's embed syntax, so this
+      // sorts client-side instead — the row count here is always small,
+      // one per workspace a single user belongs to) — the workspace
+      // switcher always shows "Persönlich" first, then organizations,
+      // matching this ticket's own example UI.
+      const { data, error } = await client
+        .from("workspace_memberships")
+        .select("workspace_id, role, workspaces!inner(name, workspace_type)")
+        .eq("user_id", userId);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as MembershipSummaryRow[];
+      return rows
+        .map((row) => ({
+          workspaceId: row.workspace_id,
+          workspaceName: row.workspaces.name,
+          workspaceType: row.workspaces.workspace_type,
+          role: row.role,
+        }))
+        .sort((a, b) => (a.workspaceType === b.workspaceType ? 0 : a.workspaceType === "PERSONAL" ? -1 : 1));
     },
 
     async createOrganization(name) {

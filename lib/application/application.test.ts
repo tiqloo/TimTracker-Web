@@ -26,10 +26,12 @@ import {
 import {
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
+  getWorkspaceSwitcherData,
   inviteWorkspaceMember,
   previewWorkspaceInvitation,
   requireWorkspaceMembership,
   resolveActiveWorkspaceId,
+  switchActiveWorkspace,
 } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
@@ -79,6 +81,13 @@ interface MemoryState {
   // (supposedly) a member of. The personal workspace is a member by
   // default, same as real Ticket 097 backfill guarantees.
   memberships: Record<string, "owner" | "admin" | "member">;
+  // workspaceId -> {name, type}, the switcher-only detail listMemberships
+  // needs on top of `memberships` above (Ticket 103).
+  workspaceDetails: Record<string, { name: string; type: "PERSONAL" | "ORGANIZATION" }>;
+  // Raw, unvalidated "active workspace" cookie value (Ticket 103) — null
+  // until switchActiveWorkspace() (or a test override) sets one, exactly
+  // like a first-ever visit with no cookie yet.
+  activeWorkspaceCookie: string | null;
   // token -> invitation, for the Ticket 102 fakes below.
   invitations: Record<string, { email: string; workspaceId: string; workspaceName: string; role: "admin" | "member"; accepted: boolean }>;
   calls: Array<{ method: string; args: unknown[] }>;
@@ -101,6 +110,8 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     dailyGoal: null,
     personalWorkspaceId: "workspace-personal-1",
     memberships: { "workspace-personal-1": "owner" },
+    workspaceDetails: { "workspace-personal-1": { name: "Persönlich", type: "PERSONAL" } },
+    activeWorkspaceCookie: null,
     invitations: {},
     calls: [],
     ...overrides,
@@ -167,6 +178,13 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         record("workspace.personalId", userId);
         return state.personalWorkspaceId;
       },
+      async listMemberships(userId) {
+        record("workspace.listMemberships", userId);
+        return Object.entries(state.memberships).map(([workspaceId, role]) => {
+          const details = state.workspaceDetails[workspaceId] ?? { name: workspaceId, type: "ORGANIZATION" as const };
+          return { workspaceId, workspaceName: details.name, workspaceType: details.type, role };
+        });
+      },
       async createOrganization(name) {
         record("workspace.createOrganization", name);
         return { id: "workspace-new-org-1", name, slug: "new-org-1", workspaceType: "ORGANIZATION" };
@@ -195,6 +213,16 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         if (invitation.accepted) throw new Error("This invitation has already been accepted");
         invitation.accepted = true;
         return { workspaceId: invitation.workspaceId, workspaceName: invitation.workspaceName, role: invitation.role };
+      },
+    },
+    activeWorkspace: {
+      async get() {
+        record("activeWorkspace.get");
+        return state.activeWorkspaceCookie;
+      },
+      async set(workspaceId) {
+        record("activeWorkspace.set", workspaceId);
+        state.activeWorkspaceCookie = workspaceId;
       },
     },
   };
@@ -335,6 +363,58 @@ test("resolveActiveWorkspaceId falls back to the personal workspace when no work
 test("resolveActiveWorkspaceId falls back to the personal workspace instead of throwing when the requested workspace no longer resolves to a membership (e.g. it was deleted)", async () => {
   const { repos } = memoryRepositories();
   assert.equal(await resolveActiveWorkspaceId(repos, "user-1", "workspace-deleted"), "workspace-personal-1");
+});
+
+// Ticket 103 — the workspace switcher's own data + switch action.
+test("getWorkspaceSwitcherData lists every membership and resolves the active one from the stored cookie", async () => {
+  const { repos } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "member" },
+    workspaceDetails: {
+      "workspace-personal-1": { name: "Persönlich", type: "PERSONAL" },
+      "workspace-org-1": { name: "PROMOS Consult", type: "ORGANIZATION" },
+    },
+    activeWorkspaceCookie: "workspace-org-1",
+  });
+  const data = await getWorkspaceSwitcherData(repos);
+  assert.equal(data.activeWorkspaceId, "workspace-org-1");
+  assert.deepEqual(data.workspaces, [
+    { workspaceId: "workspace-personal-1", workspaceName: "Persönlich", workspaceType: "PERSONAL", role: "owner" },
+    { workspaceId: "workspace-org-1", workspaceName: "PROMOS Consult", workspaceType: "ORGANIZATION", role: "member" },
+  ]);
+});
+
+test("getWorkspaceSwitcherData resolves to the personal workspace when no cookie is stored yet (first-ever visit)", async () => {
+  const { repos } = memoryRepositories();
+  const data = await getWorkspaceSwitcherData(repos);
+  assert.equal(data.activeWorkspaceId, "workspace-personal-1");
+});
+
+test("getWorkspaceSwitcherData falls back to the personal workspace instead of trusting a stale cookie (e.g. removed from that workspace since)", async () => {
+  const { repos } = memoryRepositories({ activeWorkspaceCookie: "workspace-no-longer-a-member-of" });
+  const data = await getWorkspaceSwitcherData(repos);
+  assert.equal(data.activeWorkspaceId, "workspace-personal-1");
+});
+
+test("switchActiveWorkspace persists the new workspace once membership is verified", async () => {
+  const { repos, state } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "member" },
+  });
+  await switchActiveWorkspace(repos, "workspace-org-1");
+  assert.equal(state.activeWorkspaceCookie, "workspace-org-1");
+});
+
+test("switchActiveWorkspace rejects a workspace the caller isn't a member of (never trusts a client-supplied id on its own) and does not persist it", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(
+    switchActiveWorkspace(repos, "workspace-someone-elses"),
+    ForbiddenError,
+  );
+  assert.equal(state.activeWorkspaceCookie, null);
+});
+
+test("switchActiveWorkspace requires an authenticated session", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(switchActiveWorkspace(repos, "workspace-personal-1"), UnauthorizedError);
 });
 
 // Ticket 100 — create_organization_workspace.

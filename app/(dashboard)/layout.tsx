@@ -4,6 +4,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getProfile } from "@/lib/application/auth";
+import { getWorkspaceSwitcherData } from "@/lib/application/workspace";
 import { displayNameOrFallback } from "@/lib/domain/profile";
 
 // Shared shell for all (dashboard)/* pages (Heute/Historie/Projekte/
@@ -40,9 +41,10 @@ export default async function DashboardLayout({
 }) {
   const repos = await getRepositories();
   const headerList = await headers();
-  const [lang, profile] = await Promise.all([
+  const [lang, profile, switcherData] = await Promise.all([
     getEffectiveLanguageCode(repos, headerList.get("accept-language")),
     getProfile(repos),
+    getWorkspaceSwitcherData(repos),
   ]);
   const displayName = displayNameOrFallback(profile);
 
@@ -55,7 +57,12 @@ export default async function DashboardLayout({
     // see ToastProvider.tsx's own comment for the full reasoning).
     <ToastProvider lang={lang}>
       <div className="dashboard-shell flex min-h-screen flex-1 flex-col bg-background text-foreground lg:flex-row">
-        <DashboardNav lang={lang} displayName={displayName} />
+        <DashboardNav
+          lang={lang}
+          displayName={displayName}
+          workspaces={switcherData.workspaces}
+          activeWorkspaceId={switcherData.activeWorkspaceId}
+        />
         <div className="mx-auto min-w-0 w-full max-w-6xl flex-1 px-5 pb-24 sm:px-8 lg:px-10 lg:pb-0 xl:px-12">{children}</div>
       </div>
     </ToastProvider>

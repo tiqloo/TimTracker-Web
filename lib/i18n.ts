@@ -1254,6 +1254,16 @@ export const workspaces = {
   createSuccess: { de: "Workspace wurde erstellt.", en: "Workspace was created." },
 } satisfies Record<string, Translated>;
 
+// --- Ticket 103: Workspace-Wechsel --------------------------------------
+export const workspaceSwitcher = {
+  menuLabel: { de: "Workspace wechseln", en: "Switch workspace" },
+  // Shown only if the active workspace id somehow isn't in the caller's
+  // own membership list (should be unreachable — getWorkspaceSwitcherData
+  // resolves activeWorkspaceId FROM that same list — but a label beats a
+  // blank/undefined string if it ever happens).
+  fallbackLabel: { de: "Workspace", en: "Workspace" },
+} satisfies Record<string, Translated>;
+
 // --- Ticket 102: Mitarbeiter einladen -----------------------------------
 export const inviteMember = {
   pageTitle: { de: "Mitarbeiter einladen", en: "Invite a team member" },

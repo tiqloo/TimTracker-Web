@@ -36,15 +36,28 @@ function toDomain(row: ProjectRow): Project {
   };
 }
 
+// Ticket 103 — `getActiveWorkspaceId` is an injected, lazily-invoked async
+// thunk rather than a plain workspace id resolved once at construction
+// time: this adapter is shared between the server and browser composition
+// roots (see those files' own comments), and the browser one's
+// getRepositories() must stay synchronous (many Client Components call it
+// on every render) — resolving the active workspace itself requires an
+// async DB round trip (validating the stored cookie value against the
+// caller's actual memberships, see workspace.repository.ts's
+// resolveWorkspaceIdWithFallback), so that resolution has to happen lazily
+// inside each method call instead of at repository-construction time.
 export function createSupabaseProjectsRepository(
   client: SupabaseClient,
+  getActiveWorkspaceId: () => Promise<string>,
 ): ProjectsRepository {
   return {
     async getAll() {
+      const workspaceId = await getActiveWorkspaceId();
       const rows = await collectAllPages<ProjectRow>(async (from, to) => {
         const { data, error } = await client
           .from("projects")
           .select(PROJECT_COLUMNS)
+          .eq("workspace_id", workspaceId)
           .order("updated_at", { ascending: false })
           .order("id", { ascending: true })
           .range(from, to);
@@ -55,9 +68,36 @@ export function createSupabaseProjectsRepository(
     },
 
     async create(input: NewProject) {
+      const workspaceId = await getActiveWorkspaceId();
+      // Ticket 103 (fixes a real bug flagged in docs/audit-findings.md,
+      // TimTracker-Starter repo, and confirmed live against a fresh local
+      // stack on 2026-09-07 — the audit finding's own suspicion was
+      // correct: this insert 400ed with "null value in column id violates
+      // not-null constraint" the moment it was actually exercised end to
+      // end): `projects.id` (supabase/migrations/0001_init.sql) is `uuid
+      // primary key` with NO default — every existing project in this
+      // database was reachable only via whatever OTHER path originally
+      // created it (the native Mac app always generates its own id
+      // client-side, same offline-first-sync id-generation model the
+      // Swift SyncEngine already uses), never through this Web insert
+      // path. `user_id`/`workspace_id` were ALSO missing, silently
+      // relying entirely on the projects_assign_personal_workspace_when_missing
+      // DB trigger and an unverified-against-production column default for
+      // `user_id` — meaning a project created here would have always
+      // landed in the creator's PERSONAL workspace regardless of which one
+      // was actually active, once `id` stopped being the blocker. All
+      // three are required by the current RLS insert policy (`(select
+      // auth.uid()) = user_id and is_workspace_member(workspace_id)`,
+      // supabase/migrations/20260905090000_workspace_scope_projects_and_time_entries.sql)
+      // plus the table's own NOT NULL constraint on `id`.
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError || !userData.user) throw userError ?? new Error("Not authenticated");
       const { data, error } = await client
         .from("projects")
         .insert({
+          id: crypto.randomUUID(),
+          user_id: userData.user.id,
+          workspace_id: workspaceId,
           name: input.name,
           color_hex: input.colorHex,
           customer: input.customer ?? "",

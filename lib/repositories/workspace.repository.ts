@@ -17,6 +17,18 @@ export interface WorkspaceMembership {
   role: WorkspaceRole;
 }
 
+// Ticket 103 — one row of "every workspace I'm a member of", for the
+// workspace switcher. A superset of WorkspaceMembership (adds the name/
+// type the switcher UI actually needs to render each option) rather than
+// reusing Workspace+WorkspaceMembership separately — the switcher always
+// needs both together, one row per membership.
+export interface WorkspaceMembershipSummary {
+  workspaceId: string;
+  workspaceName: string;
+  workspaceType: WorkspaceType;
+  role: WorkspaceRole;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -66,6 +78,11 @@ export interface WorkspaceRepository {
   // fallback target whenever no explicit/valid workspace is in play.
   getPersonalWorkspaceId(userId: string): Promise<string>;
 
+  // Ticket 103 — every workspace the user belongs to, for the workspace
+  // switcher. No fixed order promised by the port itself; the adapter
+  // returns the personal workspace first (see its own comment).
+  listMemberships(userId: string): Promise<WorkspaceMembershipSummary[]>;
+
   // Ticket 100 — creates a new ORGANIZATION workspace with the calling
   // user recorded as its owner. Backed by a SECURITY DEFINER Postgres RPC
   // (TimTracker-Starter repo, create_organization_workspace()), not a
@@ -95,4 +112,32 @@ export interface WorkspaceRepository {
   // invitation's — enforced server-side (Ticket 099's non-negotiable
   // rule applies here too: this port never decides that itself).
   acceptInvitation(token: string): Promise<AcceptedInvitation>;
+}
+
+// Ticket 103 — the one fallback rule every "which workspace should this
+// request operate on" caller needs: an explicit/stored candidate id wins
+// IF the user is actually still a member of it, otherwise fall back to
+// their personal workspace (Ticket 099's own edge case: a stale/foreign
+// value must never error or crash the page, just quietly fall back).
+//
+// Lives here, against the port (not lib/application/workspace.ts's
+// Repositories-shaped resolveActiveWorkspaceId, which this now delegates
+// to), specifically so BOTH the application layer AND the composition
+// roots can call it: the composition roots need this exact logic to
+// resolve the active workspace id lazily inside the projects/time-entries
+// adapter factories (lib/repositories/supabase/{projects,time-entries}.
+// repository.ts), at a point where a full Repositories object doesn't
+// exist yet (it's still being constructed) — only the already-built
+// WorkspaceRepository adapter is available. Duplicating this rule instead
+// of sharing it would risk the two copies silently drifting apart.
+export async function resolveWorkspaceIdWithFallback(
+  workspace: WorkspaceRepository,
+  userId: string,
+  candidateWorkspaceId: string | null | undefined,
+): Promise<string> {
+  if (candidateWorkspaceId) {
+    const membership = await workspace.getMembership(userId, candidateWorkspaceId);
+    if (membership) return candidateWorkspaceId;
+  }
+  return workspace.getPersonalWorkspaceId(userId);
 }

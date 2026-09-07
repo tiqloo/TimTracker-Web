@@ -38,6 +38,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
+import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
+import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
 
 // Shared with every focus-visible ring elsewhere in the app (AuthCard.tsx/
@@ -268,7 +270,17 @@ function UserMenu({
   );
 }
 
-export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: string }) {
+export function DashboardNav({
+  lang,
+  displayName,
+  workspaces,
+  activeWorkspaceId,
+}: {
+  lang: Lang;
+  displayName: string;
+  workspaces: WorkspaceMembershipSummary[];
+  activeWorkspaceId: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
@@ -356,7 +368,9 @@ export function DashboardNav({ lang, displayName }: { lang: Lang; displayName: s
           </Link>
         </div>
 
-        {!sidebarCollapsed && <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.16em] text-text-secondary uppercase">Workspace</p>}
+        {!sidebarCollapsed && (
+          <WorkspaceSwitcher lang={lang} workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} />
+        )}
         <nav className="flex flex-col gap-1">{navigationLinks(true, sidebarCollapsed)}</nav>
 
         <div className="mt-auto border-t border-line pt-4">

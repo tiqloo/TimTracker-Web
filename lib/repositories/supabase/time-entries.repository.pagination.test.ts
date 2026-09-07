@@ -123,7 +123,7 @@ test("getForRange reconstructs a complete, gap-free, duplicate-free list when du
   assert.equal(allRows.length, SUPABASE_PAGE_SIZE + 2, "test setup: exactly two rows must overflow into a second page");
 
   const client = paginatingClient(allRows);
-  const entries = await createSupabaseTimeEntriesRepository(client).getForRange("2026-08-01", "2026-08-31");
+  const entries = await createSupabaseTimeEntriesRepository(client, async () => "ws-1").getForRange("2026-08-01", "2026-08-31");
 
   assert.equal(entries.length, allRows.length, "every row must be returned exactly once — no gap, no duplicate at the page boundary");
   assert.deepEqual(new Set(entries.map((e) => e.id)).size, allRows.length, "no id may appear twice");

@@ -58,6 +58,7 @@ function toDomain(row: TimeEntryRow): TimeEntry {
 // just aggregates whatever fetchRange handed it, same as before).
 async function fetchRange(
   client: SupabaseClient,
+  workspaceId: string,
   fromDay: string,
   toDay: string,
   projectId?: string,
@@ -66,6 +67,7 @@ async function fetchRange(
     let query = client
       .from("time_entries")
       .select(TIME_ENTRY_COLUMNS)
+      .eq("workspace_id", workspaceId)
       .gte("day", fromDay)
       .lte("day", toDay)
       .is("deleted_at", null);
@@ -84,16 +86,21 @@ async function fetchRange(
   return rows.map(toDomain);
 }
 
+// Ticket 103 — same lazy-thunk reasoning as
+// projects.repository.ts#createSupabaseProjectsRepository's own comment.
 export function createSupabaseTimeEntriesRepository(
   client: SupabaseClient,
+  getActiveWorkspaceId: () => Promise<string>,
 ): TimeEntriesRepository {
   return {
     async getForDay(day: string) {
-      return fetchRange(client, day, day);
+      const workspaceId = await getActiveWorkspaceId();
+      return fetchRange(client, workspaceId, day, day);
     },
 
     async getForRange(fromDay: string, toDay: string, projectId?: string) {
-      return fetchRange(client, fromDay, toDay, projectId);
+      const workspaceId = await getActiveWorkspaceId();
+      return fetchRange(client, workspaceId, fromDay, toDay, projectId);
     },
 
     // Ticket 034: reassigns one entry's project_id. `updated_at` has no DB
@@ -116,7 +123,8 @@ export function createSupabaseTimeEntriesRepository(
     },
 
     async getBreakdown(fromDay: string, toDay: string, projectId?: string) {
-      const entries = await fetchRange(client, fromDay, toDay, projectId);
+      const workspaceId = await getActiveWorkspaceId();
+      const entries = await fetchRange(client, workspaceId, fromDay, toDay, projectId);
       return buildDailyBreakdowns(entries, new Date());
     },
   };

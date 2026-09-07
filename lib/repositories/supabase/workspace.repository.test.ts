@@ -70,6 +70,59 @@ test("getPersonalWorkspaceId throws rather than silently returning an unusable v
   await assert.rejects(createSupabaseWorkspaceRepository(client).getPersonalWorkspaceId("user-1"), /No personal workspace found/);
 });
 
+// Ticket 103 — listMemberships awaits the query builder chain directly
+// (no .maybeSingle()/.single(), it's a multi-row select), which real
+// supabase-js resolves via the builder itself being thenable — queryClient
+// above only supports the .maybeSingle()-terminated shape, hence this own
+// smaller fake (same "own, smaller fake" precedent this file's top comment
+// already establishes for a differently-shaped query).
+function listMembershipsClient(result: QueryResult): { client: SupabaseClient; calls: QueryCall[] } {
+  const calls: QueryCall[] = [];
+  const record = (method: string, ...args: unknown[]) => {
+    calls.push({ method, args });
+    return query;
+  };
+  const query = {
+    select: (...args: unknown[]) => record("select", ...args),
+    eq: (...args: unknown[]) => record("eq", ...args),
+    then: (resolve: (value: QueryResult) => void) => resolve(result),
+  };
+  const client = {
+    from: (table: string) => {
+      calls.push({ method: "from", args: [table] });
+      return query;
+    },
+  } as unknown as SupabaseClient;
+  return { client, calls };
+}
+
+test("listMemberships maps every membership row and sorts the personal workspace first", async () => {
+  const { client, calls } = listMembershipsClient({
+    data: [
+      { workspace_id: "ws-org", role: "member", workspaces: { name: "PROMOS Consult", workspace_type: "ORGANIZATION" } },
+      { workspace_id: "ws-personal", role: "owner", workspaces: { name: "Persönlich", workspace_type: "PERSONAL" } },
+    ],
+    error: null,
+  });
+  const memberships = await createSupabaseWorkspaceRepository(client).listMemberships("user-1");
+  assert.deepEqual(memberships, [
+    { workspaceId: "ws-personal", workspaceName: "Persönlich", workspaceType: "PERSONAL", role: "owner" },
+    { workspaceId: "ws-org", workspaceName: "PROMOS Consult", workspaceType: "ORGANIZATION", role: "member" },
+  ]);
+  assert.deepEqual(methodCalls(calls, "eq"), [["user_id", "user-1"]]);
+});
+
+test("listMemberships returns an empty array (never throws) for a user somehow found with no memberships", async () => {
+  const { client } = listMembershipsClient({ data: null, error: null });
+  const memberships = await createSupabaseWorkspaceRepository(client).listMemberships("user-1");
+  assert.deepEqual(memberships, []);
+});
+
+test("listMemberships propagates a real query error instead of swallowing it", async () => {
+  const { client } = listMembershipsClient({ data: null, error: new Error("connection reset") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).listMemberships("user-1"), /connection reset/);
+});
+
 // Ticket 100 — createOrganization calls the create_organization_workspace
 // RPC (a SECURITY DEFINER Postgres function, TimTracker-Starter repo),
 // never a raw table insert.

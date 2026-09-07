@@ -49,12 +49,20 @@ export function CreateWorkspaceClient({ lang }: { lang: Lang }) {
       const workspace = await createOrganizationWorkspace(repos, trimmedName);
       showSuccess(t(lang, i18nWorkspaces.createSuccess));
       // Ticket 100's own AC: "kein Zwischenzustand, in dem der neue
-      // Workspace existiert, aber nirgends sichtbar ist" — until Ticket
-      // 103 (workspace switcher) exists, straight into "invite the first
-      // teammate" (Ticket 102) is the most useful next step for a
-      // freshly created, still-empty organization workspace — a full
-      // "switch into it" experience is 103's own scope, not this one's.
+      // Workspace existiert, aber nirgends sichtbar ist" — straight into
+      // "invite the first teammate" (Ticket 102) is the most useful next
+      // step for a freshly created, still-empty organization workspace.
+      // Deliberately does NOT also switch the ACTIVE workspace (Ticket
+      // 103) to the new one — viewing its invite page doesn't require
+      // having it active, same reasoning `/dashboard/workspaces/[id]/
+      // invite/page.tsx`'s own comment gives for not gating on caller
+      // authorization there either. router.refresh() alone is still
+      // needed so the sidebar's WorkspaceSwitcher (fed by the
+      // (dashboard)/layout.tsx Server Component, not this Client
+      // Component) lists the new workspace as a switch TARGET right away,
+      // instead of only after an unrelated full reload.
       router.push(`/dashboard/workspaces/${workspace.id}/invite`);
+      router.refresh();
     } catch (err) {
       showError(err instanceof Error ? err.message : t(lang, i18nWorkspaces.createError));
     } finally {
