@@ -1394,12 +1394,77 @@ export const workspaceMembers = {
     en: "Ownership could not be transferred. Please try again.",
   },
   transferWrongPasswordError: { de: "Falsches Passwort.", en: "Wrong password." },
-  // Ticket 115 hat eigene Regeln (Einladung erneut senden/widerrufen) —
-  // diese Übersicht zeigt bewusst noch keinen Button dafür, siehe
-  // Ticket-Doku.
-  moreActionsComingSoon: {
-    de: "Einladungen verwalten (erneut senden, widerrufen) folgt in einem eigenen Schritt.",
-    en: "Managing invitations (resend, revoke) is coming in its own step.",
+  // Ticket 115 — die Einladungsverwaltung (erneut senden/widerrufen/Rolle
+  // ändern/Link kopieren) lebt auf einer eigenen Seite, siehe
+  // WorkspaceInvitationsClient.tsx.
+  manageInvitationsLink: { de: "Einladungen verwalten", en: "Manage invitations" },
+} satisfies Record<string, Translated>;
+
+// --- Ticket 115: Einladungsverwaltung ------------------------------------
+export const workspaceInvitations = {
+  pageTitle: { de: "Einladungen", en: "Invitations" },
+  pageDescription: {
+    de: "Offene, abgelaufene und widerrufene Einladungen dieses Workspace verwalten.",
+    en: "Manage this workspace's open, expired and revoked invitations.",
+  },
+  backToMembersLink: { de: "Zurück zu den Mitgliedern", en: "Back to members" },
+  columnEmail: { de: "E-Mail", en: "Email" },
+  columnRole: { de: "Rolle", en: "Role" },
+  columnSent: { de: "Versendet", en: "Sent" },
+  columnStatus: { de: "Status", en: "Status" },
+  roleAdmin: { de: "Admin", en: "Admin" },
+  roleMember: { de: "Mitglied", en: "Member" },
+  statusPending: { de: "Offen", en: "Pending" },
+  statusExpired: { de: "Abgelaufen", en: "Expired" },
+  statusRevoked: { de: "Widerrufen", en: "Revoked" },
+  statusAccepted: { de: "Angenommen", en: "Accepted" },
+  emptyState: {
+    de: "Dieser Workspace hat keine offenen, abgelaufenen oder widerrufenen Einladungen.",
+    en: "This workspace has no open, expired or revoked invitations.",
+  },
+  loadError: {
+    de: "Die Einladungsliste konnte nicht geladen werden.",
+    en: "The invitation list could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Nur Owner und Admins können Einladungen verwalten.",
+    en: "Only owners and admins can manage invitations.",
+  },
+  resendButton: { de: "Erneut senden", en: "Resend" },
+  resending: { de: "Wird gesendet…", en: "Sending…" },
+  resendSuccess: { de: "Neuer Einladungslink erstellt.", en: "A new invitation link was created." },
+  resendError: {
+    de: "Die Einladung konnte nicht erneut gesendet werden. Bitte versuche es erneut.",
+    en: "The invitation could not be resent. Please try again.",
+  },
+  // Ticket 115 AK: "sicheren Einladungslink kopieren" — da nur der Hash des
+  // Tokens gespeichert wird (nie das Klartext-Token selbst), gibt es für
+  // eine bestehende Einladung keinen abrufbaren Link ohne Rotation; "erneut
+  // senden" ist deshalb der einzige Weg, an einen frischen, kopierbaren
+  // Link zu kommen — dieselbe Aktion erfüllt beide AK-Punkte zugleich.
+  linkCreatedDescription: {
+    de: "Teile diesen neuen Link mit der eingeladenen Person — der alte Link funktioniert nicht mehr.",
+    en: "Share this new link with the invited person — the old link no longer works.",
+  },
+  copyLinkButton: { de: "Link kopieren", en: "Copy link" },
+  linkCopied: { de: "Link kopiert.", en: "Link copied." },
+  copyLinkError: {
+    de: "Der Link konnte nicht automatisch kopiert werden. Bitte kopiere ihn manuell.",
+    en: "The link could not be copied automatically. Please copy it manually.",
+  },
+  revokeButton: { de: "Widerrufen", en: "Revoke" },
+  confirmRevoke: { de: "Wirklich widerrufen?", en: "Really revoke?" },
+  cancelRevoke: { de: "Abbrechen", en: "Cancel" },
+  revoking: { de: "Wird widerrufen…", en: "Revoking…" },
+  revokeSuccess: { de: "Einladung wurde widerrufen.", en: "Invitation was revoked." },
+  revokeError: {
+    de: "Die Einladung konnte nicht widerrufen werden. Bitte versuche es erneut.",
+    en: "The invitation could not be revoked. Please try again.",
+  },
+  roleChangeSuccess: { de: "Rolle wurde geändert.", en: "Role was changed." },
+  roleChangeError: {
+    de: "Die Rolle konnte nicht geändert werden. Bitte versuche es erneut.",
+    en: "The role could not be changed. Please try again.",
   },
 } satisfies Record<string, Translated>;
 

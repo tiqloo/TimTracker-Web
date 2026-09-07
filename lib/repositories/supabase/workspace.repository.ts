@@ -214,5 +214,60 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       });
       if (error) throw error;
     },
+
+    async listInvitations(workspaceId) {
+      const { data, error } = await client.rpc("list_workspace_invitations", {
+        target_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      const rows = data as {
+        id: string;
+        email: string;
+        role: InvitationRole;
+        sent_at: string;
+        expires_at: string;
+        revoked_at: string | null;
+        accepted_at: string | null;
+      }[];
+      return rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        sentAt: row.sent_at,
+        expiresAt: row.expires_at,
+        revokedAt: row.revoked_at,
+        acceptedAt: row.accepted_at,
+      }));
+    },
+
+    async resendInvitation(invitationId) {
+      const { data, error } = await client.rpc("resend_workspace_invitation", {
+        target_invitation_id: invitationId,
+      });
+      if (error) throw error;
+      const rows = data as { id: string; token: string; email: string; role: InvitationRole; expires_at: string }[];
+      const row = rows[0];
+      if (!row) throw new Error("resend_workspace_invitation returned no row");
+      return { id: row.id, token: row.token, email: row.email, role: row.role, expiresAt: row.expires_at };
+    },
+
+    async revokeInvitation(invitationId) {
+      const { error } = await client.rpc("revoke_workspace_invitation", {
+        target_invitation_id: invitationId,
+      });
+      if (error) throw error;
+    },
+
+    async updateInvitationRole(invitationId, role) {
+      const { data, error } = await client.rpc("update_workspace_invitation_role", {
+        target_invitation_id: invitationId,
+        new_role: role,
+      });
+      if (error) throw error;
+      const rows = data as { id: string; role: InvitationRole }[];
+      const row = rows[0];
+      if (!row) throw new Error("update_workspace_invitation_role returned no row");
+      return { id: row.id, role: row.role };
+    },
   };
 }

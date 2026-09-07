@@ -58,6 +58,35 @@ export interface WorkspaceMemberRow {
 // explicit ownership transfer, Ticket 113).
 export type InvitationRole = "admin" | "member";
 
+// Ticket 115 — one row of "an open/expired/revoked/accepted invitation on
+// this workspace, with its own id" (unlike WorkspaceMemberRow above, which
+// unifies memberships+invitations for the overview but drops the
+// invitation's own primary key — not needed there, but every action here
+// targets a SPECIFIC invitation by id). `status` is derived client-side
+// from the three timestamps (same rule the list_workspace_members RPC
+// itself uses), not returned by the RPC — keeping the RPC's row shape a
+// plain reflection of the table columns.
+export interface WorkspaceInvitationRow {
+  id: string;
+  email: string;
+  role: InvitationRole;
+  sentAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  acceptedAt: string | null;
+}
+
+// Ticket 115 — resend_workspace_invitation's return shape: a fresh
+// one-time plaintext token (same "only ever returned right after the
+// action that generates it" rule as CreatedInvitation.token above).
+export interface ResentInvitation {
+  id: string;
+  token: string;
+  email: string;
+  role: InvitationRole;
+  expiresAt: string;
+}
+
 export interface CreatedInvitation {
   id: string;
   // The one-time plaintext token — only ever returned here, right after
@@ -163,6 +192,29 @@ export interface WorkspaceRepository {
   // caller's own session email) — throws ReauthenticationFailedError on a
   // wrong password, before the RPC itself is ever called.
   transferOwnership(workspaceId: string, newOwnerUserId: string, currentPassword: string): Promise<void>;
+
+  // Ticket 115 — backed by a SECURITY DEFINER RPC (list_workspace_invitations,
+  // TimTracker-Starter repo), deliberately separate from listMembers above
+  // — see WorkspaceInvitationRow's own doc for why. Returns every
+  // invitation regardless of status (open/expired/revoked/accepted); the
+  // caller derives the display status from the timestamps.
+  listInvitations(workspaceId: string): Promise<WorkspaceInvitationRow[]>;
+
+  // Ticket 115 — backed by a SECURITY DEFINER RPC (resend_workspace_invitation,
+  // TimTracker-Starter repo) that rotates the token (invalidating any
+  // earlier link, per the ticket's own AK) and extends the expiry;
+  // rejects an already-accepted or already-revoked invitation server-side.
+  resendInvitation(invitationId: string): Promise<ResentInvitation>;
+
+  // Ticket 115 — backed by a SECURITY DEFINER RPC (revoke_workspace_invitation,
+  // TimTracker-Starter repo). Deliberately idempotent server-side: revoking
+  // an already-revoked invitation a second time is not an error.
+  revokeInvitation(invitationId: string): Promise<void>;
+
+  // Ticket 115 — backed by a SECURITY DEFINER RPC (update_workspace_invitation_role,
+  // TimTracker-Starter repo). Never grants 'owner' — enforced server-side,
+  // same rule as updateMemberRole above.
+  updateInvitationRole(invitationId: string, role: InvitationRole): Promise<{ id: string; role: InvitationRole }>;
 }
 
 // Ticket 103 — the one fallback rule every "which workspace should this

@@ -29,16 +29,20 @@ import {
   getWorkspaceSwitcherData,
   inviteWorkspaceMember,
   leaveWorkspace,
+  listWorkspaceInvitations,
   listWorkspaceMembers,
   previewWorkspaceInvitation,
   removeWorkspaceMember,
   requireWorkspaceMembership,
+  resendWorkspaceInvitation,
   resolveActiveWorkspaceId,
+  revokeWorkspaceInvitation,
   switchActiveWorkspace,
   transferWorkspaceOwnership,
+  updateWorkspaceInvitationRole,
   updateWorkspaceMemberRole,
 } from "./workspace.ts";
-import type { WorkspaceMemberRow } from "./workspace.ts";
+import type { WorkspaceInvitationRow, WorkspaceMemberRow } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -98,6 +102,9 @@ interface MemoryState {
   invitations: Record<string, { email: string; workspaceId: string; workspaceName: string; role: "admin" | "member"; accepted: boolean }>;
   // workspaceId -> member/invitation rows, for the Ticket 110 fakes below.
   memberRowsByWorkspace: Record<string, WorkspaceMemberRow[]>;
+  // workspaceId -> invitation rows (own id, unlike memberRowsByWorkspace
+  // above), for the Ticket 115 fakes below.
+  invitationRowsByWorkspace: Record<string, WorkspaceInvitationRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -122,6 +129,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     activeWorkspaceCookie: null,
     invitations: {},
     memberRowsByWorkspace: {},
+    invitationRowsByWorkspace: {},
     calls: [],
     ...overrides,
   };
@@ -255,6 +263,48 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         record("workspace.transferOwnership", workspaceId, newOwnerUserId, currentPassword);
         if (currentPassword !== "correct-password") throw new Error("Wrong password");
         state.memberships[workspaceId] = "admin";
+      },
+      async listInvitations(workspaceId) {
+        record("workspace.listInvitations", workspaceId);
+        return state.invitationRowsByWorkspace[workspaceId] ?? [];
+      },
+      async resendInvitation(invitationId) {
+        record("workspace.resendInvitation", invitationId);
+        for (const rows of Object.values(state.invitationRowsByWorkspace)) {
+          const row = rows.find((r) => r.id === invitationId);
+          if (row) {
+            if (row.acceptedAt) throw new Error("This invitation has already been accepted");
+            if (row.revokedAt) throw new Error("This invitation has been revoked");
+            row.expiresAt = "2026-12-31T00:00:00.000Z";
+            return { id: row.id, token: `resent-token-for-${row.id}`, email: row.email, role: row.role, expiresAt: row.expiresAt };
+          }
+        }
+        throw new Error("This invitation does not exist");
+      },
+      async revokeInvitation(invitationId) {
+        record("workspace.revokeInvitation", invitationId);
+        for (const rows of Object.values(state.invitationRowsByWorkspace)) {
+          const row = rows.find((r) => r.id === invitationId);
+          if (row) {
+            if (row.acceptedAt) throw new Error("This invitation has already been accepted");
+            row.revokedAt = row.revokedAt ?? "2026-09-07T00:00:00.000Z";
+            return;
+          }
+        }
+        throw new Error("This invitation does not exist");
+      },
+      async updateInvitationRole(invitationId, role) {
+        record("workspace.updateInvitationRole", invitationId, role);
+        for (const rows of Object.values(state.invitationRowsByWorkspace)) {
+          const row = rows.find((r) => r.id === invitationId);
+          if (row) {
+            if (row.acceptedAt) throw new Error("This invitation has already been accepted");
+            if (row.revokedAt) throw new Error("This invitation has been revoked");
+            row.role = role;
+            return { id: row.id, role };
+          }
+        }
+        throw new Error("This invitation does not exist");
       },
     },
     activeWorkspace: {
@@ -658,6 +708,108 @@ test("transferWorkspaceOwnership propagates a repository error (e.g. wrong passw
 test("transferWorkspaceOwnership requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(transferWorkspaceOwnership(repos, "workspace-team-1", "user-2", "correct-password"), UnauthorizedError);
+});
+
+// Ticket 115 — Einladungsverwaltung.
+const OPEN_INVITATION: WorkspaceInvitationRow = {
+  id: "invite-1",
+  email: "pending@example.test",
+  role: "member",
+  sentAt: "2026-09-01T00:00:00.000Z",
+  expiresAt: "2026-09-08T00:00:00.000Z",
+  revokedAt: null,
+  acceptedAt: null,
+};
+
+test("listWorkspaceInvitations requires authentication and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [OPEN_INVITATION] },
+  });
+
+  const invitations = await listWorkspaceInvitations(repos, "workspace-team-1");
+
+  assert.deepEqual(invitations, [OPEN_INVITATION]);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.listInvitations", args: ["workspace-team-1"] });
+});
+
+test("listWorkspaceInvitations requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(listWorkspaceInvitations(repos, "workspace-team-1"), UnauthorizedError);
+});
+
+test("resendWorkspaceInvitation delegates to the repository and returns a fresh token", async () => {
+  const { repos, state } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [{ ...OPEN_INVITATION }] },
+  });
+
+  const resent = await resendWorkspaceInvitation(repos, "invite-1");
+
+  assert.equal(resent.id, "invite-1");
+  assert.ok(resent.token);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.resendInvitation", args: ["invite-1"] });
+});
+
+test("resendWorkspaceInvitation propagates a repository error (e.g. already revoked) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [{ ...OPEN_INVITATION, revokedAt: "2026-09-02T00:00:00.000Z" }] },
+  });
+  await assert.rejects(resendWorkspaceInvitation(repos, "invite-1"), /has been revoked/);
+});
+
+test("resendWorkspaceInvitation requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(resendWorkspaceInvitation(repos, "invite-1"), UnauthorizedError);
+});
+
+test("revokeWorkspaceInvitation delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [{ ...OPEN_INVITATION }] },
+  });
+
+  await revokeWorkspaceInvitation(repos, "invite-1");
+
+  assert.ok(state.invitationRowsByWorkspace["workspace-team-1"][0].revokedAt);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.revokeInvitation", args: ["invite-1"] });
+});
+
+test("revokeWorkspaceInvitation propagates a repository error (e.g. already accepted) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [{ ...OPEN_INVITATION, acceptedAt: "2026-09-03T00:00:00.000Z" }] },
+  });
+  await assert.rejects(revokeWorkspaceInvitation(repos, "invite-1"), /already been accepted/);
+});
+
+test("revokeWorkspaceInvitation requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(revokeWorkspaceInvitation(repos, "invite-1"), UnauthorizedError);
+});
+
+test("updateWorkspaceInvitationRole delegates to the repository for a valid role", async () => {
+  const { repos, state } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [{ ...OPEN_INVITATION }] },
+  });
+
+  const updated = await updateWorkspaceInvitationRole(repos, "invite-1", "admin");
+
+  assert.deepEqual(updated, { id: "invite-1", role: "admin" });
+  assert.equal(state.invitationRowsByWorkspace["workspace-team-1"][0].role, "admin");
+});
+
+test("updateWorkspaceInvitationRole rejects an invalid role before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    invitationRowsByWorkspace: { "workspace-team-1": [{ ...OPEN_INVITATION }] },
+  });
+  await assert.rejects(
+    // @ts-expect-error deliberately invalid at the boundary, same as the server-side RPC guards against it
+    updateWorkspaceInvitationRole(repos, "invite-1", "owner"),
+    ValidationError,
+  );
+  assert.ok(!state.calls.some((call) => call.method === "workspace.updateInvitationRole"));
+});
+
+test("updateWorkspaceInvitationRole requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(updateWorkspaceInvitationRole(repos, "invite-1", "admin"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

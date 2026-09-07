@@ -4,6 +4,7 @@
 // ProjectsClient.tsx: getRepositories() (lib/application/client.ts) + a
 // use case, never lib/repositories/* directly.
 import { useState } from "react";
+import Link from "next/link";
 import type { WorkspaceMemberRow, WorkspaceMemberStatus, InvitationRole } from "@/lib/application/workspace";
 import { updateWorkspaceMemberRole, removeWorkspaceMember, transferWorkspaceOwnership } from "@/lib/application/workspace";
 import { ReauthenticationFailedError } from "@/lib/application/auth";
@@ -273,7 +274,9 @@ export function WorkspaceMembersClient({
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-text-secondary">{t(lang, i18nWorkspaceMembers.moreActionsComingSoon)}</p>
+      <Link href={`/dashboard/workspaces/${workspaceId}/invitations`} className="text-xs font-medium text-brand hover:underline">
+        {t(lang, i18nWorkspaceMembers.manageInvitationsLink)}
+      </Link>
     </div>
   );
 }

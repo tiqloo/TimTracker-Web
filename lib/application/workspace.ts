@@ -8,7 +8,9 @@ import type {
   CreatedInvitation,
   InvitationPreview,
   InvitationRole,
+  ResentInvitation,
   Workspace,
+  WorkspaceInvitationRow,
   WorkspaceMembership,
   WorkspaceMembershipSummary,
   WorkspaceMemberRow,
@@ -22,7 +24,9 @@ export type {
   CreatedInvitation,
   InvitationPreview,
   InvitationRole,
+  ResentInvitation,
   Workspace,
+  WorkspaceInvitationRow,
   WorkspaceMembership,
   WorkspaceMembershipSummary,
   WorkspaceMemberRow,
@@ -223,4 +227,42 @@ export async function transferWorkspaceOwnership(
 ): Promise<void> {
   await requireUser(repos);
   await repos.workspace.transferOwnership(workspaceId, newOwnerUserId, currentPassword);
+}
+
+// Ticket 115 — "Einladungsverwaltung". No requireWorkspaceMembership call
+// here, same reasoning as listWorkspaceMembers above: list_workspace_invitations
+// itself is the authoritative owner/admin check.
+export async function listWorkspaceInvitations(repos: Repositories, workspaceId: string): Promise<WorkspaceInvitationRow[]> {
+  await requireUser(repos);
+  return repos.workspace.listInvitations(workspaceId);
+}
+
+// Ticket 115 — "erneut senden". The RPC itself rejects an already-
+// accepted/revoked invitation and rotates the token — this function does
+// not duplicate those checks, same relationship as every other RPC-backed
+// write in this file.
+export async function resendWorkspaceInvitation(repos: Repositories, invitationId: string): Promise<ResentInvitation> {
+  await requireUser(repos);
+  return repos.workspace.resendInvitation(invitationId);
+}
+
+// Ticket 115 — "widerrufen". Idempotent server-side (see
+// WorkspaceRepository#revokeInvitation's own doc).
+export async function revokeWorkspaceInvitation(repos: Repositories, invitationId: string): Promise<void> {
+  await requireUser(repos);
+  await repos.workspace.revokeInvitation(invitationId);
+}
+
+// Ticket 115 — "Rolle ändern" (for a still-open invitation, distinct from
+// updateWorkspaceMemberRole above which targets an active membership).
+export async function updateWorkspaceInvitationRole(
+  repos: Repositories,
+  invitationId: string,
+  role: InvitationRole,
+): Promise<{ id: string; role: InvitationRole }> {
+  await requireUser(repos);
+  if (role !== "admin" && role !== "member") {
+    throw new ValidationError("Role must be either admin or member.");
+  }
+  return repos.workspace.updateInvitationRole(invitationId, role);
 }
