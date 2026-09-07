@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseWorkspaceRepository } from "./workspace.repository.ts";
+import { ReauthenticationFailedError } from "../auth.repository.ts";
 
 type QueryResult = { data: unknown; error: unknown };
 type QueryCall = { method: string; args: unknown[] };
@@ -265,4 +266,60 @@ test("leaveWorkspace calls leave_workspace with the workspace id", async () => {
 test("leaveWorkspace propagates an RPC error (e.g. caller is the sole owner) instead of swallowing it", async () => {
   const { client } = rpcClient({ data: null, error: new Error("Cannot remove, demote or delete the last owner of a workspace — transfer ownership first") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).leaveWorkspace("ws-1"), /transfer ownership first/);
+});
+
+// Ticket 113 — transferOwnership re-authenticates (client.auth.getUser() +
+// signInWithPassword()) BEFORE ever calling the RPC, same pattern as
+// AuthRepository#changeEmail/changePassword — needs its own fake, the
+// shared rpcClient() above has no `.auth` at all.
+function transferOwnershipClient(options: {
+  currentEmail?: string | null;
+  reauthSucceeds?: boolean;
+  rpcResult?: { data: unknown; error: unknown };
+}): { client: SupabaseClient; rpcCalls: { fn: string; args: unknown }[]; signInCalls: unknown[] } {
+  const rpcCalls: { fn: string; args: unknown }[] = [];
+  const signInCalls: unknown[] = [];
+  const currentEmail = options.currentEmail === undefined ? "owner@example.test" : options.currentEmail;
+  const reauthSucceeds = options.reauthSucceeds ?? true;
+  const rpcResult = options.rpcResult ?? { data: null, error: null };
+  const client = {
+    auth: {
+      getUser: async () => ({ data: { user: currentEmail === null ? { email: null } : { email: currentEmail } }, error: null }),
+      signInWithPassword: async (args: unknown) => {
+        signInCalls.push(args);
+        return reauthSucceeds ? { data: {}, error: null } : { data: null, error: new Error("Invalid login credentials") };
+      },
+    },
+    rpc: (fn: string, args: unknown) => {
+      rpcCalls.push({ fn, args });
+      return Promise.resolve(rpcResult);
+    },
+  } as unknown as SupabaseClient;
+  return { client, rpcCalls, signInCalls };
+}
+
+test("transferOwnership re-authenticates against the session's own email, then calls the RPC", async () => {
+  const { client, rpcCalls, signInCalls } = transferOwnershipClient({ currentEmail: "owner@example.test" });
+  await createSupabaseWorkspaceRepository(client).transferOwnership("ws-1", "user-2", "correct-password");
+  assert.deepEqual(signInCalls, [{ email: "owner@example.test", password: "correct-password" }]);
+  assert.deepEqual(rpcCalls, [{ fn: "transfer_workspace_ownership", args: { target_workspace_id: "ws-1", new_owner_user_id: "user-2" } }]);
+});
+
+test("transferOwnership throws ReauthenticationFailedError on a wrong password, without ever calling the RPC", async () => {
+  const { client, rpcCalls } = transferOwnershipClient({ reauthSucceeds: false });
+  await assert.rejects(
+    createSupabaseWorkspaceRepository(client).transferOwnership("ws-1", "user-2", "wrong-password"),
+    ReauthenticationFailedError,
+  );
+  assert.deepEqual(rpcCalls, [], "the RPC must never be reached if re-authentication failed");
+});
+
+test("transferOwnership propagates an RPC error (e.g. target is not an admin) instead of swallowing it", async () => {
+  const { client } = transferOwnershipClient({
+    rpcResult: { data: null, error: new Error("Ownership can only be transferred to an existing admin of this workspace") },
+  });
+  await assert.rejects(
+    createSupabaseWorkspaceRepository(client).transferOwnership("ws-1", "user-2", "correct-password"),
+    /existing admin/,
+  );
 });

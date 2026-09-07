@@ -153,6 +153,16 @@ export interface WorkspaceRepository {
   // a workspace is rejected server-side (the existing last-owner-protection
   // trigger), pointing to the future ownership-transfer flow (Ticket 113).
   leaveWorkspace(workspaceId: string): Promise<void>;
+
+  // Ticket 113 — backed by a SECURITY DEFINER RPC (transfer_workspace_ownership,
+  // TimTracker-Starter repo) that itself checks the caller is the CURRENT
+  // owner (not just any owner/admin) and that the target is an existing
+  // admin of the same workspace. `currentPassword` re-authenticates the
+  // caller FIRST (same established pattern as AuthRepository#changeEmail/
+  // changePassword: a fresh client.auth.signInWithPassword() against the
+  // caller's own session email) — throws ReauthenticationFailedError on a
+  // wrong password, before the RPC itself is ever called.
+  transferOwnership(workspaceId: string, newOwnerUserId: string, currentPassword: string): Promise<void>;
 }
 
 // Ticket 103 — the one fallback rule every "which workspace should this

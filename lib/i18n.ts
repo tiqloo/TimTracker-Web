@@ -1383,6 +1383,17 @@ export const workspaceMembers = {
     de: "Das Mitglied konnte nicht entfernt werden. Bitte versuche es erneut.",
     en: "The member could not be removed. Please try again.",
   },
+  // Ticket 113.
+  transferButton: { de: "Als Owner festlegen", en: "Make owner" },
+  transferPasswordPrompt: { de: "Zur Bestätigung dein Passwort eingeben", en: "Enter your password to confirm" },
+  confirmTransfer: { de: "Übertragen", en: "Transfer" },
+  transferring: { de: "Wird übertragen…", en: "Transferring…" },
+  transferSuccess: { de: "Eigentümerschaft wurde übertragen.", en: "Ownership was transferred." },
+  transferError: {
+    de: "Die Eigentümerschaft konnte nicht übertragen werden. Bitte versuche es erneut.",
+    en: "Ownership could not be transferred. Please try again.",
+  },
+  transferWrongPasswordError: { de: "Falsches Passwort.", en: "Wrong password." },
   // Ticket 115 hat eigene Regeln (Einladung erneut senden/widerrufen) —
   // diese Übersicht zeigt bewusst noch keinen Button dafür, siehe
   // Ticket-Doku.

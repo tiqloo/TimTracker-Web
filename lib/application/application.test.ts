@@ -35,6 +35,7 @@ import {
   requireWorkspaceMembership,
   resolveActiveWorkspaceId,
   switchActiveWorkspace,
+  transferWorkspaceOwnership,
   updateWorkspaceMemberRole,
 } from "./workspace.ts";
 import type { WorkspaceMemberRow } from "./workspace.ts";
@@ -249,6 +250,11 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
           throw new Error("Cannot remove, demote or delete the last owner of a workspace — transfer ownership first");
         }
         delete state.memberships[workspaceId];
+      },
+      async transferOwnership(workspaceId, newOwnerUserId, currentPassword) {
+        record("workspace.transferOwnership", workspaceId, newOwnerUserId, currentPassword);
+        if (currentPassword !== "correct-password") throw new Error("Wrong password");
+        state.memberships[workspaceId] = "admin";
       },
     },
     activeWorkspace: {
@@ -634,6 +640,24 @@ test("leaveWorkspace propagates a repository error when the caller is the sole o
 test("leaveWorkspace requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(leaveWorkspace(repos, "workspace-team-1"), UnauthorizedError);
+});
+
+test("transferWorkspaceOwnership delegates to the repository with the given password", async () => {
+  const { repos, state } = memoryRepositories({ memberships: { "workspace-team-1": "owner" } });
+
+  await transferWorkspaceOwnership(repos, "workspace-team-1", "user-2", "correct-password");
+
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.transferOwnership", args: ["workspace-team-1", "user-2", "correct-password"] });
+});
+
+test("transferWorkspaceOwnership propagates a repository error (e.g. wrong password) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories({ memberships: { "workspace-team-1": "owner" } });
+  await assert.rejects(transferWorkspaceOwnership(repos, "workspace-team-1", "user-2", "wrong-password"), /Wrong password/);
+});
+
+test("transferWorkspaceOwnership requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(transferWorkspaceOwnership(repos, "workspace-team-1", "user-2", "correct-password"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

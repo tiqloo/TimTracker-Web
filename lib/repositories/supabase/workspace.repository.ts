@@ -6,6 +6,7 @@ import type {
   WorkspaceRole,
   WorkspaceType,
 } from "../workspace.repository.ts";
+import { ReauthenticationFailedError } from "../auth.repository.ts";
 
 interface MembershipRow {
   workspace_id: string;
@@ -186,6 +187,30 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
     async leaveWorkspace(workspaceId) {
       const { error } = await client.rpc("leave_workspace", {
         target_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+    },
+
+    async transferOwnership(workspaceId, newOwnerUserId, currentPassword) {
+      // Re-authentication FIRST — exact same pattern as changeEmail/
+      // changePassword (auth.repository.ts): confirms the caller actually
+      // knows the account's current password before this security-sensitive
+      // action, using the session's OWN email (never anything caller-supplied).
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      const currentEmail = userData.user.email;
+      if (!currentEmail) {
+        throw new Error("Current session has no email address on file.");
+      }
+      const { error: reauthError } = await client.auth.signInWithPassword({
+        email: currentEmail,
+        password: currentPassword,
+      });
+      if (reauthError) throw new ReauthenticationFailedError();
+
+      const { error } = await client.rpc("transfer_workspace_ownership", {
+        target_workspace_id: workspaceId,
+        new_owner_user_id: newOwnerUserId,
       });
       if (error) throw error;
     },

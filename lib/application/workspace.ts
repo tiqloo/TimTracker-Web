@@ -210,3 +210,17 @@ export async function leaveWorkspace(repos: Repositories, workspaceId: string): 
   await requireUser(repos);
   await repos.workspace.leaveWorkspace(workspaceId);
 }
+
+// Ticket 113 — "Ownership übertragen". The "caller is the current owner"
+// and "target is an existing admin" checks are entirely the RPC's job
+// (see WorkspaceRepository#transferOwnership's own doc) — re-authentication
+// happens inside the repository adapter, before the RPC is ever called.
+export async function transferWorkspaceOwnership(
+  repos: Repositories,
+  workspaceId: string,
+  newOwnerUserId: string,
+  currentPassword: string,
+): Promise<void> {
+  await requireUser(repos);
+  await repos.workspace.transferOwnership(workspaceId, newOwnerUserId, currentPassword);
+}
