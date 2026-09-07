@@ -255,3 +255,14 @@ test("removeMember propagates an RPC error (e.g. target is the owner) instead of
   const { client } = rpcClient({ data: null, error: new Error("An owner cannot be removed this way — transfer ownership first") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).removeMember("ws-1", "user-2"), /cannot be removed/);
 });
+
+test("leaveWorkspace calls leave_workspace with the workspace id", async () => {
+  const { client, calls } = rpcClient({ data: null, error: null });
+  await createSupabaseWorkspaceRepository(client).leaveWorkspace("ws-1");
+  assert.deepEqual(calls, [{ fn: "leave_workspace", args: { target_workspace_id: "ws-1" } }]);
+});
+
+test("leaveWorkspace propagates an RPC error (e.g. caller is the sole owner) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Cannot remove, demote or delete the last owner of a workspace — transfer ownership first") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).leaveWorkspace("ws-1"), /transfer ownership first/);
+});

@@ -1262,6 +1262,8 @@ export const workspaceSwitcher = {
   // resolves activeWorkspaceId FROM that same list — but a label beats a
   // blank/undefined string if it ever happens).
   fallbackLabel: { de: "Workspace", en: "Workspace" },
+  // Ticket 112 — links to app/(dashboard)/dashboard/workspaces/[workspaceId]/leave.
+  leaveLink: { de: "Verlassen", en: "Leave" },
 } satisfies Record<string, Translated>;
 
 // --- Ticket 102: Mitarbeiter einladen -----------------------------------
@@ -1389,3 +1391,34 @@ export const workspaceMembers = {
     en: "Managing invitations (resend, revoke) is coming in its own step.",
   },
 } satisfies Record<string, Translated>;
+
+// --- Ticket 112: Workspace verlassen ------------------------------------
+export const leaveWorkspace = {
+  pageTitle: { de: "Workspace verlassen", en: "Leave workspace" },
+  confirmButton: { de: "Ja, verlassen", en: "Yes, leave" },
+  cancelButton: { de: "Abbrechen", en: "Cancel" },
+  leaving: { de: "Wird verlassen…", en: "Leaving…" },
+  leaveError: {
+    de: "Der Workspace konnte nicht verlassen werden. Bitte versuche es erneut.",
+    en: "The workspace could not be left. Please try again.",
+  },
+  lastOwnerError: {
+    de: "Du bist die einzige Owner-Person dieses Workspace und kannst ihn deshalb nicht verlassen. Übertrage zuerst die Eigentümerschaft an ein anderes Mitglied.",
+    en: "You are the only owner of this workspace, so you cannot leave it. Transfer ownership to another member first.",
+  },
+  leftTitle: { de: "Workspace verlassen", en: "Workspace left" },
+  goToDashboardButton: { de: "Zum Dashboard", en: "Go to dashboard" },
+  notAMemberError: {
+    de: "Dieser Workspace existiert nicht oder du bist kein Mitglied.",
+    en: "This workspace does not exist, or you are not a member.",
+  },
+} satisfies Record<string, Translated>;
+
+// Interpolated (needs the workspace's name), so a function rather than a
+// static Translated entry — same pattern as emailChangeSuccessMessage
+// above.
+export function leaveWorkspacePageDescription(lang: Lang, workspaceName: string): string {
+  return lang === "de"
+    ? `Möchtest du „${workspaceName}“ wirklich verlassen? Deine persönlichen Daten und dein Tiqloo-Konto bleiben davon unberührt.`
+    : `Do you really want to leave "${workspaceName}"? Your personal data and Tiqloo account are unaffected.`;
+}

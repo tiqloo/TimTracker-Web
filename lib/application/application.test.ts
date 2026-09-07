@@ -28,6 +28,7 @@ import {
   createOrganizationWorkspace,
   getWorkspaceSwitcherData,
   inviteWorkspaceMember,
+  leaveWorkspace,
   listWorkspaceMembers,
   previewWorkspaceInvitation,
   removeWorkspaceMember,
@@ -239,6 +240,15 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         const index = rows.findIndex((r) => r.userId === userId);
         if (index === -1) throw new Error("This user is not a member of this workspace");
         rows.splice(index, 1);
+      },
+      async leaveWorkspace(workspaceId) {
+        record("workspace.leaveWorkspace", workspaceId);
+        const role = state.memberships[workspaceId];
+        if (!role) throw new Error("You are not a member of this workspace");
+        if (role === "owner") {
+          throw new Error("Cannot remove, demote or delete the last owner of a workspace — transfer ownership first");
+        }
+        delete state.memberships[workspaceId];
       },
     },
     activeWorkspace: {
@@ -603,6 +613,27 @@ test("removeWorkspaceMember propagates a repository error (e.g. the RPC rejects 
 test("removeWorkspaceMember requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(removeWorkspaceMember(repos, "workspace-team-1", "user-2"), UnauthorizedError);
+});
+
+test("leaveWorkspace delegates to the repository for a non-owner membership", async () => {
+  const { repos, state } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-team-1": "member" },
+  });
+
+  await leaveWorkspace(repos, "workspace-team-1");
+
+  assert.equal(state.memberships["workspace-team-1"], undefined);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.leaveWorkspace", args: ["workspace-team-1"] });
+});
+
+test("leaveWorkspace propagates a repository error when the caller is the sole owner", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(leaveWorkspace(repos, "workspace-personal-1"), /transfer ownership first/);
+});
+
+test("leaveWorkspace requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(leaveWorkspace(repos, "workspace-team-1"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

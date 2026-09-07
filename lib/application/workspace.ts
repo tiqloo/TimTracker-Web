@@ -202,3 +202,11 @@ export async function removeWorkspaceMember(repos: Repositories, workspaceId: st
   await requireUser(repos);
   await repos.workspace.removeMember(workspaceId, userId);
 }
+
+// Ticket 112 — "Workspace verlassen". The sole-owner rejection (a request
+// to transfer ownership first, Ticket 113) is entirely the RPC's job —
+// see WorkspaceRepository#leaveWorkspace's own doc.
+export async function leaveWorkspace(repos: Repositories, workspaceId: string): Promise<void> {
+  await requireUser(repos);
+  await repos.workspace.leaveWorkspace(workspaceId);
+}

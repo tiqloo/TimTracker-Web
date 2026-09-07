@@ -182,5 +182,12 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       });
       if (error) throw error;
     },
+
+    async leaveWorkspace(workspaceId) {
+      const { error } = await client.rpc("leave_workspace", {
+        target_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+    },
   };
 }

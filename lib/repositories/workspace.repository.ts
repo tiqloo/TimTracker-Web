@@ -146,6 +146,13 @@ export interface WorkspaceRepository {
   // own ownership-transfer flow); this port makes no promises about
   // either case, the RPC is the sole authority.
   removeMember(workspaceId: string, userId: string): Promise<void>;
+
+  // Ticket 112 — backed by a SECURITY DEFINER RPC (leave_workspace,
+  // TimTracker-Starter repo). Unlike removeMember, no owner/admin check
+  // at all — any member may end their OWN membership. The sole owner of
+  // a workspace is rejected server-side (the existing last-owner-protection
+  // trigger), pointing to the future ownership-transfer flow (Ticket 113).
+  leaveWorkspace(workspaceId: string): Promise<void>;
 }
 
 // Ticket 103 — the one fallback rule every "which workspace should this

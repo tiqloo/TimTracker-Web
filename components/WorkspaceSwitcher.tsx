@@ -10,6 +10,7 @@
 // abstractions" rule) but intentionally styled identically so both read as
 // the same family of control.
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { switchActiveWorkspace, type WorkspaceMembershipSummary } from "@/lib/application/workspace";
 import { getRepositories } from "@/lib/application/client";
@@ -123,20 +124,37 @@ export function WorkspaceSwitcher({
           className="absolute top-full left-0 z-50 mt-1 w-full min-w-[200px] animate-dropdown-in rounded-xl border border-line bg-surface p-1.5 shadow-[0_18px_50px_-18px_rgba(24,24,23,0.42)]"
         >
           {workspaces.map((workspace) => (
-            <button
-              key={workspace.workspaceId}
-              type="button"
-              role="menuitemradio"
-              aria-checked={workspace.workspaceId === activeWorkspaceId}
-              disabled={pending}
-              onClick={() => handleSwitch(workspace.workspaceId)}
-              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`}
-            >
-              <span className="min-w-0 flex-1 truncate">{workspace.workspaceName}</span>
-              {workspace.workspaceId === activeWorkspaceId && (
-                <Check size={15} strokeWidth={2.2} className="shrink-0 text-brand" aria-hidden="true" />
+            <div key={workspace.workspaceId} className="flex items-center gap-1">
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={workspace.workspaceId === activeWorkspaceId}
+                disabled={pending}
+                onClick={() => handleSwitch(workspace.workspaceId)}
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`}
+              >
+                <span className="min-w-0 flex-1 truncate">{workspace.workspaceName}</span>
+                {workspace.workspaceId === activeWorkspaceId && (
+                  <Check size={15} strokeWidth={2.2} className="shrink-0 text-brand" aria-hidden="true" />
+                )}
+              </button>
+              {/* Ticket 112: the personal workspace can never be left
+                  (Ticket 097's own guarantee: every account always has
+                  exactly one) — no link shown for it, matching the
+                  server-side leave_workspace RPC's own real constraint
+                  (there is no protect-last-owner trigger exception for
+                  "it's the personal workspace", a personal workspace's
+                  owner simply always remains its sole owner). */}
+              {workspace.workspaceType !== "PERSONAL" && (
+                <Link
+                  href={`/dashboard/workspaces/${workspace.workspaceId}/leave`}
+                  onClick={() => setOpen(false)}
+                  className={`shrink-0 rounded-md px-2 py-2 text-xs text-text-secondary transition-colors duration-150 hover:bg-paper hover:text-foreground ${focusRingClass}`}
+                >
+                  {t(lang, i18nWorkspaceSwitcher.leaveLink)}
+                </Link>
               )}
-            </button>
+            </div>
           ))}
         </div>
       )}
