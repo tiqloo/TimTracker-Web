@@ -24,6 +24,36 @@ export interface Workspace {
   workspaceType: WorkspaceType;
 }
 
+// Ticket 102 — invitation role is intentionally narrower than
+// WorkspaceRole above: an invitation can never directly grant 'owner'
+// (that only ever happens via workspace creation, Ticket 100, or an
+// explicit ownership transfer, Ticket 113).
+export type InvitationRole = "admin" | "member";
+
+export interface CreatedInvitation {
+  id: string;
+  // The one-time plaintext token — only ever returned here, right after
+  // creation. Never persisted anywhere as plaintext (TimTracker-Starter
+  // repo's create_workspace_invitation() stores only its SHA-256 hash).
+  token: string;
+  email: string;
+  role: InvitationRole;
+  expiresAt: string;
+}
+
+export interface InvitationPreview {
+  email: string;
+  workspaceName: string;
+  role: InvitationRole;
+  isValid: boolean;
+}
+
+export interface AcceptedInvitation {
+  workspaceId: string;
+  workspaceName: string;
+  role: InvitationRole;
+}
+
 export interface WorkspaceRepository {
   // `null` when the user has no membership row for this workspace id —
   // covers both "workspace exists but user isn't a member" and
@@ -47,4 +77,22 @@ export interface WorkspaceRepository {
   // here-adjacent in the application layer AND server-side in the RPC —
   // never trust only one side.
   createOrganization(name: string): Promise<Workspace>;
+
+  // Ticket 102 — all three backed by SECURITY DEFINER RPCs
+  // (TimTracker-Starter repo), same "no raw table grant" reasoning as
+  // createOrganization above. createInvitation requires the caller to
+  // already be an owner/admin of workspaceId — enforced server-side, this
+  // port makes no promises about who's allowed to call it.
+  createInvitation(workspaceId: string, email: string, role: InvitationRole): Promise<CreatedInvitation>;
+
+  // Callable by an anonymous (not-yet-registered, not-yet-logged-in)
+  // caller too — the whole point is letting a brand-new user's
+  // registration form know which email/workspace an invitation link is
+  // for, before they have any session at all. Never accepts on its own.
+  previewInvitation(token: string): Promise<InvitationPreview>;
+
+  // Requires an authenticated session whose account email matches the
+  // invitation's — enforced server-side (Ticket 099's non-negotiable
+  // rule applies here too: this port never decides that itself).
+  acceptInvitation(token: string): Promise<AcceptedInvitation>;
 }

@@ -3,9 +3,9 @@
 // Interactive half of "Konto erstellen" — split out of
 // app/(auth)/register/page.tsx (Ticket 022), same reasoning as
 // components/LoginForm.tsx's module comment.
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { faGoogle } from "@fortawesome/free-brands-svg-icons";
 import { EmailAlreadyRegisteredError, register, signInWithGoogle } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
@@ -19,6 +19,7 @@ import {
 import { secondaryButtonClass } from "@/lib/ui/button-styles";
 import { errorFeedbackProps, successFeedbackProps, warningFeedbackProps } from "@/lib/ui/feedback";
 import { common, register as i18nRegister, t, type Lang } from "@/lib/i18n";
+import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
 
 // Ticket 077: same inline-SVG BrandIcon approach as LoginForm.tsx's own
 // GoogleIcon — see that file's comment for the full reasoning (no
@@ -61,9 +62,33 @@ const MIN_PASSWORD_LENGTH = 6;
 // false — unlike local/dev seed users). register() therefore reports
 // whether confirmation is still pending; only redirect straight into the
 // app when it isn't.
-export function RegisterForm({ lang }: { lang: Lang }) {
+// Ticket 102: `prefillEmail` (from the invited email, via
+// app/(auth)/register/page.tsx's `?email=`) only ever sets the field's
+// initial value — it stays a perfectly normal, freely editable input
+// afterwards. A visitor who arrived from an invitation link but wants to
+// register a different address is not blocked from doing so.
+//
+// useSearchParams() (for ?redirectTo=) requires a Suspense boundary around
+// it for Next.js's static-render bailout — same wrapper LoginForm.tsx uses.
+export function RegisterForm({ lang, prefillEmail }: { lang: Lang; prefillEmail?: string }) {
+  return (
+    <Suspense>
+      <RegisterFormInner lang={lang} prefillEmail={prefillEmail} />
+    </Suspense>
+  );
+}
+
+function RegisterFormInner({ lang, prefillEmail }: { lang: Lang; prefillEmail?: string }) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  // Ticket 102: was hardcoded to "/dashboard/get-started" before this
+  // param existed — passing that same string through normalizeDashboardRedirect
+  // when ?redirectTo= is absent reproduces the exact previous default
+  // (it matches the "/dashboard/*" prefix rule), so ordinary registration
+  // is unaffected. A present-but-invalid value falls back to "/dashboard"
+  // instead, same as every other normalizeDashboardRedirect caller.
+  const redirectTo = normalizeDashboardRedirect(searchParams.get("redirectTo") ?? "/dashboard/get-started");
+  const [email, setEmail] = useState(prefillEmail ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -96,12 +121,12 @@ export function RegisterForm({ lang }: { lang: Lang }) {
     setPending(true);
     try {
       const repos = getRepositories();
-      const { emailConfirmationRequired } = await register(repos, email, password);
+      const { emailConfirmationRequired } = await register(repos, email, password, redirectTo);
       if (emailConfirmationRequired) {
         setConfirmationPending(true);
         setPending(false);
       } else {
-        router.push("/dashboard/get-started");
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (err) {
@@ -127,17 +152,17 @@ export function RegisterForm({ lang }: { lang: Lang }) {
   }
 
   // Ticket 077. Same redirect target as this form's own email-confirmation
-  // flow above (register()'s emailRedirectTo: "/login?redirectTo=/dashboard/
-  // get-started") — Supabase treats OAuth sign-in/sign-up identically, so
-  // "registering" with Google is the same call as LoginForm's Google
-  // button. The server-side PKCE callback sends a newly authenticated user
-  // straight to the onboarding page.
+  // flow above (register()'s emailRedirectTo) — Supabase treats OAuth
+  // sign-in/sign-up identically, so "registering" with Google is the same
+  // call as LoginForm's Google button. The server-side PKCE callback sends
+  // a newly authenticated user to `redirectTo` (Ticket 102: the onboarding
+  // page by default, or back to a pending workspace invitation).
   async function handleGoogleSignIn() {
     setError(null);
     setGooglePending(true);
     try {
       const repos = getRepositories();
-      await signInWithGoogle(repos, "/dashboard/get-started");
+      await signInWithGoogle(repos, redirectTo);
     } catch {
       setError(t(lang, i18nRegister.oauthError));
       setGooglePending(false);

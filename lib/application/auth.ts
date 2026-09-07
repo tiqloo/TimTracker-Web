@@ -30,12 +30,23 @@ export async function requireUser(repos: Repositories): Promise<string> {
   return userId;
 }
 
+// Ticket 102: `redirectTo` (raw, from `?redirectTo=` — see RegisterForm.tsx)
+// is normalized here, at the application boundary, before it ever reaches
+// the adapter — the same defense-in-depth reasoning signInWithGoogle below
+// already applies. Without this, an unvalidated value would flow straight
+// into Supabase's outbound confirmation-email link (see the adapter),
+// turning a would-be UI-only bug into a genuine open-redirect vector.
 export async function register(
   repos: Repositories,
   email: string,
   password: string,
+  redirectTo?: string,
 ): Promise<{ emailConfirmationRequired: boolean }> {
-  return repos.auth.register(email, password);
+  return repos.auth.register(
+    email,
+    password,
+    normalizeDashboardRedirect(redirectTo ?? "/dashboard/get-started"),
+  );
 }
 
 export async function login(

@@ -93,9 +93,19 @@ export interface AuthRepository {
   // detection logic. This is a deliberate departure from that
   // anti-enumeration default, scoped to registration only — see
   // EmailAlreadyRegisteredError's own comment for why.
+  // `redirectTo` (Ticket 102): where the confirmation-email link and the
+  // immediate-session case should land — e.g. `/invite/accept?token=...`
+  // for a brand-new user who arrived via a workspace invitation, instead
+  // of always the generic onboarding page. Defaults to
+  // `/dashboard/get-started` when omitted, same as before this param
+  // existed. Callers must run this through normalizeDashboardRedirect
+  // first (see lib/application/auth.ts#register) — this adapter treats it
+  // as already-validated, since it also feeds Supabase's own outbound
+  // confirmation email.
   register(
     email: string,
     password: string,
+    redirectTo?: string,
   ): Promise<{ emailConfirmationRequired: boolean }>;
   login(email: string, password: string): Promise<void>;
   // Ticket 077 (TimTracker-Starter repo): Google OAuth, the "genau wie

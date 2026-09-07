@@ -46,14 +46,15 @@ export function CreateWorkspaceClient({ lang }: { lang: Lang }) {
     setPending(true);
     try {
       const repos = getRepositories();
-      await createOrganizationWorkspace(repos, trimmedName);
+      const workspace = await createOrganizationWorkspace(repos, trimmedName);
       showSuccess(t(lang, i18nWorkspaces.createSuccess));
       // Ticket 100's own AC: "kein Zwischenzustand, in dem der neue
       // Workspace existiert, aber nirgends sichtbar ist" — until Ticket
-      // 103 (workspace switcher) exists, Settings is the closest visible,
-      // reachable place; a full "switch into it" experience is 103's own
-      // scope, not this ticket's.
-      router.push("/dashboard/settings");
+      // 103 (workspace switcher) exists, straight into "invite the first
+      // teammate" (Ticket 102) is the most useful next step for a
+      // freshly created, still-empty organization workspace — a full
+      // "switch into it" experience is 103's own scope, not this one's.
+      router.push(`/dashboard/workspaces/${workspace.id}/invite`);
     } catch (err) {
       showError(err instanceof Error ? err.message : t(lang, i18nWorkspaces.createError));
     } finally {

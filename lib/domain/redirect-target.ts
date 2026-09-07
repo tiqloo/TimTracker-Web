@@ -6,7 +6,13 @@ const DEFAULT_REDIRECT_TARGET = "/dashboard";
 // im Dashboard landet und die Session-Tokens zurück an die App reicht.
 // Exaktes Match (kein Präfix wie bei /dashboard) — diese Seite hat keine
 // Unterrouten.
-const EXACT_ALLOWED_TARGETS = new Set(["/auth/desktop-complete"]);
+//
+// Ticket 102: ein bereits registrierter, aber noch nicht eingeloggter
+// Nutzer, der auf einen Einladungslink klickt, wird zuerst zu
+// `/login?redirectTo=/invite/accept?token=...` geschickt — nach
+// erfolgreichem Login muss er exakt dorthin zurückkehren, sonst müsste er
+// den Link ein zweites Mal anklicken.
+const EXACT_ALLOWED_TARGETS = new Set(["/auth/desktop-complete", "/invite/accept"]);
 
 export function normalizeDashboardRedirect(rawTarget: string | null | undefined): string {
   if (!rawTarget) return DEFAULT_REDIRECT_TARGET;

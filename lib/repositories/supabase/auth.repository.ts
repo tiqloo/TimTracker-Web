@@ -21,7 +21,7 @@ export function createSupabaseAuthRepository(
       return data.user.id;
     },
 
-    async register(email: string, password: string) {
+    async register(email: string, password: string, redirectTo?: string) {
       const { data, error } = await client.auth.signUp({
         email,
         password,
@@ -35,7 +35,12 @@ export function createSupabaseAuthRepository(
           // instantiates the browser client on mount specifically to
           // finish processing a confirmation link's session tokens (see
           // the comment there) and then bounces the user into the app.
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/login?redirectTo=/dashboard/get-started`,
+          // Ticket 102: `redirectTo` (already validated by the caller —
+          // see AuthRepository#register's own doc) carries a pending
+          // workspace-invitation link through the confirmation-email
+          // round trip, so accepting it doesn't get lost behind "confirm
+          // your email first".
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/login?redirectTo=${encodeURIComponent(redirectTo ?? "/dashboard/get-started")}`,
         },
       });
       if (error) {

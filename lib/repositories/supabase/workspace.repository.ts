@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { WorkspaceRepository, WorkspaceRole, WorkspaceType } from "../workspace.repository.ts";
+import type { InvitationRole, WorkspaceRepository, WorkspaceRole, WorkspaceType } from "../workspace.repository.ts";
 
 interface MembershipRow {
   workspace_id: string;
@@ -67,6 +67,41 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       const row = rows[0];
       if (!row) throw new Error("create_organization_workspace returned no row");
       return { id: row.id, name: row.name, slug: row.slug, workspaceType: row.workspace_type };
+    },
+
+    async createInvitation(workspaceId, email, role) {
+      const { data, error } = await client.rpc("create_workspace_invitation", {
+        target_workspace_id: workspaceId,
+        invitee_email: email,
+        invitee_role: role,
+      });
+      if (error) throw error;
+      const rows = data as { id: string; token: string; email: string; role: InvitationRole; expires_at: string }[];
+      const row = rows[0];
+      if (!row) throw new Error("create_workspace_invitation returned no row");
+      return { id: row.id, token: row.token, email: row.email, role: row.role, expiresAt: row.expires_at };
+    },
+
+    async previewInvitation(token) {
+      const { data, error } = await client.rpc("preview_workspace_invitation", {
+        invitation_token: token,
+      });
+      if (error) throw error;
+      const rows = data as { email: string; workspace_name: string; role: InvitationRole; is_valid: boolean }[];
+      const row = rows[0];
+      if (!row) throw new Error("preview_workspace_invitation returned no row");
+      return { email: row.email, workspaceName: row.workspace_name, role: row.role, isValid: row.is_valid };
+    },
+
+    async acceptInvitation(token) {
+      const { data, error } = await client.rpc("accept_workspace_invitation", {
+        invitation_token: token,
+      });
+      if (error) throw error;
+      const rows = data as { workspace_id: string; workspace_name: string; role: InvitationRole }[];
+      const row = rows[0];
+      if (!row) throw new Error("accept_workspace_invitation returned no row");
+      return { workspaceId: row.workspace_id, workspaceName: row.workspace_name, role: row.role };
     },
   };
 }

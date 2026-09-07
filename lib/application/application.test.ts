@@ -4,6 +4,7 @@ import {
   changeEmail,
   changePassword,
   completeOAuthSignIn,
+  register,
   requireUser,
   signInWithGoogle,
   updateDisplayName,
@@ -22,7 +23,14 @@ import {
   listProjects,
   renameProject,
 } from "./projects.ts";
-import { createOrganizationWorkspace, requireWorkspaceMembership, resolveActiveWorkspaceId } from "./workspace.ts";
+import {
+  acceptWorkspaceInvitation,
+  createOrganizationWorkspace,
+  inviteWorkspaceMember,
+  previewWorkspaceInvitation,
+  requireWorkspaceMembership,
+  resolveActiveWorkspaceId,
+} from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -71,6 +79,8 @@ interface MemoryState {
   // (supposedly) a member of. The personal workspace is a member by
   // default, same as real Ticket 097 backfill guarantees.
   memberships: Record<string, "owner" | "admin" | "member">;
+  // token -> invitation, for the Ticket 102 fakes below.
+  invitations: Record<string, { email: string; workspaceId: string; workspaceName: string; role: "admin" | "member"; accepted: boolean }>;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -91,6 +101,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     dailyGoal: null,
     personalWorkspaceId: "workspace-personal-1",
     memberships: { "workspace-personal-1": "owner" },
+    invitations: {},
     calls: [],
     ...overrides,
   };
@@ -99,7 +110,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
   const repos: Repositories = {
     auth: {
       async getAuthenticatedUserId() { record("auth.userId"); return state.userId; },
-      async register(email, password) { record("auth.register", email, password); return { emailConfirmationRequired: true }; },
+      async register(email, password, redirectTo) { record("auth.register", email, password, redirectTo); return { emailConfirmationRequired: true }; },
       async login(email, password) { record("auth.login", email, password); },
       async signInWithGoogle(destinationPath) { record("auth.google", destinationPath); },
       async exchangeOAuthCode(code) { record("auth.oauthCallback", code); },
@@ -159,6 +170,31 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async createOrganization(name) {
         record("workspace.createOrganization", name);
         return { id: "workspace-new-org-1", name, slug: "new-org-1", workspaceType: "ORGANIZATION" };
+      },
+      async createInvitation(workspaceId, email, role) {
+        record("workspace.createInvitation", workspaceId, email, role);
+        const token = `token-for-${email}`;
+        state.invitations[token] = { email, workspaceId, workspaceName: "Invited Workspace", role, accepted: false };
+        return { id: `invite-${email}`, token, email, role, expiresAt: "2026-12-31T00:00:00.000Z" };
+      },
+      async previewInvitation(token) {
+        record("workspace.previewInvitation", token);
+        const invitation = state.invitations[token];
+        if (!invitation) throw new Error("This invitation link is invalid");
+        return {
+          email: invitation.email,
+          workspaceName: invitation.workspaceName,
+          role: invitation.role,
+          isValid: !invitation.accepted,
+        };
+      },
+      async acceptInvitation(token) {
+        record("workspace.acceptInvitation", token);
+        const invitation = state.invitations[token];
+        if (!invitation) throw new Error("This invitation link is invalid");
+        if (invitation.accepted) throw new Error("This invitation has already been accepted");
+        invitation.accepted = true;
+        return { workspaceId: invitation.workspaceId, workspaceName: invitation.workspaceName, role: invitation.role };
       },
     },
   };
@@ -228,6 +264,14 @@ test("auth use cases normalize identity fields but leave passwords opaque", asyn
   await signInWithGoogle(repos, "/dashboard/history?from=2026-09-01");
   await signInWithGoogle(repos, "https://evil.example/phishing");
   await completeOAuthSignIn(repos, "one-time-code");
+  // Ticket 102: register()'s redirectTo goes through the same
+  // normalizeDashboardRedirect() gate as signInWithGoogle above — omitted
+  // reproduces the pre-102 default, a legitimate workspace-invitation
+  // target is passed through unchanged, and an out-of-scope value falls
+  // back to /dashboard rather than reaching Supabase's outbound email.
+  await register(repos, "new@example.com", "password123");
+  await register(repos, "invited@example.com", "password123", "/invite/accept?token=abc123");
+  await register(repos, "new@example.com", "password123", "https://evil.example/phishing");
   assert.deepEqual(state.calls, [
     { method: "auth.userId", args: [] },
     { method: "auth.displayName", args: ["Ada Lovelace"] },
@@ -238,6 +282,9 @@ test("auth use cases normalize identity fields but leave passwords opaque", asyn
     { method: "auth.google", args: ["/dashboard/history?from=2026-09-01"] },
     { method: "auth.google", args: ["/dashboard"] },
     { method: "auth.oauthCallback", args: ["one-time-code"] },
+    { method: "auth.register", args: ["new@example.com", "password123", "/dashboard/get-started"] },
+    { method: "auth.register", args: ["invited@example.com", "password123", "/invite/accept?token=abc123"] },
+    { method: "auth.register", args: ["new@example.com", "password123", "/dashboard"] },
   ]);
 });
 
@@ -313,6 +360,63 @@ test("createOrganizationWorkspace rejects an excessively long name before ever r
 test("createOrganizationWorkspace requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(createOrganizationWorkspace(repos, "PROMOS Consult"), UnauthorizedError);
+});
+
+// Ticket 102 — invite/preview/accept workspace invitations.
+test("inviteWorkspaceMember normalizes the email (trim + lowercase) and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  const invitation = await inviteWorkspaceMember(repos, "workspace-team-1", "  Colleague@Example.TEST  ", "member");
+  assert.equal(invitation.email, "colleague@example.test");
+  assert.deepEqual(state.calls.at(-1), {
+    method: "workspace.createInvitation",
+    args: ["workspace-team-1", "colleague@example.test", "member"],
+  });
+});
+
+test("inviteWorkspaceMember rejects an empty email before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(inviteWorkspaceMember(repos, "workspace-team-1", "   ", "member"), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "workspace.createInvitation"));
+});
+
+test("inviteWorkspaceMember rejects an obviously malformed email before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(inviteWorkspaceMember(repos, "workspace-team-1", "not-an-email", "member"), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "workspace.createInvitation"));
+});
+
+test("inviteWorkspaceMember requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(inviteWorkspaceMember(repos, "workspace-team-1", "colleague@example.test", "member"), UnauthorizedError);
+});
+
+test("previewWorkspaceInvitation works without any authenticated session at all", async () => {
+  // A single shared `repos`/`state` represents the backend both the
+  // inviting admin and the (as-yet-unauthenticated) invitee talk to — it
+  // is not meant to model "two different users' own repos instances",
+  // just "the same shared invitations table two different calls see".
+  const { repos, state } = memoryRepositories();
+  const invitation = await inviteWorkspaceMember(repos, "workspace-team-1", "newperson@example.test", "admin");
+
+  state.userId = null;
+  const preview = await previewWorkspaceInvitation(repos, invitation.token);
+  assert.equal(preview.email, "newperson@example.test");
+  assert.equal(preview.role, "admin");
+  assert.equal(preview.isValid, true);
+});
+
+test("acceptWorkspaceInvitation requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(acceptWorkspaceInvitation(repos, "some-token"), UnauthorizedError);
+});
+
+test("acceptWorkspaceInvitation delegates to the repository once authenticated", async () => {
+  const { repos } = memoryRepositories();
+  const invitation = await inviteWorkspaceMember(repos, "workspace-team-1", "acceptor@example.test", "member");
+
+  const accepted = await acceptWorkspaceInvitation(repos, invitation.token);
+  assert.equal(accepted.workspaceId, "workspace-team-1");
+  assert.equal(accepted.role, "member");
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

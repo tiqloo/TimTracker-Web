@@ -103,3 +103,58 @@ test("createOrganization throws rather than returning an unusable value if the R
   const { client } = rpcClient({ data: [], error: null });
   await assert.rejects(createSupabaseWorkspaceRepository(client).createOrganization("x"), /no row/);
 });
+
+// Ticket 102 — the three invitation RPCs, same "SECURITY DEFINER RPC, not
+// a raw table read/write" shape as createOrganization above.
+test("createInvitation calls create_workspace_invitation and maps the returned row, including the one-time plaintext token", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ id: "invite-1", token: "a".repeat(64), email: "colleague@example.test", role: "member", expires_at: "2026-09-14T00:00:00.000Z" }],
+    error: null,
+  });
+  const invitation = await createSupabaseWorkspaceRepository(client).createInvitation("ws-1", "colleague@example.test", "member");
+  assert.deepEqual(invitation, {
+    id: "invite-1",
+    token: "a".repeat(64),
+    email: "colleague@example.test",
+    role: "member",
+    expiresAt: "2026-09-14T00:00:00.000Z",
+  });
+  assert.deepEqual(calls, [
+    { fn: "create_workspace_invitation", args: { target_workspace_id: "ws-1", invitee_email: "colleague@example.test", invitee_role: "member" } },
+  ]);
+});
+
+test("createInvitation propagates an RPC error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Only a workspace owner or admin can invite members") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).createInvitation("ws-1", "x@example.test", "member"), /owner or admin/);
+});
+
+test("previewInvitation calls preview_workspace_invitation and maps the returned row", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ email: "colleague@example.test", workspace_name: "PROMOS Consult", role: "admin", is_valid: true }],
+    error: null,
+  });
+  const preview = await createSupabaseWorkspaceRepository(client).previewInvitation("some-token");
+  assert.deepEqual(preview, { email: "colleague@example.test", workspaceName: "PROMOS Consult", role: "admin", isValid: true });
+  assert.deepEqual(calls, [{ fn: "preview_workspace_invitation", args: { invitation_token: "some-token" } }]);
+});
+
+test("previewInvitation propagates an RPC error (e.g. an invalid/made-up token) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("This invitation link is invalid") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).previewInvitation("bogus"), /invalid/);
+});
+
+test("acceptInvitation calls accept_workspace_invitation and maps the returned row", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ workspace_id: "ws-1", workspace_name: "PROMOS Consult", role: "member" }],
+    error: null,
+  });
+  const accepted = await createSupabaseWorkspaceRepository(client).acceptInvitation("some-token");
+  assert.deepEqual(accepted, { workspaceId: "ws-1", workspaceName: "PROMOS Consult", role: "member" });
+  assert.deepEqual(calls, [{ fn: "accept_workspace_invitation", args: { invitation_token: "some-token" } }]);
+});
+
+test("acceptInvitation propagates an RPC error (e.g. already accepted) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("This invitation has already been accepted") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).acceptInvitation("some-token"), /already been accepted/);
+});

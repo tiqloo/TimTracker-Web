@@ -3,14 +3,35 @@
 // call these, never lib/repositories/* directly" rule as
 // lib/application/auth.ts.
 import type { Repositories } from "@/lib/repositories/repositories";
-import type { Workspace, WorkspaceMembership } from "@/lib/repositories/workspace.repository";
+import type {
+  AcceptedInvitation,
+  CreatedInvitation,
+  InvitationPreview,
+  InvitationRole,
+  Workspace,
+  WorkspaceMembership,
+} from "@/lib/repositories/workspace.repository";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
 import { requireUser } from "./auth.ts";
 
-export type { Workspace, WorkspaceMembership, WorkspaceRole, WorkspaceType } from "@/lib/repositories/workspace.repository";
+export type {
+  AcceptedInvitation,
+  CreatedInvitation,
+  InvitationPreview,
+  InvitationRole,
+  Workspace,
+  WorkspaceMembership,
+  WorkspaceRole,
+  WorkspaceType,
+} from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
 
 const WORKSPACE_NAME_MAX_LENGTH = 100;
+// Same permissive shape the server-side RPC itself checks
+// (create_workspace_invitation, TimTracker-Starter repo) — this is only
+// the fast, user-facing check, not the authoritative one, so it
+// deliberately stays loose rather than trying to fully validate RFC 5322.
+const EMAIL_SHAPE_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // THE non-negotiable primitive from Ticket 099: every workspace-scoped
 // operation (reading/writing projects or time entries once Ticket 098's
@@ -70,4 +91,39 @@ export async function createOrganizationWorkspace(repos: Repositories, rawName: 
     throw new ValidationError(`Workspace name must not exceed ${WORKSPACE_NAME_MAX_LENGTH} characters.`);
   }
   return repos.workspace.createOrganization(name);
+}
+
+// Ticket 102 — "Mitarbeiter einladen". Server-side (create_workspace_invitation)
+// independently re-checks both the email shape AND that the caller is an
+// owner/admin of workspaceId — this is the fast, user-facing check, not
+// the authoritative one, same relationship as createOrganizationWorkspace
+// above.
+export async function inviteWorkspaceMember(
+  repos: Repositories,
+  workspaceId: string,
+  rawEmail: string,
+  role: InvitationRole,
+): Promise<CreatedInvitation> {
+  await requireUser(repos);
+  const email = rawEmail.trim().toLowerCase();
+  if (!email) throw new ValidationError("An email address is required.");
+  if (!EMAIL_SHAPE_PATTERN.test(email)) throw new ValidationError("This does not look like a valid email address.");
+  return repos.workspace.createInvitation(workspaceId, email, role);
+}
+
+// Deliberately does NOT call requireUser: the whole point is letting a
+// brand-new, not-yet-registered/not-yet-logged-in visitor who just
+// clicked an invitation link find out which email/workspace it's for
+// (Ticket 102 AK: pre-fill the registration form) — see
+// WorkspaceRepository#previewInvitation's own comment.
+export async function previewWorkspaceInvitation(repos: Repositories, token: string): Promise<InvitationPreview> {
+  return repos.workspace.previewInvitation(token);
+}
+
+// Requires an authenticated session — mirrors the server-side RPC's own
+// check, giving a typed UnauthorizedError early rather than only
+// surfacing the RPC's raw error.
+export async function acceptWorkspaceInvitation(repos: Repositories, token: string): Promise<AcceptedInvitation> {
+  await requireUser(repos);
+  return repos.workspace.acceptInvitation(token);
 }

@@ -1253,3 +1253,76 @@ export const workspaces = {
   },
   createSuccess: { de: "Workspace wurde erstellt.", en: "Workspace was created." },
 } satisfies Record<string, Translated>;
+
+// --- Ticket 102: Mitarbeiter einladen -----------------------------------
+export const inviteMember = {
+  pageTitle: { de: "Mitarbeiter einladen", en: "Invite a team member" },
+  pageDescription: {
+    de: "Lade ein bestehendes oder neues Tiqloo-Konto in diesen Workspace ein.",
+    en: "Invite an existing or new Tiqloo account to this workspace.",
+  },
+  emailLabel: { de: "E-Mail-Adresse", en: "Email address" },
+  emailPlaceholder: { de: "max@firma.de", en: "max@company.com" },
+  roleLabel: { de: "Rolle", en: "Role" },
+  roleMember: { de: "Mitglied", en: "Member" },
+  roleAdmin: { de: "Admin", en: "Admin" },
+  submitButton: { de: "Einladung erstellen", en: "Create invitation" },
+  submitting: { de: "Wird erstellt…", en: "Creating…" },
+  emailRequiredError: { de: "Bitte gib eine E-Mail-Adresse ein.", en: "Please enter an email address." },
+  emailInvalidError: {
+    de: "Das sieht nicht wie eine gültige E-Mail-Adresse aus.",
+    en: "This does not look like a valid email address.",
+  },
+  submitError: {
+    de: "Die Einladung konnte nicht erstellt werden. Bitte versuche es erneut.",
+    en: "The invitation could not be created. Please try again.",
+  },
+  linkCreatedTitle: { de: "Einladungslink erstellt", en: "Invitation link created" },
+  linkCreatedDescription: {
+    de: "Teile diesen Link mit der eingeladenen Person — er ist 7 Tage gültig und kann nur einmal verwendet werden. Es wurde noch keine E-Mail verschickt.",
+    en: "Share this link with the invited person — it is valid for 7 days and can only be used once. No email has been sent yet.",
+  },
+  copyLinkButton: { de: "Link kopieren", en: "Copy link" },
+  linkCopied: { de: "Link kopiert.", en: "Link copied." },
+  copyLinkError: {
+    de: "Der Link konnte nicht automatisch kopiert werden. Bitte kopiere ihn manuell.",
+    en: "The link could not be copied automatically. Please copy it manually.",
+  },
+  inviteAnotherButton: { de: "Weitere Person einladen", en: "Invite another person" },
+} satisfies Record<string, Translated>;
+
+// --- Ticket 102: /invite/accept -----------------------------------------
+export const acceptInvite = {
+  pageTitle: { de: "Workspace-Einladung", en: "Workspace invitation" },
+  invalidTitle: { de: "Einladung ungültig", en: "Invitation invalid" },
+  invalidDescription: {
+    de: "Dieser Einladungslink ist ungültig, abgelaufen oder wurde bereits verwendet. Bitte bitte die einladende Person um einen neuen Link.",
+    en: "This invitation link is invalid, expired, or has already been used. Please ask whoever invited you for a new link.",
+  },
+  invitedAs: { de: "eingeladen als", en: "invited as" },
+  roleMember: { de: "Mitglied", en: "Member" },
+  roleAdmin: { de: "Admin", en: "Admin" },
+  needAccountDescription: {
+    de: "Melde dich an oder registriere dich, um dieser Einladung zu folgen.",
+    en: "Log in or register to follow this invitation.",
+  },
+  loginButton: { de: "Anmelden", en: "Log in" },
+  registerButton: { de: "Registrieren", en: "Register" },
+  registerHint: {
+    de: "Nach der Registrierung musst du deine E-Mail-Adresse bestätigen — kehre danach zu diesem Link zurück, um beizutreten.",
+    en: "After registering you'll need to confirm your email — come back to this link afterwards to join.",
+  },
+  wrongAccountTitle: { de: "Falsches Konto angemeldet", en: "Wrong account signed in" },
+  wrongAccountDescription: {
+    de: "Diese Einladung ist an eine andere E-Mail-Adresse gerichtet als dein aktuell angemeldetes Konto. Melde dich mit dem richtigen Konto an, um beizutreten.",
+    en: "This invitation was sent to a different email address than your currently signed-in account. Log in with the correct account to join.",
+  },
+  acceptButton: { de: "Einladung annehmen", en: "Accept invitation" },
+  accepting: { de: "Wird angenommen…", en: "Accepting…" },
+  acceptError: {
+    de: "Die Einladung konnte nicht angenommen werden. Bitte versuche es erneut.",
+    en: "The invitation could not be accepted. Please try again.",
+  },
+  acceptedTitle: { de: "Willkommen im Team", en: "Welcome to the team" },
+  goToDashboardButton: { de: "Zum Dashboard", en: "Go to dashboard" },
+} satisfies Record<string, Translated>;
