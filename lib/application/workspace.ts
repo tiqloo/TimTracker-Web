@@ -9,6 +9,8 @@ import type {
   InvitationPreview,
   InvitationRole,
   ResentInvitation,
+  TeamTimeFilter,
+  TeamTimeRow,
   Workspace,
   WorkspaceInvitationRow,
   WorkspaceMembership,
@@ -43,6 +45,8 @@ export type {
   WorkspaceDateFormat,
   WorkspaceDefaultLanguage,
   WorkspaceTimeFormat,
+  TeamTimeFilter,
+  TeamTimeRow,
 } from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
 
@@ -354,4 +358,19 @@ export async function removeWorkspaceLogo(repos: Repositories, workspaceId: stri
 export async function getWorkspaceLogoUrl(repos: Repositories, logoPath: string): Promise<string> {
   await requireUser(repos);
   return repos.workspace.getLogoUrl(logoPath);
+}
+
+// Ticket 121 — "Team-Zeiten für Admins". No requireWorkspaceMembership
+// call here, same reasoning as listWorkspaceMembers/listWorkspaceInvitations
+// above: list_workspace_team_time itself is the authoritative owner/admin
+// check (no separate "manager" role yet, per the ticket's own AK).
+export async function getTeamTime(
+  repos: Repositories,
+  workspaceId: string,
+  fromDay: string,
+  toDay: string,
+  filter?: TeamTimeFilter,
+): Promise<TeamTimeRow[]> {
+  await requireUser(repos);
+  return repos.workspace.listTeamTime(workspaceId, fromDay, toDay, filter);
 }

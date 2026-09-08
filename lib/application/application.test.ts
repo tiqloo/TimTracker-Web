@@ -27,6 +27,7 @@ import {
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
   getActiveWorkspaceTimeZone,
+  getTeamTime,
   getWorkspaceLogoUrl,
   getWorkspaceSettings,
   getWorkspaceSwitcherData,
@@ -48,7 +49,7 @@ import {
   updateWorkspaceSettings,
   uploadWorkspaceLogo,
 } from "./workspace.ts";
-import type { WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
+import type { TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -113,6 +114,12 @@ interface MemoryState {
   invitationRowsByWorkspace: Record<string, WorkspaceInvitationRow[]>;
   // workspaceId -> settings row, for the Ticket 117 fakes below.
   settingsByWorkspace: Record<string, WorkspaceSettings>;
+  // workspaceId -> already-aggregated team-time rows, for the Ticket 121
+  // fake below — returned as-is regardless of the filter passed in (the
+  // filter's actual effect is the RPC's own job, verified at the adapter
+  // level in workspace.repository.test.ts; this fake only needs to prove
+  // getTeamTime() delegates and requires auth).
+  teamTimeRowsByWorkspace: Record<string, TeamTimeRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -147,6 +154,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     settingsByWorkspace: {
       "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1" },
     },
+    teamTimeRowsByWorkspace: {},
     calls: [],
     ...overrides,
   };
@@ -353,6 +361,10 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async getLogoUrl(logoPath) {
         record("workspace.getLogoUrl", logoPath);
         return `https://signed.example.test/${logoPath}`;
+      },
+      async listTeamTime(workspaceId, fromDay, toDay, filter) {
+        record("workspace.listTeamTime", workspaceId, fromDay, toDay, filter);
+        return state.teamTimeRowsByWorkspace[workspaceId] ?? [];
       },
     },
     activeWorkspace: {
@@ -1015,6 +1027,51 @@ test("getWorkspaceLogoUrl requires authentication and delegates to the repositor
 test("getWorkspaceLogoUrl requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(getWorkspaceLogoUrl(repos, "workspace-team-1/logo"), UnauthorizedError);
+});
+
+// Ticket 121 — Team-Zeiten für Admins.
+const TEAM_TIME_ROW: TeamTimeRow = {
+  userId: "user-2",
+  email: "colleague@example.test",
+  displayName: "Colleague",
+  day: "2026-01-01",
+  totalSeconds: 7200,
+};
+
+test("getTeamTime requires authentication and delegates to the repository with the filter object", async () => {
+  const { repos, state } = memoryRepositories({
+    teamTimeRowsByWorkspace: { "workspace-team-1": [TEAM_TIME_ROW] },
+  });
+
+  const rows = await getTeamTime(repos, "workspace-team-1", "2026-01-01", "2026-01-02", { userId: "user-2" });
+
+  assert.deepEqual(rows, [TEAM_TIME_ROW]);
+  assert.deepEqual(state.calls.at(-1), {
+    method: "workspace.listTeamTime",
+    args: ["workspace-team-1", "2026-01-01", "2026-01-02", { userId: "user-2" }],
+  });
+});
+
+test("getTeamTime works without an explicit filter", async () => {
+  const { repos } = memoryRepositories({
+    teamTimeRowsByWorkspace: { "workspace-team-1": [TEAM_TIME_ROW] },
+  });
+  assert.deepEqual(await getTeamTime(repos, "workspace-team-1", "2026-01-01", "2026-01-02"), [TEAM_TIME_ROW]);
+});
+
+test("getTeamTime propagates a repository error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories();
+  // No fixture registered for "workspace-other-1" — the fake still
+  // returns an empty array (see its own comment: real filtering/
+  // authorization is the RPC's job, verified at the adapter level), so
+  // this test only proves requireUser() gates the call — the RPC-error
+  // propagation itself is proven in workspace.repository.test.ts.
+  await assert.rejects(getTeamTime({ ...repos, workspace: { ...repos.workspace, listTeamTime: async () => { throw new Error("Only workspace owners/admins may view team time"); } } }, "workspace-team-1", "2026-01-01", "2026-01-02"), /owners\/admins may view team time/);
+});
+
+test("getTeamTime requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getTeamTime(repos, "workspace-team-1", "2026-01-01", "2026-01-02"), UnauthorizedError);
 });
 
 test("full data export includes all personal records once and excludes system projects", async () => {

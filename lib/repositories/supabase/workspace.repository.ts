@@ -365,5 +365,26 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       if (error) throw error;
       return data.signedUrl;
     },
+
+    async listTeamTime(workspaceId, fromDay, toDay, filter) {
+      const { data, error } = await client.rpc("list_workspace_team_time", {
+        target_workspace_id: workspaceId,
+        from_day: fromDay,
+        to_day: toDay,
+        filter_user_id: filter?.userId ?? null,
+        filter_project_id: filter?.projectId ?? null,
+        page_limit: filter?.limit ?? 200,
+        page_offset: filter?.offset ?? 0,
+      });
+      if (error) throw error;
+      const rows = data as { user_id: string; email: string; display_name: string | null; day: string; total_seconds: number }[];
+      return rows.map((row) => ({
+        userId: row.user_id,
+        email: row.email,
+        displayName: row.display_name,
+        day: row.day.slice(0, 10),
+        totalSeconds: row.total_seconds,
+      }));
+    },
   };
 }

@@ -72,6 +72,9 @@ export const nav = {
   history: { de: "Historie", en: "History" },
   analytics: { de: "Auswertung", en: "Analytics" },
   projects: { de: "Projekte", en: "Projects" },
+  // Ticket 121 (TimTracker-Starter repo) — only shown to an owner/admin
+  // of the active workspace, see DashboardNav.tsx's own comment.
+  teamTimes: { de: "Team-Zeiten", en: "Team times" },
   // Ticket 030 (TimTracker-Starter repo) — new nav entry, own icon (see
   // DashboardNav.tsx's SupportIcon), otherwise same flat-link treatment
   // as every other entry in NAV_LINKS.
@@ -1537,6 +1540,36 @@ export const workspaceSettings = {
     en: "The logo could not be removed. Please try again.",
   },
   logoEmptyState: { de: "Noch kein Logo hochgeladen.", en: "No logo uploaded yet." },
+} satisfies Record<string, Translated>;
+
+// --- Ticket 121: Team-Zeiten für Admins -----------------------------------
+export const teamTimes = {
+  pageTitle: { de: "Team-Zeiten", en: "Team times" },
+  pageDescription: {
+    de: "Erfasste Arbeitszeit deines Teams nach Tag, Mitarbeiter und Projekt.",
+    en: "Your team's tracked working time by day, member and project.",
+  },
+  last7Days: { de: "Letzte 7 Tage", en: "Last 7 Days" },
+  last30Days: { de: "Letzte 30 Tage", en: "Last 30 Days" },
+  fromLabel: { de: "Von", en: "From" },
+  toLabel: { de: "Bis", en: "To" },
+  memberLabel: { de: "Mitarbeiter", en: "Member" },
+  allMembers: { de: "Alle Mitarbeiter", en: "All members" },
+  projectLabel: { de: "Projekt", en: "Project" },
+  allProjects: { de: "Alle Projekte", en: "All projects" },
+  apply: { de: "Anwenden", en: "Apply" },
+  emptyState: {
+    de: "Für diesen Zeitraum und diese Filter wurde keine Zeit erfasst.",
+    en: "No time was tracked for this period and these filters.",
+  },
+  loadError: {
+    de: "Die Team-Zeiten konnten nicht geladen werden.",
+    en: "Team times could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Nur Owner und Admins können Team-Zeiten sehen.",
+    en: "Only owners and admins can view team times.",
+  },
 } satisfies Record<string, Translated>;
 
 // --- Ticket 112: Workspace verlassen ------------------------------------

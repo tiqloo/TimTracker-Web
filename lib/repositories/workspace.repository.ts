@@ -253,6 +253,32 @@ export interface WorkspaceRepository {
   // needs a fresh, time-limited signed URL rather than a stored public
   // one. Callers only invoke this when `logoPath` is non-null.
   getLogoUrl(logoPath: string): Promise<string>;
+
+  // Ticket 121 — backed by a SECURITY DEFINER RPC (list_workspace_team_time,
+  // TimTracker-Starter repo) that itself rejects a non-owner/admin caller
+  // (no separate "manager" role exists yet, per the ticket's own AK) and
+  // deliberately does NOT re-check current membership on the returned
+  // rows — a since-removed member's historical time stays visible. One
+  // row per (day, member) already aggregated server-side, not raw
+  // sessions (a per-session export/correction view is explicitly
+  // out-of-scope V1 per the ticket's own AK).
+  listTeamTime(workspaceId: string, fromDay: string, toDay: string, filter?: TeamTimeFilter): Promise<TeamTimeRow[]>;
+}
+
+// Ticket 121 — "Team-Zeiten für Admins".
+export interface TeamTimeRow {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  day: string;
+  totalSeconds: number;
+}
+
+export interface TeamTimeFilter {
+  userId?: string;
+  projectId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 // Ticket 117 — "Workspace-Einstellungen". `WorkspaceSettingsFields` is

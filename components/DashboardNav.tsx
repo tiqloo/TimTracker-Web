@@ -35,7 +35,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings, Users } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
@@ -67,6 +67,19 @@ const NAV_LINKS: {
   { href: "/dashboard/support", label: nav.support, icon: SupportIcon },
   { href: "/dashboard/settings", label: nav.settings, icon: Settings },
 ];
+
+// Ticket 121 — "Team-Zeiten" is only meaningful (and only ever
+// server-side permitted, see list_workspace_team_time's own 42501) for
+// an owner/admin of the CURRENTLY ACTIVE workspace — a plain member would
+// only ever hit a 403 landing here, so it's conditionally inserted into
+// the nav below rather than listed in the flat NAV_LINKS array every
+// other entry lives in. Operates on the active workspace (not an
+// arbitrary `/dashboard/workspaces/[id]/...` route) for the same reason
+// "Historie"/"Auswertung" do: its project filter needs
+// repos.projects.getAll(), which is itself active-workspace-scoped
+// (Ticket 103) — switch workspaces via the switcher first, same flow as
+// every other data-bearing page in this app.
+const TEAM_TIMES_LINK = { href: "/dashboard/team-times", label: nav.teamTimes, icon: Users };
 
 // Ticket 048: hand-drawn Mark()/SupportIcon()/ChevronIcon() SVGs replaced
 // with lucide-react (new dependency, see package.json) — "einfache
@@ -289,6 +302,11 @@ export function DashboardNav({
   // `lang === "de" ? ... : ...` ternary for both the toggle button's
   // aria-label and title below.
   const sidebarToggleLabel = t(lang, sidebarCollapsed ? nav.sidebarExpand : nav.sidebarCollapse);
+  const activeRole = workspaces.find((workspace) => workspace.workspaceId === activeWorkspaceId)?.role;
+  const canViewTeamTimes = activeRole === "owner" || activeRole === "admin";
+  const navLinks = canViewTeamTimes
+    ? [...NAV_LINKS.slice(0, 3), TEAM_TIMES_LINK, ...NAV_LINKS.slice(3)]
+    : NAV_LINKS;
 
   async function handleLogout() {
     setPending(true);
@@ -303,7 +321,7 @@ export function DashboardNav({
   }
 
   function navigationLinks(vertical: boolean, compact = false) {
-    return NAV_LINKS.map((link) => {
+    return navLinks.map((link) => {
       const active =
         link.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(link.href);
       const Icon = link.icon;
