@@ -4,7 +4,10 @@
 // (pages) call these functions, never a repository directly.
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { NewProject, Project } from "@/lib/domain/project";
+import type { ProjectMemberRow } from "@/lib/repositories/projects.repository";
 import { ValidationError } from "../domain/application-error.ts";
+
+export type { ProjectMemberRow } from "@/lib/repositories/projects.repository";
 
 // Excludes the two system pseudo-projects ("Arbeitszeit"/"Pause",
 // is_default = true) — they're FK targets for automatically-tracked time,
@@ -53,4 +56,27 @@ export async function archiveProject(
   isArchived: boolean,
 ): Promise<void> {
   return repos.projects.setArchived(id, isArchived);
+}
+
+// Ticket 123 — the RPC itself is the sole authority on who may toggle
+// this (owner/admin of the project's workspace); this function does not
+// duplicate that check, same relationship as archiveProject above.
+export async function setProjectRestricted(
+  repos: Repositories,
+  id: string,
+  isRestricted: boolean,
+): Promise<void> {
+  return repos.projects.setRestricted(id, isRestricted);
+}
+
+export async function listProjectMembers(repos: Repositories, id: string): Promise<ProjectMemberRow[]> {
+  return repos.projects.listProjectMembers(id);
+}
+
+export async function assignProjectMember(repos: Repositories, id: string, userId: string): Promise<void> {
+  return repos.projects.assignProjectMember(id, userId);
+}
+
+export async function unassignProjectMember(repos: Repositories, id: string, userId: string): Promise<void> {
+  return repos.projects.unassignProjectMember(id, userId);
 }

@@ -19,13 +19,19 @@ import {
 import { getFullDataExport } from "./data-export.ts";
 import {
   archiveProject,
+  assignProjectMember,
   createProject,
+  listProjectMembers,
   listProjects,
   renameProject,
+  setProjectRestricted,
+  unassignProjectMember,
 } from "./projects.ts";
+import type { ProjectMemberRow } from "./projects.ts";
 import {
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
+  getActiveWorkspaceId,
   getActiveWorkspaceRole,
   getActiveWorkspaceTimeZone,
   getTeamTime,
@@ -67,6 +73,7 @@ const MANAGED_PROJECT: Project = {
   isDefault: false,
   isArchived: false,
   updatedAt: "2026-01-01T00:00:00Z",
+  isRestricted: false,
 };
 
 const DEFAULT_PROJECT: Project = {
@@ -121,6 +128,8 @@ interface MemoryState {
   // level in workspace.repository.test.ts; this fake only needs to prove
   // getTeamTime() delegates and requires auth).
   teamTimeRowsByWorkspace: Record<string, TeamTimeRow[]>;
+  // projectId -> assigned member rows, for the Ticket 123 fakes below.
+  projectMemberRowsByProject: Record<string, ProjectMemberRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
 }
 
@@ -156,6 +165,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1" },
     },
     teamTimeRowsByWorkspace: {},
+    projectMemberRowsByProject: {},
     calls: [],
     ...overrides,
   };
@@ -186,6 +196,23 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       },
       async rename(id, name, notes) { record("projects.rename", id, name, notes); return { ...MANAGED_PROJECT, id, name, notes }; },
       async setArchived(id, archived) { record("projects.archive", id, archived); },
+      async setRestricted(id, restricted) { record("projects.setRestricted", id, restricted); },
+      async listProjectMembers(id) {
+        record("projects.listProjectMembers", id);
+        return state.projectMemberRowsByProject[id] ?? [];
+      },
+      async assignProjectMember(id, userId) {
+        record("projects.assignProjectMember", id, userId);
+        const rows = state.projectMemberRowsByProject[id] ?? (state.projectMemberRowsByProject[id] = []);
+        if (!rows.some((row) => row.userId === userId)) {
+          rows.push({ userId, email: `${userId}@example.test`, displayName: null, role: "member" });
+        }
+      },
+      async unassignProjectMember(id, userId) {
+        record("projects.unassignProjectMember", id, userId);
+        const rows = state.projectMemberRowsByProject[id];
+        if (rows) state.projectMemberRowsByProject[id] = rows.filter((row) => row.userId !== userId);
+      },
     },
     timeEntries: {
       async getForDay(day) { record("entries.day", day); return state.entries.filter((entry) => entry.day === day); },
@@ -403,6 +430,39 @@ test("project mutation validation rejects blank names before repository access",
   assert.equal(state.calls.length, 0);
 });
 
+// Ticket 123 — Projekt-Mitglieder.
+test("setProjectRestricted delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await setProjectRestricted(repos, "project-1", true);
+  assert.deepEqual(state.calls.at(-1), { method: "projects.setRestricted", args: ["project-1", true] });
+});
+
+test("assignProjectMember delegates to the repository and the assignment shows up in listProjectMembers", async () => {
+  const { repos, state } = memoryRepositories();
+  await assignProjectMember(repos, "project-1", "user-2");
+  assert.deepEqual(state.calls.at(-1), { method: "projects.assignProjectMember", args: ["project-1", "user-2"] });
+  const members = await listProjectMembers(repos, "project-1");
+  assert.deepEqual(members, [{ userId: "user-2", email: "user-2@example.test", displayName: null, role: "member" }]);
+});
+
+test("unassignProjectMember delegates to the repository and removes the member from listProjectMembers", async () => {
+  const memberRow: ProjectMemberRow = { userId: "user-2", email: "colleague@example.test", displayName: "Colleague", role: "member" };
+  const { repos, state } = memoryRepositories({
+    projectMemberRowsByProject: { "project-1": [memberRow] },
+  });
+  await unassignProjectMember(repos, "project-1", "user-2");
+  assert.deepEqual(state.calls.at(-1), { method: "projects.unassignProjectMember", args: ["project-1", "user-2"] });
+  assert.deepEqual(await listProjectMembers(repos, "project-1"), []);
+});
+
+test("listProjectMembers delegates to the repository", async () => {
+  const memberRow: ProjectMemberRow = { userId: "user-2", email: "colleague@example.test", displayName: "Colleague", role: "admin" };
+  const { repos } = memoryRepositories({
+    projectMemberRowsByProject: { "project-1": [memberRow] },
+  });
+  assert.deepEqual(await listProjectMembers(repos, "project-1"), [memberRow]);
+});
+
 test("assignment trims the project id and rejects blank selections", async () => {
   const { repos, state } = memoryRepositories();
   assert.equal((await assignTimeEntryToProject(repos, "entry-1", " project-2 ")).projectId, "project-2");
@@ -595,6 +655,24 @@ test("getActiveWorkspaceRole falls back to the personal workspace's role for a s
 test("getActiveWorkspaceRole requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(getActiveWorkspaceRole(repos), UnauthorizedError);
+});
+
+test("getActiveWorkspaceId resolves the active (cookie-selected) workspace's own id", async () => {
+  const { repos } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "member" },
+    activeWorkspaceCookie: "workspace-org-1",
+  });
+  assert.equal(await getActiveWorkspaceId(repos), "workspace-org-1");
+});
+
+test("getActiveWorkspaceId falls back to the personal workspace for a stale/foreign cookie", async () => {
+  const { repos } = memoryRepositories({ activeWorkspaceCookie: "workspace-no-longer-a-member-of" });
+  assert.equal(await getActiveWorkspaceId(repos), "workspace-personal-1");
+});
+
+test("getActiveWorkspaceId requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getActiveWorkspaceId(repos), UnauthorizedError);
 });
 
 test("switchActiveWorkspace persists the new workspace once membership is verified", async () => {

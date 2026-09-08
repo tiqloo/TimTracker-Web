@@ -372,6 +372,36 @@ export const projects = {
   saveSuccess: { de: "Projekt wurde gespeichert.", en: "Project was saved." },
   archiveSuccess: { de: "Projekt wurde archiviert.", en: "Project was archived." },
   reactivateSuccess: { de: "Projekt wurde reaktiviert.", en: "Project was reactivated." },
+  // Ticket 123 — Projekt-Mitglieder (Zugriffssteuerung).
+  restricted: { de: "Eingeschränkt", en: "Restricted" },
+  manageAccess: { de: "Zugriff", en: "Access" },
+  restrictedToggleLabel: {
+    de: "Nur zugeordneten Mitgliedern zeigen (statt dem ganzen Workspace)",
+    en: "Show only to assigned members (instead of the whole workspace)",
+  },
+  restrictedMembersHint: {
+    de: "Owner/Admin sehen dieses Projekt immer. Zusätzlich zugeordnete Mitglieder:",
+    en: "Owners/admins always see this project. Additionally assigned members:",
+  },
+  loadingMembers: { de: "Mitglieder werden geladen…", en: "Loading members…" },
+  memberListLoadError: {
+    de: "Die Mitgliederliste konnte nicht geladen werden.",
+    en: "The member list could not be loaded.",
+  },
+  noWorkspaceMembers: {
+    de: "Dieser Workspace hat sonst keine Mitglieder.",
+    en: "This workspace has no other members.",
+  },
+  restrictSuccess: { de: "Projekt ist jetzt eingeschränkt.", en: "Project is now restricted." },
+  unrestrictSuccess: { de: "Projekt ist jetzt für alle sichtbar.", en: "Project is now visible to everyone." },
+  restrictToggleError: {
+    de: "Die Zugriffsart konnte nicht geändert werden.",
+    en: "The access mode could not be changed.",
+  },
+  memberAssignmentError: {
+    de: "Die Zuordnung konnte nicht geändert werden.",
+    en: "The assignment could not be changed.",
+  },
 } satisfies Record<string, Translated>;
 
 // --- app/(dashboard)/dashboard/page.tsx ("Heute") --------------------

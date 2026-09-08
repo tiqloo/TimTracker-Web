@@ -9,7 +9,7 @@ type QueryResult = { data: unknown; error: unknown };
 type QueryCall = { method: string; args: unknown[] };
 
 const PROJECT_COLUMNS =
-  "id, name, color_hex, customer, notes, is_default, is_archived, updated_at";
+  "id, name, color_hex, customer, notes, is_default, is_archived, updated_at, is_restricted";
 const TIME_ENTRY_COLUMNS =
   "id, project_id, day, start_time, end_time, source, note, updated_at";
 
@@ -84,6 +84,7 @@ const projectRow = {
   is_default: false,
   is_archived: true,
   updated_at: "2026-08-31T10:20:30.000Z",
+  is_restricted: false,
 };
 
 const timeEntryRow = {
@@ -111,6 +112,7 @@ test("projects getAll selects explicit columns, orders deterministically and map
     isDefault: false,
     isArchived: true,
     updatedAt: "2026-08-31T10:20:30.000Z",
+    isRestricted: false,
   }]);
   assert.deepEqual(methodCalls(fake.calls, "from"), [["projects"]]);
   assert.deepEqual(methodCalls(fake.calls, "select"), [[PROJECT_COLUMNS]]);
@@ -204,6 +206,67 @@ test("project archive requires and accepts a returned mutation row", async () =>
   assert.equal(update.is_archived, true);
   assert.equal(Number.isNaN(Date.parse(update.updated_at)), false);
   assert.deepEqual(methodCalls(fake.calls, "select"), [["id"]]);
+});
+
+test("project setRestricted requires and accepts a returned mutation row", async () => {
+  const fake = queryClient({ data: { id: "project-1" }, error: null });
+
+  await createSupabaseProjectsRepository(fake.client, activeWorkspaceId).setRestricted("project-1", true);
+
+  assert.deepEqual(methodCalls(fake.calls, "eq"), [["id", "project-1"]]);
+  const [update] = methodCalls(fake.calls, "update")[0] as [{
+    is_restricted: boolean;
+    updated_at: string;
+  }];
+  assert.equal(update.is_restricted, true);
+  assert.equal(Number.isNaN(Date.parse(update.updated_at)), false);
+});
+
+// Ticket 123 — listProjectMembers/assignProjectMember/unassignProjectMember
+// go through `.rpc()`, not the `.from()` query-builder chain — own,
+// smaller fake, same "own, smaller fake" precedent as workspace.repository.
+// test.ts's identically-shaped rpcClient().
+function rpcClient(result: { data: unknown; error: unknown }): { client: SupabaseClient; calls: { fn: string; args: unknown }[] } {
+  const calls: { fn: string; args: unknown }[] = [];
+  const client = {
+    rpc: (fn: string, args: unknown) => {
+      calls.push({ fn, args });
+      return Promise.resolve(result);
+    },
+  } as unknown as SupabaseClient;
+  return { client, calls };
+}
+
+test("listProjectMembers calls list_project_members and maps every row", async () => {
+  const { client, calls } = rpcClient({
+    data: [{ user_id: "user-2", email: "colleague@example.test", display_name: "Colleague", role: "admin" }],
+    error: null,
+  });
+  const members = await createSupabaseProjectsRepository(client, activeWorkspaceId).listProjectMembers("project-1");
+  assert.deepEqual(members, [{ userId: "user-2", email: "colleague@example.test", displayName: "Colleague", role: "admin" }]);
+  assert.deepEqual(calls, [{ fn: "list_project_members", args: { target_project_id: "project-1" } }]);
+});
+
+test("listProjectMembers propagates an RPC error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view project assignments") });
+  await assert.rejects(createSupabaseProjectsRepository(client, activeWorkspaceId).listProjectMembers("project-1"), /may view project assignments/);
+});
+
+test("assignProjectMember calls assign_project_member with the project and target user", async () => {
+  const { client, calls } = rpcClient({ data: null, error: null });
+  await createSupabaseProjectsRepository(client, activeWorkspaceId).assignProjectMember("project-1", "user-2");
+  assert.deepEqual(calls, [{ fn: "assign_project_member", args: { target_project_id: "project-1", target_user_id: "user-2" } }]);
+});
+
+test("assignProjectMember propagates an RPC error (e.g. target isn't an active workspace member) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("The target user is not an active member of this project's workspace") });
+  await assert.rejects(createSupabaseProjectsRepository(client, activeWorkspaceId).assignProjectMember("project-1", "user-2"), /not an active member/);
+});
+
+test("unassignProjectMember calls unassign_project_member with the project and target user", async () => {
+  const { client, calls } = rpcClient({ data: null, error: null });
+  await createSupabaseProjectsRepository(client, activeWorkspaceId).unassignProjectMember("project-1", "user-2");
+  assert.deepEqual(calls, [{ fn: "unassign_project_member", args: { target_project_id: "project-1", target_user_id: "user-2" } }]);
 });
 
 test("time-entry range read selects, filters soft-deletes, orders and maps DTOs", async () => {

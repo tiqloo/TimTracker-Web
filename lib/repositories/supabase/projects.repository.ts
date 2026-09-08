@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectsRepository } from "../projects.repository";
 import type { NewProject, Project } from "@/lib/domain/project";
+import type { WorkspaceRole } from "../workspace.repository.ts";
 import { collectAllPages } from "./pagination.ts";
 import { requireUpdatedRow } from "./mutation-result.ts";
 
@@ -18,10 +19,11 @@ interface ProjectRow {
   is_default: boolean;
   is_archived: boolean;
   updated_at: string;
+  is_restricted: boolean;
 }
 
 const PROJECT_COLUMNS =
-  "id, name, color_hex, customer, notes, is_default, is_archived, updated_at";
+  "id, name, color_hex, customer, notes, is_default, is_archived, updated_at, is_restricted";
 
 function toDomain(row: ProjectRow): Project {
   return {
@@ -33,6 +35,7 @@ function toDomain(row: ProjectRow): Project {
     isDefault: row.is_default,
     isArchived: row.is_archived,
     updatedAt: row.updated_at,
+    isRestricted: row.is_restricted,
   };
 }
 
@@ -142,6 +145,47 @@ export function createSupabaseProjectsRepository(
         .maybeSingle();
       if (error) throw error;
       requireUpdatedRow(data as { id: string } | null, "Project");
+    },
+
+    async setRestricted(id: string, isRestricted: boolean) {
+      const { data, error } = await client
+        .from("projects")
+        .update({ is_restricted: isRestricted, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      requireUpdatedRow(data as { id: string } | null, "Project");
+    },
+
+    async listProjectMembers(id: string) {
+      const { data, error } = await client.rpc("list_project_members", {
+        target_project_id: id,
+      });
+      if (error) throw error;
+      const rows = data as { user_id: string; email: string; display_name: string | null; role: WorkspaceRole }[];
+      return rows.map((row) => ({
+        userId: row.user_id,
+        email: row.email,
+        displayName: row.display_name,
+        role: row.role,
+      }));
+    },
+
+    async assignProjectMember(id: string, userId: string) {
+      const { error } = await client.rpc("assign_project_member", {
+        target_project_id: id,
+        target_user_id: userId,
+      });
+      if (error) throw error;
+    },
+
+    async unassignProjectMember(id: string, userId: string) {
+      const { error } = await client.rpc("unassign_project_member", {
+        target_project_id: id,
+        target_user_id: userId,
+      });
+      if (error) throw error;
     },
   };
 }

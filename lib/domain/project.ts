@@ -11,6 +11,15 @@ export interface Project {
   isDefault: boolean;
   isArchived: boolean;
   updatedAt: string;
+  // Ticket 123 — "öffentliche Workspace-Projekte bleiben als expliziter
+  // Modus möglich": false (the default, and every pre-123 project) means
+  // every workspace member sees it, exactly Ticket 122's own behavior.
+  // true means only the workspace's owner/admin plus whoever is
+  // explicitly assigned (see WorkspaceRepository#listProjectMembers/
+  // assignProjectMember/unassignProjectMember) can see or use it — the
+  // RPC/RLS layer (TimTracker-Starter repo) is the sole authority, this
+  // flag on its own grants nothing.
+  isRestricted: boolean;
 }
 
 export type NewProject = Pick<Project, "name" | "colorHex"> &

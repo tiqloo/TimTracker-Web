@@ -13,12 +13,17 @@
 // and correctly attributed) — archived projects stay visible here, just
 // grouped separately and visually muted, never hidden or removed from the
 // list.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   archiveProject,
+  assignProjectMember,
   createProject,
+  listProjectMembers,
   renameProject,
+  setProjectRestricted,
+  unassignProjectMember,
 } from "@/lib/application/projects";
+import { listWorkspaceMembers, type WorkspaceMemberRow } from "@/lib/application/workspace";
 import { getRepositories } from "@/lib/application/client";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -122,10 +127,12 @@ type SortOption = "recent" | "name";
 export function ProjectsClient({
   initialProjects,
   canManageProjects,
+  workspaceId,
   lang,
 }: {
   initialProjects: Project[];
   canManageProjects: boolean;
+  workspaceId: string;
   lang: Lang;
 }) {
   const [projects, setProjects] = useState(initialProjects);
@@ -217,6 +224,7 @@ export function ProjectsClient({
                     allProjects={projects}
                     onChanged={handleChanged}
                     canManageProjects={canManageProjects}
+                    workspaceId={workspaceId}
                     lang={lang}
                   />
                 ))}
@@ -239,6 +247,7 @@ export function ProjectsClient({
                 allProjects={projects}
                 onChanged={handleChanged}
                 canManageProjects={canManageProjects}
+                workspaceId={workspaceId}
                 lang={lang}
               />
             ))}
@@ -444,17 +453,20 @@ function ProjectRow({
   allProjects,
   onChanged,
   canManageProjects,
+  workspaceId,
   lang,
 }: {
   project: Project;
   allProjects: Project[];
   onChanged: (project: Project) => void;
   canManageProjects: boolean;
+  workspaceId: string;
   lang: Lang;
 }) {
   const { showSuccess, showError } = useToast();
   const [editing, setEditing] = useState(false);
   const [archivePending, setArchivePending] = useState(false);
+  const [managingAccess, setManagingAccess] = useState(false);
 
   // Ticket 042: this action previously had NO success feedback at all
   // (the ticket's own motivating example) — both outcomes now go through
@@ -520,6 +532,11 @@ function ProjectRow({
                   {t(lang, i18nProjects.archived)}
                 </span>
               )}
+              {project.isRestricted && (
+                <span className="ml-2 rounded bg-paper px-1.5 py-0.5 text-xs font-normal text-foreground/60">
+                  {t(lang, i18nProjects.restricted)}
+                </span>
+              )}
             </p>
             {project.customer && (
               <p className="truncate text-xs text-foreground/60">{project.customer}</p>
@@ -543,13 +560,156 @@ function ProjectRow({
                   ? t(lang, i18nProjects.reactivate)
                   : t(lang, i18nProjects.archive)}
             </button>
+            <button type="button" onClick={() => setManagingAccess((prev) => !prev)} className={rowActionButtonClass}>
+              {t(lang, i18nProjects.manageAccess)}
+            </button>
           </div>
         )}
       </div>
       {project.notes && (
         <p className="truncate text-xs text-foreground/60">{project.notes}</p>
       )}
+      {managingAccess && (
+        <ProjectAccessPanel
+          project={project}
+          workspaceId={workspaceId}
+          onChanged={onChanged}
+          lang={lang}
+        />
+      )}
     </li>
+  );
+}
+
+// Ticket 123 — "Zugriff verwalten": toggles project.isRestricted and (only
+// while restricted) shows the workspace's member list with per-member
+// assign/unassign checkboxes. Own component, own lazy fetch (the
+// workspace member list is only ever needed once this panel is actually
+// opened — most projects stay public forever, fetching it unconditionally
+// for every row would be wasted work almost always).
+function ProjectAccessPanel({
+  project,
+  workspaceId,
+  onChanged,
+  lang,
+}: {
+  project: Project;
+  workspaceId: string;
+  onChanged: (project: Project) => void;
+  lang: Lang;
+}) {
+  const { showSuccess, showError } = useToast();
+  const [restrictedPending, setRestrictedPending] = useState(false);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberRow[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [assignedUserIds, setAssignedUserIds] = useState<Set<string> | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!project.isRestricted) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const repos = getRepositories();
+        const [members, assigned] = await Promise.all([
+          listWorkspaceMembers(repos, workspaceId),
+          listProjectMembers(repos, project.id),
+        ]);
+        if (cancelled) return;
+        setWorkspaceMembers(members);
+        setAssignedUserIds(new Set(assigned.map((row) => row.userId)));
+      } catch {
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-fetch whenever the panel switches into "restricted" mode (e.g.
+    // right after the toggle below turns it on).
+  }, [project.isRestricted, project.id, workspaceId]);
+
+  async function handleRestrictedToggle() {
+    setRestrictedPending(true);
+    try {
+      const repos = getRepositories();
+      const nextRestricted = !project.isRestricted;
+      await setProjectRestricted(repos, project.id, nextRestricted);
+      onChanged({ ...project, isRestricted: nextRestricted });
+      showSuccess(nextRestricted ? t(lang, i18nProjects.restrictSuccess) : t(lang, i18nProjects.unrestrictSuccess));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, i18nProjects.restrictToggleError));
+    } finally {
+      setRestrictedPending(false);
+    }
+  }
+
+  async function handleMemberToggle(userId: string, isAssigned: boolean) {
+    setPendingUserId(userId);
+    try {
+      const repos = getRepositories();
+      if (isAssigned) {
+        await unassignProjectMember(repos, project.id, userId);
+      } else {
+        await assignProjectMember(repos, project.id, userId);
+      }
+      setAssignedUserIds((prev) => {
+        const next = new Set(prev);
+        if (isAssigned) next.delete(userId);
+        else next.add(userId);
+        return next;
+      });
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, i18nProjects.memberAssignmentError));
+    } finally {
+      setPendingUserId(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-line bg-paper p-3">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={project.isRestricted}
+          disabled={restrictedPending}
+          onChange={handleRestrictedToggle}
+        />
+        {t(lang, i18nProjects.restrictedToggleLabel)}
+      </label>
+      {project.isRestricted && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-foreground/60">{t(lang, i18nProjects.restrictedMembersHint)}</p>
+          {loadError ? (
+            <p className={errorClass}>{t(lang, i18nProjects.memberListLoadError)}</p>
+          ) : workspaceMembers === null || assignedUserIds === null ? (
+            <p className="text-xs text-foreground/60">{t(lang, i18nProjects.loadingMembers)}</p>
+          ) : workspaceMembers.filter((member) => member.status === "active").length === 0 ? (
+            <p className="text-xs text-foreground/60">{t(lang, i18nProjects.noWorkspaceMembers)}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {workspaceMembers
+                .filter((member) => member.status === "active" && member.userId)
+                .map((member) => {
+                  const userId = member.userId as string;
+                  const isAssigned = assignedUserIds.has(userId);
+                  return (
+                    <li key={userId} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={isAssigned}
+                        disabled={pendingUserId === userId}
+                        onChange={() => handleMemberToggle(userId, isAssigned)}
+                      />
+                      <span className="truncate">{member.displayName ?? member.email}</span>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

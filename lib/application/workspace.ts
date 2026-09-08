@@ -216,6 +216,19 @@ export async function getActiveWorkspaceRole(repos: Repositories): Promise<Works
   return membership.role;
 }
 
+// Ticket 123 — the bare active workspace id, for pages/components that
+// need to pass it on to another workspace-scoped call (e.g. projects/
+// page.tsx passing it to ProjectsClient so a project's access panel can
+// call listWorkspaceMembers(repos, workspaceId) for its own assignment
+// checklist) without needing the full switcher payload. Same cookie+
+// fallback resolution as getActiveWorkspaceRole/getActiveWorkspaceTimeZone
+// above.
+export async function getActiveWorkspaceId(repos: Repositories): Promise<string> {
+  const userId = await requireUser(repos);
+  const cookieValue = await repos.activeWorkspace.get();
+  return resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+}
+
 // Ticket 110 — "Workspace-Mitgliederübersicht". No requireWorkspaceMembership
 // call here on purpose: the RPC itself is the authoritative owner/admin
 // check (list_workspace_members raises for anyone else, including a

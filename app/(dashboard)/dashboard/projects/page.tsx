@@ -3,7 +3,7 @@ import { getRepositories } from "@/lib/application/server";
 import { listProjects } from "@/lib/application/projects";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
-import { getActiveWorkspaceRole } from "@/lib/application/workspace";
+import { getActiveWorkspaceId, getActiveWorkspaceRole } from "@/lib/application/workspace";
 import { canUseApp } from "@/lib/domain/subscription";
 import { ProjectsClient } from "@/components/ProjectsClient";
 import { AccessGate } from "@/components/AccessGate";
@@ -37,13 +37,17 @@ export default async function ProjectsPage() {
     );
   }
 
-  const [projects, role] = await Promise.all([listProjects(repos), getActiveWorkspaceRole(repos)]);
+  const [projects, role, workspaceId] = await Promise.all([
+    listProjects(repos),
+    getActiveWorkspaceRole(repos),
+    getActiveWorkspaceId(repos),
+  ]);
   const canManageProjects = role === "owner" || role === "admin";
 
   return (
     <main className="flex animate-content-fade-in flex-col gap-8 py-8">
       <h1 className="text-[34px] font-semibold tracking-tight">{t(lang, i18nProjects.pageTitle)}</h1>
-      <ProjectsClient initialProjects={projects} canManageProjects={canManageProjects} lang={lang} />
+      <ProjectsClient initialProjects={projects} canManageProjects={canManageProjects} workspaceId={workspaceId} lang={lang} />
     </main>
   );
 }
