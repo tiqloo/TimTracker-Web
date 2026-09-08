@@ -6,7 +6,7 @@ import type { Repositories } from "@/lib/repositories/repositories";
 import type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
 import type { Profile } from "@/lib/domain/profile";
 import { normalizeDisplayNameInput } from "../domain/profile.ts";
-import { UnauthorizedError } from "../domain/application-error.ts";
+import { UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import { normalizeDashboardRedirect } from "../domain/redirect-target.ts";
 // Type-only re-export so app/* can name this type without importing
 // lib/repositories/* directly (blocked by eslint.config.mjs) — same
@@ -146,6 +146,37 @@ export async function updateDisplayName(
   rawDisplayName: string,
 ): Promise<void> {
   return repos.auth.updateDisplayName(normalizeDisplayNameInput(rawDisplayName));
+}
+
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+// Ticket 029. Fast, user-facing mirror of the 'avatars' Storage bucket's
+// own file_size_limit/allowed_mime_types (TimTracker-Starter repo
+// migration) — the bucket enforces both authoritatively regardless of
+// this check, same "client check is a courtesy, server check is the real
+// gate" relationship as uploadWorkspaceLogo (lib/application/workspace.ts).
+export async function uploadAvatar(repos: Repositories, file: File): Promise<string> {
+  if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
+    throw new ValidationError("The avatar must be a PNG, JPEG or WebP image.");
+  }
+  if (file.size > AVATAR_MAX_BYTES) {
+    throw new ValidationError("The avatar must not exceed 2 MB.");
+  }
+  return repos.auth.updateAvatar(file);
+}
+
+export async function removeAvatar(repos: Repositories): Promise<void> {
+  await repos.auth.removeAvatar();
+}
+
+// Storage RLS (the bucket's own SELECT policy, TimTracker-Starter repo
+// migration) is the sole authoritative "is this the owning user" check for
+// whether the signed URL request itself succeeds — this function does not
+// duplicate that check, same relationship as getWorkspaceLogoUrl
+// (lib/application/workspace.ts).
+export async function getAvatarUrl(repos: Repositories, avatarPath: string): Promise<string> {
+  return repos.auth.getAvatarUrl(avatarPath);
 }
 
 // Ticket 025 (TimTracker-Starter repo) — "E-Mail-Adresse ändern" action in

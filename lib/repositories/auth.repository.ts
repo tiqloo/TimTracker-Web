@@ -179,6 +179,27 @@ export interface AuthRepository {
   // method here (the port is a thin passthrough, normalization is
   // business logic that belongs in lib/domain/*).
   updateDisplayName(displayName: string | null): Promise<void>;
+  // Ticket 029: uploads `file` to the private 'avatars' Storage bucket
+  // (TimTracker-Starter repo migration) under this user's own folder,
+  // then persists the returned path into `user_metadata` — same
+  // "path, not URL" shape as WorkspaceRepository.uploadLogo, same reason
+  // (the bucket is private; a URL would need re-signing on every render
+  // anyway, so there's nothing gained by resolving one here). Returns the
+  // path so the caller can update local state without a round-trip
+  // through getProfile().
+  updateAvatar(file: File): Promise<string>;
+  // Clears the `user_metadata` pointer and best-effort removes the
+  // Storage object — same ordering rationale as WorkspaceRepository.removeLogo:
+  // clearing the pointer first means a failed Storage delete afterward
+  // only ever leaves a harmless orphaned object, never a profile that
+  // still points at a broken/missing image.
+  removeAvatar(): Promise<void>;
+  // Storage RLS (the bucket's own SELECT policy — TimTracker-Starter repo
+  // migration) is the sole authoritative "is this the owning user" check;
+  // this method does not duplicate it. Callers only invoke this when
+  // `avatarPath` is non-null, same convention as
+  // WorkspaceRepository.getLogoUrl.
+  getAvatarUrl(avatarPath: string): Promise<string>;
   // Ticket 025 (TimTracker-Starter repo, follow-up to 024's read-only email
   // field): changes the CURRENT session's email address. Re-authenticates
   // FIRST via `currentPassword` (AK: "Passwort-Bestätigung" before this

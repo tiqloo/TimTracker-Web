@@ -152,6 +152,7 @@ function NavLinkPendingOverlay() {
 function UserMenu({
   lang,
   displayName,
+  avatarUrl,
   pending,
   onLogout,
   placement = "down",
@@ -160,6 +161,7 @@ function UserMenu({
 }: {
   lang: Lang;
   displayName: string;
+  avatarUrl: string | null;
   pending: boolean;
   onLogout: () => void;
   placement?: "up" | "down";
@@ -220,9 +222,14 @@ function UserMenu({
             : "text-text-secondary hover:border-line hover:bg-surface hover:text-foreground"
         }`}
       >
-        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[11px] font-bold uppercase ${tone === "dark" ? "bg-white/10 text-white" : "bg-brand-soft text-brand"}`}>
-          {displayName.trim().charAt(0) || "T"}
-        </span>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a signed, short-lived Storage URL isn't a fit for next/image's static optimization pipeline (see WorkspaceSettingsClient's own identical exception).
+          <img src={avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg border border-line/50 object-cover" />
+        ) : (
+          <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[11px] font-bold uppercase ${tone === "dark" ? "bg-white/10 text-white" : "bg-brand-soft text-brand"}`}>
+            {displayName.trim().charAt(0) || "T"}
+          </span>
+        )}
         {/* Ticket 024's truncate rule, reused verbatim per this ticket's
             own Edge Cases section rather than reinvented. */}
         {!compact && (
@@ -286,11 +293,13 @@ function UserMenu({
 export function DashboardNav({
   lang,
   displayName,
+  avatarUrl,
   workspaces,
   activeWorkspaceId,
 }: {
   lang: Lang;
   displayName: string;
+  avatarUrl: string | null;
   workspaces: WorkspaceMembershipSummary[];
   activeWorkspaceId: string;
 }) {
@@ -392,7 +401,7 @@ export function DashboardNav({
         <nav className="flex flex-col gap-1">{navigationLinks(true, sidebarCollapsed)}</nav>
 
         <div className="mt-auto border-t border-line pt-4">
-          <UserMenu lang={lang} displayName={displayName} pending={pending} onLogout={handleLogout} placement="up" compact={sidebarCollapsed} />
+          <UserMenu lang={lang} displayName={displayName} avatarUrl={avatarUrl} pending={pending} onLogout={handleLogout} placement="up" compact={sidebarCollapsed} />
         </div>
       </aside>
 
@@ -405,7 +414,7 @@ export function DashboardNav({
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white"><Mark /></span>
             Tiqloo
           </Link>
-          <UserMenu lang={lang} displayName={displayName} pending={pending} onLogout={handleLogout} />
+          <UserMenu lang={lang} displayName={displayName} avatarUrl={avatarUrl} pending={pending} onLogout={handleLogout} />
         </div>
       </header>
       <nav className="fixed right-3 bottom-3 left-3 z-40 flex gap-1 rounded-2xl border border-line/80 bg-surface/95 p-1.5 shadow-[0_18px_50px_-20px_rgba(24,24,23,0.38)] backdrop-blur-xl lg:hidden">

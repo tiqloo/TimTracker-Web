@@ -482,6 +482,28 @@ export const profile = {
   // Toast success text for a display-name save now reuses common.saved
   // (Ticket 042) — this used to have its own identical "Gespeichert."/
   // "Saved." entry here, removed as a duplicate.
+  // --- Avatar (Ticket 029) — same key-naming convention as workspaces.logo* ---
+  avatarTitle: { de: "Profilbild", en: "Profile picture" },
+  avatarUploadButton: { de: "Bild hochladen", en: "Upload picture" },
+  avatarUploading: { de: "Wird hochgeladen…", en: "Uploading…" },
+  avatarUploadSuccess: { de: "Profilbild wurde hochgeladen.", en: "Profile picture was uploaded." },
+  avatarUploadError: {
+    de: "Das Profilbild konnte nicht hochgeladen werden. Bitte versuche es erneut.",
+    en: "The profile picture could not be uploaded. Please try again.",
+  },
+  avatarTypeError: {
+    de: "Das Profilbild muss eine PNG-, JPEG- oder WebP-Datei sein.",
+    en: "The profile picture must be a PNG, JPEG or WebP file.",
+  },
+  avatarSizeError: { de: "Das Profilbild darf höchstens 2 MB groß sein.", en: "The profile picture must not exceed 2 MB." },
+  avatarRemoveButton: { de: "Bild entfernen", en: "Remove picture" },
+  avatarRemoving: { de: "Wird entfernt…", en: "Removing…" },
+  avatarRemoveSuccess: { de: "Profilbild wurde entfernt.", en: "Profile picture was removed." },
+  avatarRemoveError: {
+    de: "Das Profilbild konnte nicht entfernt werden. Bitte versuche es erneut.",
+    en: "The profile picture could not be removed. Please try again.",
+  },
+  avatarEmptyState: { de: "Noch kein Profilbild hochgeladen.", en: "No profile picture uploaded yet." },
   emailLabel: { de: "E-Mail-Adresse", en: "Email Address" },
   createdAtLabel: { de: "Konto erstellt am", en: "Account Created" },
   // Ticket 032: small subtitle above EmailChangeAction/PasswordChangeAction,

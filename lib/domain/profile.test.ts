@@ -21,17 +21,17 @@ test("emailLocalPart falls back to the full string when there is no '@'", () => 
 });
 
 test("displayNameOrFallback prefers a set display name over the email", () => {
-  const profile: Profile = { email: "max@example.com", displayName: "Max Mustermann", createdAt: "2026-01-01T00:00:00Z" };
+  const profile: Profile = { email: "max@example.com", displayName: "Max Mustermann", createdAt: "2026-01-01T00:00:00Z", avatarPath: null };
   assert.equal(displayNameOrFallback(profile), "Max Mustermann");
 });
 
 test("displayNameOrFallback falls back to the email's local part when displayName is null", () => {
-  const profile: Profile = { email: "max@example.com", displayName: null, createdAt: "2026-01-01T00:00:00Z" };
+  const profile: Profile = { email: "max@example.com", displayName: null, createdAt: "2026-01-01T00:00:00Z", avatarPath: null };
   assert.equal(displayNameOrFallback(profile), "max");
 });
 
 test("displayNameOrFallback falls back to the full email when it has no '@' (defensive edge case)", () => {
-  const profile: Profile = { email: "not-an-email", displayName: null, createdAt: "2026-01-01T00:00:00Z" };
+  const profile: Profile = { email: "not-an-email", displayName: null, createdAt: "2026-01-01T00:00:00Z", avatarPath: null };
   assert.equal(displayNameOrFallback(profile), "not-an-email");
 });
 

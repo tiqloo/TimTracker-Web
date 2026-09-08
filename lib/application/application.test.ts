@@ -4,11 +4,14 @@ import {
   changeEmail,
   changePassword,
   completeOAuthSignIn,
+  getAvatarUrl,
   register,
+  removeAvatar,
   requireUser,
   signInWithGoogle,
   updateDisplayName,
   updatePassword,
+  uploadAvatar,
 } from "./auth.ts";
 import { setDailyGoalHours } from "./daily-goal.ts";
 import {
@@ -143,6 +146,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       email: "person@example.com",
       displayName: null,
       createdAt: "2025-01-02T03:04:05Z",
+      avatarPath: null,
     },
     projects: [MANAGED_PROJECT],
     entries: [ENTRY],
@@ -185,6 +189,17 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async deleteAccount() { record("auth.deleteAccount"); },
       async getProfile() { record("auth.profile"); return state.profile; },
       async updateDisplayName(name) { record("auth.displayName", name); },
+      async updateAvatar(file) {
+        record("auth.updateAvatar", file);
+        const path = `${state.userId}/avatar`;
+        state.profile = { ...state.profile, avatarPath: path };
+        return path;
+      },
+      async removeAvatar() {
+        record("auth.removeAvatar");
+        state.profile = { ...state.profile, avatarPath: null };
+      },
+      async getAvatarUrl(avatarPath) { record("auth.getAvatarUrl", avatarPath); return `https://storage.example.test/${avatarPath}`; },
       async changeEmail(email, password) { record("auth.changeEmail", email, password); },
       async changePassword(password, currentPassword) { record("auth.changePassword", password, currentPassword); },
     },
@@ -1126,6 +1141,49 @@ test("getWorkspaceLogoUrl requires authentication and delegates to the repositor
 test("getWorkspaceLogoUrl requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(getWorkspaceLogoUrl(repos, "workspace-team-1/logo"), UnauthorizedError);
+});
+
+// Ticket 029 — same validation shape as uploadWorkspaceLogo above, but
+// lib/application/auth.ts's own convention (no requireUser gate, see
+// updateDisplayName above) rather than workspace.ts's requireUser-gated one
+// — these operate on the CURRENT session's own auth.getUser()/updateUser()
+// calls, with no separate authorization check to test.
+test("uploadAvatar delegates to the repository for a valid image", async () => {
+  const { repos, state } = memoryRepositories();
+
+  const path = await uploadAvatar(repos, fakeImageFile(1024, "image/png"));
+
+  assert.equal(path, "user-1/avatar");
+  assert.equal(state.profile.avatarPath, "user-1/avatar");
+});
+
+test("uploadAvatar rejects an unsupported file type before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(uploadAvatar(repos, fakeImageFile(1024, "image/svg+xml")), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "auth.updateAvatar"));
+});
+
+test("uploadAvatar rejects a file over 2 MB before ever reaching the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await assert.rejects(uploadAvatar(repos, fakeImageFile(3 * 1024 * 1024, "image/png")), ValidationError);
+  assert.ok(!state.calls.some((call) => call.method === "auth.updateAvatar"));
+});
+
+test("removeAvatar delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    profile: { email: "person@example.com", displayName: null, createdAt: "2025-01-02T03:04:05Z", avatarPath: "user-1/avatar" },
+  });
+
+  await removeAvatar(repos);
+
+  assert.equal(state.profile.avatarPath, null);
+});
+
+test("getAvatarUrl delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  const url = await getAvatarUrl(repos, "user-1/avatar");
+  assert.equal(url, "https://storage.example.test/user-1/avatar");
+  assert.deepEqual(state.calls.at(-1), { method: "auth.getAvatarUrl", args: ["user-1/avatar"] });
 });
 
 // Ticket 121 — Team-Zeiten für Admins.

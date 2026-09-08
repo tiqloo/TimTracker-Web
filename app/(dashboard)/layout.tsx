@@ -3,7 +3,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { ToastProvider } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
-import { getProfile } from "@/lib/application/auth";
+import { getProfile, getAvatarUrl } from "@/lib/application/auth";
 import { getWorkspaceSwitcherData } from "@/lib/application/workspace";
 import { displayNameOrFallback } from "@/lib/domain/profile";
 
@@ -47,6 +47,17 @@ export default async function DashboardLayout({
     getWorkspaceSwitcherData(repos),
   ]);
   const displayName = displayNameOrFallback(profile);
+  // Ticket 029: resolved server-side (same reasoning as displayName's own
+  // comment above) — a signed URL for a private bucket has to be minted
+  // per-request anyway, there's no benefit to passing the raw path down
+  // and re-resolving it client-side for a value the nav never needs to
+  // react to mid-session (unlike SettingsClient's own copy, which DOES
+  // need to re-resolve after an upload/removal). Falls back to `null`
+  // (the existing initials rendering) on any error — a transient signed-
+  // URL failure must never break the whole dashboard shell.
+  const avatarUrl = profile.avatarPath
+    ? await getAvatarUrl(repos, profile.avatarPath).catch(() => null)
+    : null;
 
   return (
     // ToastProvider (Ticket 042) mounts here, once, wrapping the whole
@@ -60,6 +71,7 @@ export default async function DashboardLayout({
         <DashboardNav
           lang={lang}
           displayName={displayName}
+          avatarUrl={avatarUrl}
           workspaces={switcherData.workspaces}
           activeWorkspaceId={switcherData.activeWorkspaceId}
         />

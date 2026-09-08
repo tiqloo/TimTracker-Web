@@ -229,6 +229,7 @@ export function createSupabaseAuthRepository(
       const { data, error } = await client.auth.getUser();
       if (error) throw error;
       const rawDisplayName = data.user.user_metadata?.display_name;
+      const rawAvatarPath = data.user.user_metadata?.avatar_path;
       return {
         email: data.user.email ?? "",
         // user_metadata is untyped (Record<string, unknown>) — narrow to
@@ -238,6 +239,8 @@ export function createSupabaseAuthRepository(
         // nav/settings UI.
         displayName: typeof rawDisplayName === "string" ? rawDisplayName : null,
         createdAt: data.user.created_at,
+        // Ticket 029: same narrowing rationale as displayName above.
+        avatarPath: typeof rawAvatarPath === "string" ? rawAvatarPath : null,
       };
     },
 
@@ -252,6 +255,45 @@ export function createSupabaseAuthRepository(
         data: { display_name: displayName },
       });
       if (error) throw error;
+    },
+
+    async updateAvatar(file: File): Promise<string> {
+      // Needs the user's own id for the `{user_id}/avatar` path
+      // convention the Storage RLS policies (TimTracker-Starter repo
+      // migration) key off — getUser(), not getSession(), same
+      // revalidate-against-the-server reasoning as getProfile() above.
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      const path = `${userData.user.id}/avatar`;
+      const { error: uploadError } = await client.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { error: updateError } = await client.auth.updateUser({
+        data: { avatar_path: path },
+      });
+      if (updateError) throw updateError;
+      return path;
+    },
+
+    async removeAvatar() {
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      const { error: updateError } = await client.auth.updateUser({
+        data: { avatar_path: null },
+      });
+      if (updateError) throw updateError;
+      // Best-effort: the pointer is already cleared above, so a failure
+      // here only leaves a harmless orphaned object, never a broken image.
+      await client.storage.from("avatars").remove([`${userData.user.id}/avatar`]);
+    },
+
+    async getAvatarUrl(avatarPath: string) {
+      const { data, error } = await client.storage
+        .from("avatars")
+        .createSignedUrl(avatarPath, 60 * 5);
+      if (error) throw error;
+      return data.signedUrl;
     },
 
     async changeEmail(newEmail: string, currentPassword: string) {

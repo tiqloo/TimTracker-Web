@@ -8,7 +8,7 @@
 // CLAUDE.md's "Resolved 2026-08-25" entry) and calls straight into
 // lib/application/language.ts / lib/application/auth.ts — never
 // lib/repositories/* directly.
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Monitor, Moon, Palette, Sun } from "lucide-react";
@@ -22,6 +22,9 @@ import {
   deleteAccount,
   logout,
   updateDisplayName,
+  uploadAvatar,
+  removeAvatar,
+  getAvatarUrl,
   EmailAlreadyInUseError,
   ReauthenticationFailedError,
   type Profile,
@@ -357,11 +360,43 @@ function DataExportSection({ lang }: { lang: Lang }) {
 // There's no separate blocking field validation here (display name is
 // optional, no client-side format check), so unlike ProjectsClient.tsx's
 // forms there's no inline error case left at all.
+const AVATAR_ACCEPT = "image/png,image/jpeg,image/webp";
+
 function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [displayName, setDisplayName] = useState(profile.displayName ?? "");
   const [pending, setPending] = useState(false);
+
+  // Ticket 029 — same state/effect shape as WorkspaceSettingsClient's own
+  // logoPath/logoUrl/logoBusy trio: `avatarPath` is the persisted pointer,
+  // `avatarUrl` a freshly signed (short-lived, private bucket) URL
+  // resolved client-side whenever the pointer changes.
+  const [avatarPath, setAvatarPath] = useState(profile.avatarPath);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  useEffect(() => {
+    // No reset to `null` here when `avatarPath` is falsy — same as
+    // WorkspaceSettingsClient's own identical effect: the render below
+    // guards on `avatarPath && avatarUrl` together, so a stale `avatarUrl`
+    // left over from before a removal is simply never rendered, and gets
+    // refreshed the moment `avatarPath` becomes truthy again anyway.
+    if (!avatarPath) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const repos = getRepositories();
+        const url = await getAvatarUrl(repos, avatarPath);
+        if (!cancelled) setAvatarUrl(url);
+      } catch {
+        if (!cancelled) setAvatarUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [avatarPath]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -379,6 +414,40 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
       showError(err instanceof Error ? err.message : t(lang, i18nProfile.displayNameSaveError));
     } finally {
       setPending(false);
+    }
+  }
+
+  async function handleAvatarSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setAvatarBusy(true);
+    try {
+      const repos = getRepositories();
+      const path = await uploadAvatar(repos, file);
+      setAvatarPath(path);
+      showSuccess(t(lang, i18nProfile.avatarUploadSuccess));
+      router.refresh();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, i18nProfile.avatarUploadError));
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleAvatarRemove() {
+    setAvatarBusy(true);
+    try {
+      const repos = getRepositories();
+      await removeAvatar(repos);
+      setAvatarPath(null);
+      showSuccess(t(lang, i18nProfile.avatarRemoveSuccess));
+      router.refresh();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t(lang, i18nProfile.avatarRemoveError));
+    } finally {
+      setAvatarBusy(false);
     }
   }
 
@@ -414,6 +483,31 @@ function ProfileSection({ profile, lang }: { profile: Profile; lang: Lang }) {
           </button>
         </div>
       </form>
+      {/* Ticket 029 — same "own mini-card, image + upload/remove controls"
+          shape as WorkspaceSettingsClient's logo block, see that
+          component's own comment for the full reasoning (signed URL
+          re-resolved client-side on every avatarPath change, a private
+          bucket has no other way to render it). */}
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-background p-5">
+        <h3 className="text-sm font-medium text-foreground/70">{t(lang, i18nProfile.avatarTitle)}</h3>
+        {avatarPath && avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a signed, short-lived Storage URL isn't a fit for next/image's static optimization pipeline.
+          <img src={avatarUrl} alt="" className="h-16 w-16 rounded-full border border-line object-cover" />
+        ) : (
+          <p className="text-xs text-text-secondary">{t(lang, i18nProfile.avatarEmptyState)}</p>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className={`${secondaryButtonClass} cursor-pointer`}>
+            {avatarBusy ? t(lang, i18nProfile.avatarUploading) : t(lang, i18nProfile.avatarUploadButton)}
+            <input type="file" accept={AVATAR_ACCEPT} onChange={handleAvatarSelected} disabled={avatarBusy} className="hidden" />
+          </label>
+          {avatarPath && (
+            <button type="button" onClick={handleAvatarRemove} disabled={avatarBusy} className={secondaryButtonClass}>
+              {avatarBusy ? t(lang, i18nProfile.avatarRemoving) : t(lang, i18nProfile.avatarRemoveButton)}
+            </button>
+          )}
+        </div>
+      </div>
       <dl className="grid gap-3 border-t border-line pt-5 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-background px-4 py-3">
           <dt className="text-foreground/60">{t(lang, i18nProfile.emailLabel)}</dt>

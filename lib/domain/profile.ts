@@ -14,6 +14,12 @@ export interface Profile {
   displayName: string | null;
   // ISO datetime — `auth.users.created_at`.
   createdAt: string;
+  // Ticket 029: Storage object PATH (not a URL — the 'avatars' bucket is
+  // private, same "path vs. URL" split as WorkspaceSettings.logoPath —
+  // see lib/repositories/auth.repository.ts#getAvatarUrl), `{user_id}/avatar`
+  // when set. `null` = no avatar uploaded, UI falls back to the existing
+  // initials rendering.
+  avatarPath: string | null;
 }
 
 // The part of an email address before "@" — the fallback identity shown
