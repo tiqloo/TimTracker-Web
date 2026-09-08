@@ -16,6 +16,7 @@ import type {
   WorkspaceMembership,
   WorkspaceMembershipSummary,
   WorkspaceMemberRow,
+  WorkspaceRole,
   WorkspaceSettings,
   WorkspaceSettingsFields,
   WorkspaceSettingsInput,
@@ -198,6 +199,21 @@ export async function getActiveWorkspaceTimeZone(repos: Repositories): Promise<s
   const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
   const settings = await repos.workspace.getSettings(workspaceId);
   return settings.timezone;
+}
+
+// Ticket 122 — pages that need to know the CALLER's own role in the
+// active workspace purely to decide whether to render management
+// controls at all (projects/page.tsx: hide create/rename/archive for a
+// plain member — the RPC/RLS underneath is the real, sole authority
+// either way, same "hide a button that could only ever fail" reasoning
+// as WorkspaceMembersClient's own isRemovable/isTransferTarget guards).
+// Same cookie+fallback resolution as getActiveWorkspaceTimeZone above.
+export async function getActiveWorkspaceRole(repos: Repositories): Promise<WorkspaceRole> {
+  const userId = await requireUser(repos);
+  const cookieValue = await repos.activeWorkspace.get();
+  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const membership = await requireWorkspaceMembership(repos, userId, workspaceId);
+  return membership.role;
 }
 
 // Ticket 110 — "Workspace-Mitgliederübersicht". No requireWorkspaceMembership

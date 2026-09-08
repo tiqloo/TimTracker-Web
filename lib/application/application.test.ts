@@ -26,6 +26,7 @@ import {
 import {
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
+  getActiveWorkspaceRole,
   getActiveWorkspaceTimeZone,
   getTeamTime,
   getWorkspaceLogoUrl,
@@ -574,6 +575,26 @@ test("getActiveWorkspaceTimeZone falls back to the personal workspace's timezone
 test("getActiveWorkspaceTimeZone requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(getActiveWorkspaceTimeZone(repos), UnauthorizedError);
+});
+
+// Ticket 122 — the caller's own role in the active (cookie-selected)
+// workspace, same resolution rule as getActiveWorkspaceTimeZone above.
+test("getActiveWorkspaceRole resolves the caller's role in the active workspace", async () => {
+  const { repos } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "admin" },
+    activeWorkspaceCookie: "workspace-org-1",
+  });
+  assert.equal(await getActiveWorkspaceRole(repos), "admin");
+});
+
+test("getActiveWorkspaceRole falls back to the personal workspace's role for a stale/foreign cookie", async () => {
+  const { repos } = memoryRepositories({ activeWorkspaceCookie: "workspace-no-longer-a-member-of" });
+  assert.equal(await getActiveWorkspaceRole(repos), "owner");
+});
+
+test("getActiveWorkspaceRole requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getActiveWorkspaceRole(repos), UnauthorizedError);
 });
 
 test("switchActiveWorkspace persists the new workspace once membership is verified", async () => {

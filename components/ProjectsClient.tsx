@@ -111,11 +111,21 @@ function ColorPicker({
 
 type SortOption = "recent" | "name";
 
+// Ticket 122 — projects are now workspace-wide shared resources (any
+// member sees all of them), but creating/renaming/archiving stays
+// role-gated server-side (owner/admin only, RLS's own sole authority —
+// see the TimTracker-Starter migration's own comment). `canManageProjects`
+// only controls whether these CONTROLS are shown at all — hiding a button
+// that would otherwise just fail with a confusing permission error for a
+// plain member, same reasoning as WorkspaceSettingsClient's own
+// `canEdit` prop.
 export function ProjectsClient({
   initialProjects,
+  canManageProjects,
   lang,
 }: {
   initialProjects: Project[];
+  canManageProjects: boolean;
   lang: Lang;
 }) {
   const [projects, setProjects] = useState(initialProjects);
@@ -153,11 +163,13 @@ export function ProjectsClient({
 
   return (
     <div className="flex flex-col gap-10">
-      <CreateProjectSection
-        projects={projects}
-        onCreated={(project) => setProjects((prev) => [project, ...prev])}
-        lang={lang}
-      />
+      {canManageProjects && (
+        <CreateProjectSection
+          projects={projects}
+          onCreated={(project) => setProjects((prev) => [project, ...prev])}
+          lang={lang}
+        />
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-foreground/70">
@@ -204,6 +216,7 @@ export function ProjectsClient({
                     project={project}
                     allProjects={projects}
                     onChanged={handleChanged}
+                    canManageProjects={canManageProjects}
                     lang={lang}
                   />
                 ))}
@@ -225,6 +238,7 @@ export function ProjectsClient({
                 project={project}
                 allProjects={projects}
                 onChanged={handleChanged}
+                canManageProjects={canManageProjects}
                 lang={lang}
               />
             ))}
@@ -429,11 +443,13 @@ function ProjectRow({
   project,
   allProjects,
   onChanged,
+  canManageProjects,
   lang,
 }: {
   project: Project;
   allProjects: Project[];
   onChanged: (project: Project) => void;
+  canManageProjects: boolean;
   lang: Lang;
 }) {
   const { showSuccess, showError } = useToast();
@@ -510,23 +526,25 @@ function ProjectRow({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 gap-1 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <button type="button" onClick={() => setEditing(true)} className={rowActionButtonClass}>
-            {t(lang, i18nProjects.edit)}
-          </button>
-          <button
-            type="button"
-            onClick={handleArchiveToggle}
-            disabled={archivePending}
-            className={rowActionButtonClass}
-          >
-            {archivePending
-              ? "…"
-              : project.isArchived
-                ? t(lang, i18nProjects.reactivate)
-                : t(lang, i18nProjects.archive)}
-          </button>
-        </div>
+        {canManageProjects && (
+          <div className="flex shrink-0 gap-1 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <button type="button" onClick={() => setEditing(true)} className={rowActionButtonClass}>
+              {t(lang, i18nProjects.edit)}
+            </button>
+            <button
+              type="button"
+              onClick={handleArchiveToggle}
+              disabled={archivePending}
+              className={rowActionButtonClass}
+            >
+              {archivePending
+                ? "…"
+                : project.isArchived
+                  ? t(lang, i18nProjects.reactivate)
+                  : t(lang, i18nProjects.archive)}
+            </button>
+          </div>
+        )}
       </div>
       {project.notes && (
         <p className="truncate text-xs text-foreground/60">{project.notes}</p>
