@@ -111,6 +111,18 @@ export interface AcceptedInvitation {
   role: InvitationRole;
 }
 
+// Ticket 183 — Fall E aus Ticket 168 ("offene Einladung beim Login
+// automatisch erkennen"). Unlike InvitationPreview above (looked up by
+// token, for a not-yet-authenticated caller), this is the already-
+// authenticated caller's OWN open invitation(s) — includes `id` since
+// acceptPendingInvitation below targets one by id, not by token.
+export interface PendingInvitationSummary {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  role: InvitationRole;
+}
+
 export interface WorkspaceRepository {
   // `null` when the user has no membership row for this workspace id —
   // covers both "workspace exists but user isn't a member" and
@@ -157,6 +169,20 @@ export interface WorkspaceRepository {
   // invitation's — enforced server-side (Ticket 099's non-negotiable
   // rule applies here too: this port never decides that itself).
   acceptInvitation(token: string): Promise<AcceptedInvitation>;
+
+  // Ticket 183 — every still-open invitation whose email matches the
+  // CALLING, authenticated user's own account email (server-side RPC
+  // computes that match itself, never a client-supplied email) — the
+  // list this port's own filter can never leak another user's invitation.
+  listPendingInvitations(): Promise<PendingInvitationSummary[]>;
+
+  // Ticket 183 — the token-less counterpart to acceptInvitation above,
+  // for a caller who never saw the original invitation link (they logged
+  // in normally instead). Targets one of THEIR OWN rows returned by
+  // listPendingInvitations by id; the server-side RPC re-checks the same
+  // email-match invariant regardless, same "this port makes no promises
+  // about the authorization check" relationship as acceptInvitation.
+  acceptPendingInvitation(invitationId: string): Promise<AcceptedInvitation>;
 
   // Ticket 110 — backed by a SECURITY DEFINER RPC
   // (list_workspace_members, TimTracker-Starter repo) that itself checks

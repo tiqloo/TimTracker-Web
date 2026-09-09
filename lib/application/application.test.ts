@@ -34,6 +34,7 @@ import {
 } from "./projects.ts";
 import type { ProjectMemberRow } from "./projects.ts";
 import {
+  acceptPendingInvitation,
   acceptWorkspaceInvitation,
   createOrganizationWorkspace,
   getActiveWorkspaceId,
@@ -45,6 +46,7 @@ import {
   getWorkspaceSwitcherData,
   inviteWorkspaceMember,
   leaveWorkspace,
+  listPendingInvitations,
   listWorkspaceInvitations,
   listWorkspaceMembers,
   previewWorkspaceInvitation,
@@ -118,8 +120,10 @@ interface MemoryState {
   // until switchActiveWorkspace() (or a test override) sets one, exactly
   // like a first-ever visit with no cookie yet.
   activeWorkspaceCookie: string | null;
-  // token -> invitation, for the Ticket 102 fakes below.
-  invitations: Record<string, { email: string; workspaceId: string; workspaceName: string; role: "admin" | "member"; accepted: boolean }>;
+  // token -> invitation, for the Ticket 102 fakes below. `id` (Ticket
+  // 183) is a second, independent lookup key onto the same record — the
+  // real schema has both a token_hash and its own primary key.
+  invitations: Record<string, { id: string; email: string; workspaceId: string; workspaceName: string; role: "admin" | "member"; accepted: boolean }>;
   // workspaceId -> member/invitation rows, for the Ticket 110 fakes below.
   memberRowsByWorkspace: Record<string, WorkspaceMemberRow[]>;
   // workspaceId -> invitation rows (own id, unlike memberRowsByWorkspace
@@ -284,8 +288,9 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async createInvitation(workspaceId, email, role) {
         record("workspace.createInvitation", workspaceId, email, role);
         const token = `token-for-${email}`;
-        state.invitations[token] = { email, workspaceId, workspaceName: "Invited Workspace", role, accepted: false };
-        return { id: `invite-${email}`, token, email, role, expiresAt: "2026-12-31T00:00:00.000Z" };
+        const id = `invite-${email}`;
+        state.invitations[token] = { id, email, workspaceId, workspaceName: "Invited Workspace", role, accepted: false };
+        return { id, token, email, role, expiresAt: "2026-12-31T00:00:00.000Z" };
       },
       async previewInvitation(token) {
         record("workspace.previewInvitation", token);
@@ -303,6 +308,28 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         const invitation = state.invitations[token];
         if (!invitation) throw new Error("This invitation link is invalid");
         if (invitation.accepted) throw new Error("This invitation has already been accepted");
+        invitation.accepted = true;
+        return { workspaceId: invitation.workspaceId, workspaceName: invitation.workspaceName, role: invitation.role };
+      },
+      async listPendingInvitations() {
+        record("workspace.listPendingInvitations");
+        return Object.values(state.invitations)
+          .filter((invitation) => !invitation.accepted && invitation.email === state.profile.email)
+          .map((invitation) => ({
+            id: invitation.id,
+            workspaceId: invitation.workspaceId,
+            workspaceName: invitation.workspaceName,
+            role: invitation.role,
+          }));
+      },
+      async acceptPendingInvitation(invitationId) {
+        record("workspace.acceptPendingInvitation", invitationId);
+        const invitation = Object.values(state.invitations).find((row) => row.id === invitationId);
+        if (!invitation) throw new Error("This invitation does not exist");
+        if (invitation.accepted) throw new Error("This invitation has already been accepted");
+        if (invitation.email !== state.profile.email) {
+          throw new Error("This invitation was sent to a different email address than your current account");
+        }
         invitation.accepted = true;
         return { workspaceId: invitation.workspaceId, workspaceName: invitation.workspaceName, role: invitation.role };
       },
@@ -799,6 +826,54 @@ test("acceptWorkspaceInvitation delegates to the repository once authenticated",
   const accepted = await acceptWorkspaceInvitation(repos, invitation.token);
   assert.equal(accepted.workspaceId, "workspace-team-1");
   assert.equal(accepted.role, "member");
+});
+
+// Ticket 183 — Fall E aus Ticket 168: offene Einladung beim Login
+// automatisch erkennen (kein Token nötig, im Unterschied zu den beiden
+// Tests oben).
+
+test("listPendingInvitations requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(listPendingInvitations(repos), UnauthorizedError);
+});
+
+test("listPendingInvitations returns only invitations addressed to the current user's own email", async () => {
+  const { repos } = memoryRepositories();
+  // state.profile.email defaults to "person@example.com" — an invitation
+  // to a DIFFERENT email must not show up, even though it's stored in
+  // the same shared table (same "does the filter actually filter"
+  // reasoning as the bystander case in the backend pgTAP tests).
+  await inviteWorkspaceMember(repos, "workspace-team-1", "someone-else@example.test", "member");
+  const mine = await inviteWorkspaceMember(repos, "workspace-team-1", "person@example.com", "admin");
+
+  const pending = await listPendingInvitations(repos);
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0]?.id, mine.id);
+  assert.equal(pending[0]?.role, "admin");
+});
+
+test("acceptPendingInvitation requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(acceptPendingInvitation(repos, "some-id"), UnauthorizedError);
+});
+
+test("acceptPendingInvitation succeeds for the caller's own invitation, without a token", async () => {
+  const { repos } = memoryRepositories();
+  const invitation = await inviteWorkspaceMember(repos, "workspace-team-1", "person@example.com", "member");
+
+  const accepted = await acceptPendingInvitation(repos, invitation.id);
+  assert.equal(accepted.workspaceId, "workspace-team-1");
+  assert.equal(accepted.role, "member");
+
+  const pendingAfter = await listPendingInvitations(repos);
+  assert.equal(pendingAfter.length, 0);
+});
+
+test("acceptPendingInvitation propagates a repository error (e.g. addressed to someone else) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories();
+  const invitation = await inviteWorkspaceMember(repos, "workspace-team-1", "someone-else@example.test", "member");
+
+  await assert.rejects(acceptPendingInvitation(repos, invitation.id), /different email address/);
 });
 
 // Ticket 110 — Workspace-Mitgliederübersicht.

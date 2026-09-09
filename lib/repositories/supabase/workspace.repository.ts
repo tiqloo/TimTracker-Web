@@ -140,6 +140,29 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
       return { workspaceId: row.workspace_id, workspaceName: row.workspace_name, role: row.role };
     },
 
+    async listPendingInvitations() {
+      const { data, error } = await client.rpc("list_pending_invitations_for_current_user");
+      if (error) throw error;
+      const rows = data as { id: string; workspace_id: string; workspace_name: string; role: InvitationRole }[];
+      return rows.map((row) => ({
+        id: row.id,
+        workspaceId: row.workspace_id,
+        workspaceName: row.workspace_name,
+        role: row.role,
+      }));
+    },
+
+    async acceptPendingInvitation(invitationId) {
+      const { data, error } = await client.rpc("accept_pending_invitation", {
+        target_invitation_id: invitationId,
+      });
+      if (error) throw error;
+      const rows = data as { workspace_id: string; workspace_name: string; role: InvitationRole }[];
+      const row = rows[0];
+      if (!row) throw new Error("accept_pending_invitation returned no row");
+      return { workspaceId: row.workspace_id, workspaceName: row.workspace_name, role: row.role };
+    },
+
     async listMembers(workspaceId) {
       const { data, error } = await client.rpc("list_workspace_members", {
         target_workspace_id: workspaceId,

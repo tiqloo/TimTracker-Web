@@ -1462,6 +1462,29 @@ export const acceptInvite = {
   goToDashboardButton: { de: "Zum Dashboard", en: "Go to dashboard" },
 } satisfies Record<string, Translated>;
 
+// --- Ticket 183 (Fall E aus 168): offene Einladung beim Login ----------
+// Anders als acceptInvite oben (eigene Seite, per Token aus dem
+// Einladungslink) ist das hier ein dismissbares Banner im Dashboard, für
+// einen Nutzer, der nie auf den Link geklickt hat.
+export const pendingInvitationBanner = {
+  acceptButton: { de: "Annehmen", en: "Accept" },
+  accepting: { de: "Wird angenommen…", en: "Accepting…" },
+  dismissButton: { de: "Später", en: "Later" },
+  acceptError: {
+    de: "Die Einladung konnte nicht angenommen werden. Bitte versuche es erneut.",
+    en: "The invitation could not be accepted. Please try again.",
+  },
+} satisfies Record<string, Translated>;
+
+// Interpolated (needs the workspace's name), so a function rather than a
+// static Translated entry — same pattern as leaveWorkspacePageDescription
+// above.
+export function pendingInvitationBannerMessage(lang: Lang, workspaceName: string): string {
+  return lang === "de"
+    ? `Du wurdest zu „${workspaceName}“ eingeladen.`
+    : `You've been invited to "${workspaceName}".`;
+}
+
 // --- Ticket 110: Workspace-Mitgliederübersicht --------------------------
 export const workspaceMembers = {
   pageTitle: { de: "Mitglieder", en: "Members" },

@@ -8,6 +8,7 @@ import type {
   CreatedInvitation,
   InvitationPreview,
   InvitationRole,
+  PendingInvitationSummary,
   ResentInvitation,
   TeamTimeFilter,
   TeamTimeRow,
@@ -30,6 +31,7 @@ export type {
   CreatedInvitation,
   InvitationPreview,
   InvitationRole,
+  PendingInvitationSummary,
   ResentInvitation,
   Workspace,
   WorkspaceInvitationRow,
@@ -147,6 +149,24 @@ export async function previewWorkspaceInvitation(repos: Repositories, token: str
 export async function acceptWorkspaceInvitation(repos: Repositories, token: string): Promise<AcceptedInvitation> {
   await requireUser(repos);
   return repos.workspace.acceptInvitation(token);
+}
+
+// Ticket 183 — Fall E aus Ticket 168: for the dashboard's pending-
+// invitation banner. Same "the RPC itself is the authoritative check"
+// relationship as listWorkspaceMembers/listWorkspaceInvitations above —
+// list_pending_invitations_for_current_user only ever returns rows
+// matching the caller's own account email.
+export async function listPendingInvitations(repos: Repositories): Promise<PendingInvitationSummary[]> {
+  await requireUser(repos);
+  return repos.workspace.listPendingInvitations();
+}
+
+// Ticket 183 — the banner's "Annehmen" action, no token involved (the
+// caller never saw the original invitation link). The RPC re-validates
+// the email match itself regardless of how `invitationId` was obtained.
+export async function acceptPendingInvitation(repos: Repositories, invitationId: string): Promise<AcceptedInvitation> {
+  await requireUser(repos);
+  return repos.workspace.acceptPendingInvitation(invitationId);
 }
 
 // Ticket 103 — everything the workspace switcher needs in one call: every

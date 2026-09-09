@@ -1,10 +1,11 @@
 import { headers } from "next/headers";
 import { DashboardNav } from "@/components/DashboardNav";
+import { PendingInvitationBanner } from "@/components/PendingInvitationBanner";
 import { ToastProvider } from "@/components/ToastProvider";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getProfile, getAvatarUrl } from "@/lib/application/auth";
-import { getWorkspaceSwitcherData } from "@/lib/application/workspace";
+import { getWorkspaceSwitcherData, listPendingInvitations } from "@/lib/application/workspace";
 import { displayNameOrFallback } from "@/lib/domain/profile";
 
 // Shared shell for all (dashboard)/* pages (Heute/Historie/Projekte/
@@ -41,10 +42,11 @@ export default async function DashboardLayout({
 }) {
   const repos = await getRepositories();
   const headerList = await headers();
-  const [lang, profile, switcherData] = await Promise.all([
+  const [lang, profile, switcherData, pendingInvitations] = await Promise.all([
     getEffectiveLanguageCode(repos, headerList.get("accept-language")),
     getProfile(repos),
     getWorkspaceSwitcherData(repos),
+    listPendingInvitations(repos),
   ]);
   const displayName = displayNameOrFallback(profile);
   // Ticket 029: resolved server-side (same reasoning as displayName's own
@@ -75,7 +77,10 @@ export default async function DashboardLayout({
           workspaces={switcherData.workspaces}
           activeWorkspaceId={switcherData.activeWorkspaceId}
         />
-        <div className="mx-auto min-w-0 w-full max-w-6xl flex-1 px-5 pb-24 sm:px-8 lg:px-10 lg:pb-0 xl:px-12">{children}</div>
+        <div className="mx-auto min-w-0 w-full max-w-6xl flex-1 px-5 pb-24 sm:px-8 lg:px-10 lg:pb-0 xl:px-12">
+          {pendingInvitations.length > 0 && <PendingInvitationBanner lang={lang} invitations={pendingInvitations} />}
+          {children}
+        </div>
       </div>
     </ToastProvider>
   );
