@@ -8,6 +8,8 @@ import {
   register,
   removeAvatar,
   requireUser,
+  resolvePostAuthDestination,
+  setOnboardingIntent,
   signInWithGoogle,
   updateDisplayName,
   updatePassword,
@@ -147,6 +149,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       displayName: null,
       createdAt: "2025-01-02T03:04:05Z",
       avatarPath: null,
+      onboardingIntent: null,
     },
     projects: [MANAGED_PROJECT],
     entries: [ENTRY],
@@ -200,6 +203,10 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         state.profile = { ...state.profile, avatarPath: null };
       },
       async getAvatarUrl(avatarPath) { record("auth.getAvatarUrl", avatarPath); return `https://storage.example.test/${avatarPath}`; },
+      async setOnboardingIntent(intent) {
+        record("auth.setOnboardingIntent", intent);
+        state.profile = { ...state.profile, onboardingIntent: intent };
+      },
       async changeEmail(email, password) { record("auth.changeEmail", email, password); },
       async changePassword(password, currentPassword) { record("auth.changePassword", password, currentPassword); },
     },
@@ -1171,7 +1178,7 @@ test("uploadAvatar rejects a file over 2 MB before ever reaching the repository"
 
 test("removeAvatar delegates to the repository", async () => {
   const { repos, state } = memoryRepositories({
-    profile: { email: "person@example.com", displayName: null, createdAt: "2025-01-02T03:04:05Z", avatarPath: "user-1/avatar" },
+    profile: { email: "person@example.com", displayName: null, createdAt: "2025-01-02T03:04:05Z", avatarPath: "user-1/avatar", onboardingIntent: null },
   });
 
   await removeAvatar(repos);
@@ -1184,6 +1191,39 @@ test("getAvatarUrl delegates to the repository", async () => {
   const url = await getAvatarUrl(repos, "user-1/avatar");
   assert.equal(url, "https://storage.example.test/user-1/avatar");
   assert.deepEqual(state.calls.at(-1), { method: "auth.getAvatarUrl", args: ["user-1/avatar"] });
+});
+
+// Ticket 164 — "Unternehmens-Onboarding fortsetzbar machen".
+test("setOnboardingIntent delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await setOnboardingIntent(repos, "organization");
+  assert.equal(state.profile.onboardingIntent, "organization");
+  assert.deepEqual(state.calls.at(-1), { method: "auth.setOnboardingIntent", args: ["organization"] });
+});
+
+test("resolvePostAuthDestination returns the requested destination when there is no pending company onboarding", async () => {
+  const { repos } = memoryRepositories();
+  const destination = await resolvePostAuthDestination(repos, "/dashboard");
+  assert.equal(destination, "/dashboard");
+});
+
+test("resolvePostAuthDestination redirects to /register/company when onboardingIntent is 'organization'", async () => {
+  const { repos } = memoryRepositories({
+    profile: { email: "person@example.com", displayName: null, createdAt: "2025-01-02T03:04:05Z", avatarPath: null, onboardingIntent: "organization" },
+  });
+  const destination = await resolvePostAuthDestination(repos, "/dashboard/get-started");
+  assert.equal(destination, "/register/company");
+});
+
+test("resolvePostAuthDestination never hijacks an explicit desktop-handoff or invite-accept destination", async () => {
+  const { repos } = memoryRepositories({
+    profile: { email: "person@example.com", displayName: null, createdAt: "2025-01-02T03:04:05Z", avatarPath: null, onboardingIntent: "organization" },
+  });
+  assert.equal(await resolvePostAuthDestination(repos, "/auth/desktop-complete"), "/auth/desktop-complete");
+  assert.equal(
+    await resolvePostAuthDestination(repos, "/invite/accept?token=abc123"),
+    "/invite/accept?token=abc123",
+  );
 });
 
 // Ticket 121 — Team-Zeiten für Admins.

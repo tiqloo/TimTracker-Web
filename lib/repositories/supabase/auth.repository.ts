@@ -230,6 +230,7 @@ export function createSupabaseAuthRepository(
       if (error) throw error;
       const rawDisplayName = data.user.user_metadata?.display_name;
       const rawAvatarPath = data.user.user_metadata?.avatar_path;
+      const rawOnboardingIntent = data.user.user_metadata?.onboarding_intent;
       return {
         email: data.user.email ?? "",
         // user_metadata is untyped (Record<string, unknown>) — narrow to
@@ -241,6 +242,10 @@ export function createSupabaseAuthRepository(
         createdAt: data.user.created_at,
         // Ticket 029: same narrowing rationale as displayName above.
         avatarPath: typeof rawAvatarPath === "string" ? rawAvatarPath : null,
+        // Ticket 164: only "organization" is ever a valid stored value
+        // (setOnboardingIntent below never writes anything else) — any
+        // other stray value narrows to null rather than being trusted.
+        onboardingIntent: rawOnboardingIntent === "organization" ? "organization" : null,
       };
     },
 
@@ -294,6 +299,13 @@ export function createSupabaseAuthRepository(
         .createSignedUrl(avatarPath, 60 * 5);
       if (error) throw error;
       return data.signedUrl;
+    },
+
+    async setOnboardingIntent(intent: "organization" | null) {
+      const { error } = await client.auth.updateUser({
+        data: { onboarding_intent: intent },
+      });
+      if (error) throw error;
     },
 
     async changeEmail(newEmail: string, currentPassword: string) {

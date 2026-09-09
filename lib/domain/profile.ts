@@ -20,6 +20,14 @@ export interface Profile {
   // when set. `null` = no avatar uploaded, UI falls back to the existing
   // initials rendering.
   avatarPath: string | null;
+  // Ticket 164: set the moment a user lands on the company-onboarding step
+  // (app/(auth)/register/company/page.tsx) and cleared once they finish or
+  // explicitly skip it — "organization" means "this account started
+  // company onboarding and hasn't completed/skipped it yet". Read by
+  // resolvePostAuthDestination() (lib/application/auth.ts) to resume the
+  // flow on a later login, regardless of how much time passed or how many
+  // devices/tabs were involved. `null` = no pending company onboarding.
+  onboardingIntent: "organization" | null;
 }
 
 // The part of an email address before "@" — the fallback identity shown

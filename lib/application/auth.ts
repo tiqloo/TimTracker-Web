@@ -179,6 +179,40 @@ export async function getAvatarUrl(repos: Repositories, avatarPath: string): Pro
   return repos.auth.getAvatarUrl(avatarPath);
 }
 
+// Ticket 164 — "Unternehmens-Onboarding fortsetzbar machen". Set the
+// moment a signed-in user lands on the company-onboarding step
+// (app/(auth)/register/company/page.tsx) and cleared once they finish or
+// explicitly skip it (components/CreateCompanyWorkspaceClient.tsx).
+export async function setOnboardingIntent(repos: Repositories, intent: "organization" | null): Promise<void> {
+  await repos.auth.setOnboardingIntent(intent);
+}
+
+// Ticket 164/168 — the ONE place that decides "where does a just-signed-in
+// user actually go", called from every post-auth success path (email/
+// password login, the SIGNED_IN-event path used for email-confirmation
+// links and Google OAuth landing on /login, and the direct OAuth callback
+// route) so a stale/abandoned company onboarding is resumed no matter
+// which of the three ways the user re-authenticated.
+//
+// An explicit, already-validated non-dashboard destination always wins —
+// desktop-app token handoff (Ticket 079) and workspace-invitation
+// acceptance (Ticket 102) are themselves the reason this specific sign-in
+// happened; silently redirecting to company onboarding instead would
+// strand the desktop app waiting for tokens that never arrive, or drop an
+// invitation the user was one click from accepting. Both are exact-match
+// paths from lib/domain/redirect-target.ts's own allowlist, checked the
+// same way here.
+export async function resolvePostAuthDestination(repos: Repositories, requestedDestination: string): Promise<string> {
+  if (requestedDestination === "/auth/desktop-complete" || requestedDestination.startsWith("/invite/accept")) {
+    return requestedDestination;
+  }
+  const profile = await getProfile(repos).catch(() => null);
+  if (profile?.onboardingIntent === "organization") {
+    return "/register/company";
+  }
+  return requestedDestination;
+}
+
 // Ticket 025 (TimTracker-Starter repo) — "E-Mail-Adresse ändern" action in
 // the Profil section. Trims the raw new-email input before handing it down
 // (same "normalize once, at the use-case boundary" spirit as

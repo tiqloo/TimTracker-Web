@@ -1080,6 +1080,13 @@ export const companyOnboarding = {
     en: "Almost there — enter your organization's name to create your team workspace. Your personal account stays exactly as it is.",
   },
   submit: { de: "Workspace erstellen und loslegen", en: "Create workspace and get started" },
+  // Ticket 164 — `{name}` is replaced with a plain `.replace()` call at
+  // the one call site (components/CreateCompanyWorkspaceClient.tsx); this
+  // i18n module has no general template-interpolation mechanism, so this
+  // is a one-off, not a pattern to reuse elsewhere without adding one.
+  createdToast: { de: "{name} ist eingerichtet — du bist Owner.", en: "{name} is ready — you're the owner." },
+  skipForNow: { de: "Später einrichten", en: "Set up later" },
+  skipping: { de: "Wird übersprungen…", en: "Skipping…" },
 } satisfies Record<string, Translated>;
 
 // --- app/(dashboard)/dashboard/get-started ---------------------------

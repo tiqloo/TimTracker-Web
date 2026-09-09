@@ -13,7 +13,7 @@ import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { faGoogle } from "@fortawesome/free-brands-svg-icons";
-import { login, onAuthStateChange, signInWithGoogle } from "@/lib/application/auth";
+import { login, onAuthStateChange, resolvePostAuthDestination, signInWithGoogle } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import {
   AuthCard,
@@ -122,7 +122,9 @@ function LoginFormInner({ lang }: { lang: Lang }) {
     const repos = getRepositories();
     const unsubscribe = onAuthStateChange(repos, (event) => {
       if (event === "SIGNED_IN") {
-        navigateAfterSignIn(router, redirectTo);
+        resolvePostAuthDestination(repos, redirectTo).then((destination) => {
+          navigateAfterSignIn(router, destination);
+        });
       }
     });
     return unsubscribe;
@@ -135,7 +137,8 @@ function LoginFormInner({ lang }: { lang: Lang }) {
     try {
       const repos = getRepositories();
       await login(repos, email, password);
-      navigateAfterSignIn(router, redirectTo);
+      const destination = await resolvePostAuthDestination(repos, redirectTo);
+      navigateAfterSignIn(router, destination);
     } catch (err) {
       // Anti-enumeration (Ticket 009 in TimTracker-Starter, same rule
       // applied here): never distinguish "wrong password" from "unknown

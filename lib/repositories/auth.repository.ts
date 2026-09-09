@@ -200,6 +200,11 @@ export interface AuthRepository {
   // `avatarPath` is non-null, same convention as
   // WorkspaceRepository.getLogoUrl.
   getAvatarUrl(avatarPath: string): Promise<string>;
+  // Ticket 164: persists `onboardingIntent` (see lib/domain/profile.ts's
+  // own doc) into `user_metadata`, same direct-`updateUser()` mechanism as
+  // updateDisplayName above — no RPC, no new table, this is always "the
+  // caller's own account", never a cross-user authorization decision.
+  setOnboardingIntent(intent: "organization" | null): Promise<void>;
   // Ticket 025 (TimTracker-Starter repo, follow-up to 024's read-only email
   // field): changes the CURRENT session's email address. Re-authenticates
   // FIRST via `currentPassword` (AK: "Passwort-Bestätigung" before this

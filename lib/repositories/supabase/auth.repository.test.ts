@@ -360,3 +360,50 @@ test("getAvatarUrl propagates a Storage error (e.g. the object was already remov
   const { client } = avatarClient({ signedUrlResult: { data: null, error: new Error("Object not found") } });
   await assert.rejects(createSupabaseAuthRepository(client).getAvatarUrl("user-1/avatar"), /not found/);
 });
+
+// Ticket 164 — same narrowing rule as avatar_path/display_name above:
+// only the literal string "organization" is ever trusted from
+// user_metadata, anything else (absent, wrong type, a stray other value)
+// narrows to null.
+test("getProfile narrows a stored onboarding_intent of 'organization', same as avatar_path", async () => {
+  const client = getUserClient({ onboarding_intent: "organization" });
+  const profile = await createSupabaseAuthRepository(client).getProfile();
+  assert.equal(profile.onboardingIntent, "organization");
+});
+
+test("getProfile returns null onboardingIntent when onboarding_intent is absent or not exactly 'organization'", async () => {
+  const withoutIt = await createSupabaseAuthRepository(getUserClient({})).getProfile();
+  assert.equal(withoutIt.onboardingIntent, null);
+  const withWrongValue = await createSupabaseAuthRepository(getUserClient({ onboarding_intent: "something-else" })).getProfile();
+  assert.equal(withWrongValue.onboardingIntent, null);
+});
+
+function updateUserOnlyClient(updateUserResult: { data: unknown; error: unknown }): { client: SupabaseClient; updateUserCalls: unknown[] } {
+  const updateUserCalls: unknown[] = [];
+  const client = {
+    auth: {
+      async updateUser(...args: unknown[]) {
+        updateUserCalls.push(...args);
+        return updateUserResult;
+      },
+    },
+  } as unknown as SupabaseClient;
+  return { client, updateUserCalls };
+}
+
+test("setOnboardingIntent persists the given value into user_metadata", async () => {
+  const { client, updateUserCalls } = updateUserOnlyClient({ data: { user: {} }, error: null });
+  await createSupabaseAuthRepository(client).setOnboardingIntent("organization");
+  assert.deepEqual(updateUserCalls, [{ data: { onboarding_intent: "organization" } }]);
+});
+
+test("setOnboardingIntent(null) clears it the same way updateDisplayName/removeAvatar clear their own fields", async () => {
+  const { client, updateUserCalls } = updateUserOnlyClient({ data: { user: {} }, error: null });
+  await createSupabaseAuthRepository(client).setOnboardingIntent(null);
+  assert.deepEqual(updateUserCalls, [{ data: { onboarding_intent: null } }]);
+});
+
+test("setOnboardingIntent propagates an update error instead of swallowing it", async () => {
+  const { client } = updateUserOnlyClient({ data: null, error: new Error("Auth session missing") });
+  await assert.rejects(createSupabaseAuthRepository(client).setOnboardingIntent("organization"), /session missing/);
+});

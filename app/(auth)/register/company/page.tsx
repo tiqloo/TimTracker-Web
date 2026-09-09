@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getWorkspaceSwitcherData } from "@/lib/application/workspace";
+import { setOnboardingIntent } from "@/lib/application/auth";
 import { CreateCompanyWorkspaceClient } from "@/components/CreateCompanyWorkspaceClient";
 import { AuthCard } from "@/components/AuthCard";
 import { companyOnboarding as i18nCompany, t } from "@/lib/i18n";
@@ -38,8 +39,18 @@ export default async function RegisterCompanyPage() {
   ]);
 
   if (workspaces.some((workspace) => workspace.workspaceType === "ORGANIZATION")) {
+    // Ticket 164: also the natural place to clear a leftover
+    // onboarding_intent (e.g. the user finished via a different tab, or
+    // created a company through /dashboard/workspaces/new instead) —
+    // otherwise a stale flag would keep sending them back here forever.
+    await setOnboardingIntent(repos, null).catch(() => {});
     redirect("/dashboard/get-started");
   }
+
+  // Ticket 164: idempotent — landing here again (a second tab, a reload,
+  // resuming after closing the browser) just sets the same value again.
+  // Cleared on success or explicit skip in CreateCompanyWorkspaceClient.
+  await setOnboardingIntent(repos, "organization").catch(() => {});
 
   return (
     <AuthCard title={t(lang, i18nCompany.pageTitle)}>
