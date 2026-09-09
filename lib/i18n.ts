@@ -1053,6 +1053,35 @@ export const register = {
   resetPasswordLink: { de: "Passwort zurücksetzen", en: "Reset Password" },
 } satisfies Record<string, Translated>;
 
+// Ticket 138: erster Schritt vor dem eigentlichen RegisterForm — "Für
+// mich" vs. "Für mein Team". Nur eine eigene Namespace, kein Zusatz zu
+// `register` oben, weil dieser Bildschirm komplett andere Inhalte zeigt
+// (zwei Auswahlkarten, kein Formular) und nie gleichzeitig mit dessen
+// Texten übersetzt werden muss.
+export const registrationChoice = {
+  title: { de: "Wie möchtest du Tiqloo nutzen?", en: "How do you want to use Tiqloo?" },
+  personalTitle: { de: "Für mich", en: "For myself" },
+  personalSubtitle: { de: "Privat / Freelancer", en: "Personal / freelancer" },
+  companyTitle: { de: "Für mein Team", en: "For my team" },
+  companySubtitle: { de: "Unternehmen", en: "Company" },
+  back: { de: "Zurück", en: "Back" },
+} satisfies Record<string, Translated>;
+
+// Ticket 138: Schritt 2 des Unternehmensflows, nach Kontoerstellung
+// (app/(auth)/register/company/page.tsx). Feld-Strings (Name/Placeholder/
+// Fehler) sind bewusst NICHT dupliziert — components/
+// CreateCompanyWorkspaceClient.tsx nutzt dieselben `workspaces.*`-Keys wie
+// die bestehende /dashboard/workspaces/new-Seite (Ticket 100), da es
+// exakt dasselbe Feld ist.
+export const companyOnboarding = {
+  pageTitle: { de: "Dein Unternehmen", en: "Your organization" },
+  pageDescription: {
+    de: "Fast geschafft — gib den Namen deines Unternehmens ein, um deinen Team-Workspace zu erstellen. Dein persönliches Konto bleibt bestehen.",
+    en: "Almost there — enter your organization's name to create your team workspace. Your personal account stays exactly as it is.",
+  },
+  submit: { de: "Workspace erstellen und loslegen", en: "Create workspace and get started" },
+} satisfies Record<string, Translated>;
+
 // --- app/(dashboard)/dashboard/get-started ---------------------------
 
 export const onboarding = {

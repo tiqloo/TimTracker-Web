@@ -12,7 +12,17 @@ const DEFAULT_REDIRECT_TARGET = "/dashboard";
 // `/login?redirectTo=/invite/accept?token=...` geschickt — nach
 // erfolgreichem Login muss er exakt dorthin zurückkehren, sonst müsste er
 // den Link ein zweites Mal anklicken.
-const EXACT_ALLOWED_TARGETS = new Set(["/auth/desktop-complete", "/invite/accept"]);
+//
+// Ticket 138: der Unternehmensflow der Registrierung braucht denselben
+// Mechanismus. RegisterForm.tsx setzt für diesen Flow
+// defaultRedirectTo="/register/company" — dieser Wert muss den gesamten
+// Kontobestätigungs-Umweg überleben (E-Mail-Bestätigungslink ->
+// /login?redirectTo=/register/company -> LoginForm.tsx erkennt SIGNED_IN
+// und navigiert dorthin; Google OAuth -> /auth/callback?next=/register/company
+// -> Redirect dorthin) — exakt derselbe Rundlauf wie /invite/accept oben,
+// nur für einen frisch registrierten statt einen bereits bestehenden
+// Nutzer.
+const EXACT_ALLOWED_TARGETS = new Set(["/auth/desktop-complete", "/invite/accept", "/register/company"]);
 
 export function normalizeDashboardRedirect(rawTarget: string | null | undefined): string {
   if (!rawTarget) return DEFAULT_REDIRECT_TARGET;

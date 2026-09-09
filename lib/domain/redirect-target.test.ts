@@ -5,6 +5,7 @@ import { normalizeDashboardRedirect } from "./redirect-target.ts";
 for (const target of [
   "/dashboard", "/dashboard/history", "/dashboard/history?from=2026-01-01#chart",
   "/auth/desktop-complete", "/invite/accept", "/invite/accept?token=abc123",
+  "/register/company",
 ]) {
   test(`normalizeDashboardRedirect allows ${target}`, () => {
     assert.equal(normalizeDashboardRedirect(target), target);
@@ -14,6 +15,7 @@ for (const target of [
 for (const target of [
   "/auth/desktop-complete/", "/auth/desktop-complete/x", "/auth/desktop-completeish",
   "/invite/accept/", "/invite/acceptish", "/invite",
+  "/register/company/", "/register/company/x", "/register/companyish", "/register",
 ]) {
   test(`normalizeDashboardRedirect rejects near-miss ${target}`, () => {
     assert.equal(normalizeDashboardRedirect(target), "/dashboard");

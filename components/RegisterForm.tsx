@@ -68,17 +68,44 @@ const MIN_PASSWORD_LENGTH = 6;
 // afterwards. A visitor who arrived from an invitation link but wants to
 // register a different address is not blocked from doing so.
 //
+// Ticket 138: `defaultRedirectTo` lets components/RegistrationChoice.tsx
+// send the "Für mein Team" path to "/register/company" (the new
+// company-name step) instead of the ordinary "/dashboard/get-started"
+// default — WITHOUT touching handleSubmit/handleGoogleSignIn below at
+// all, so account creation itself (email/password AND Google) stays
+// byte-identical between both onboarding paths, exactly the ticket's own
+// "beide Wege ... greifen auf dasselbe grundlegende Benutzerkonto zurück"
+// requirement. A `?redirectTo=` query param (e.g. Ticket 102's invite
+// flow) still wins over this prop either way — see the fallback order
+// below, unchanged from before this ticket.
+//
 // useSearchParams() (for ?redirectTo=) requires a Suspense boundary around
 // it for Next.js's static-render bailout — same wrapper LoginForm.tsx uses.
-export function RegisterForm({ lang, prefillEmail }: { lang: Lang; prefillEmail?: string }) {
+export function RegisterForm({
+  lang,
+  prefillEmail,
+  defaultRedirectTo = "/dashboard/get-started",
+}: {
+  lang: Lang;
+  prefillEmail?: string;
+  defaultRedirectTo?: string;
+}) {
   return (
     <Suspense>
-      <RegisterFormInner lang={lang} prefillEmail={prefillEmail} />
+      <RegisterFormInner lang={lang} prefillEmail={prefillEmail} defaultRedirectTo={defaultRedirectTo} />
     </Suspense>
   );
 }
 
-function RegisterFormInner({ lang, prefillEmail }: { lang: Lang; prefillEmail?: string }) {
+function RegisterFormInner({
+  lang,
+  prefillEmail,
+  defaultRedirectTo,
+}: {
+  lang: Lang;
+  prefillEmail?: string;
+  defaultRedirectTo: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Ticket 102: was hardcoded to "/dashboard/get-started" before this
@@ -87,7 +114,7 @@ function RegisterFormInner({ lang, prefillEmail }: { lang: Lang; prefillEmail?: 
   // (it matches the "/dashboard/*" prefix rule), so ordinary registration
   // is unaffected. A present-but-invalid value falls back to "/dashboard"
   // instead, same as every other normalizeDashboardRedirect caller.
-  const redirectTo = normalizeDashboardRedirect(searchParams.get("redirectTo") ?? "/dashboard/get-started");
+  const redirectTo = normalizeDashboardRedirect(searchParams.get("redirectTo") ?? defaultRedirectTo);
   const [email, setEmail] = useState(prefillEmail ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

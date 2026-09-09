@@ -6,11 +6,11 @@ import {
   shouldValidateHistoryRange,
 } from "./proxy-routing.ts";
 
-test("proxy protection covers only the dashboard namespace", () => {
-  for (const path of ["/dashboard", "/dashboard/history", "/dashboard/settings/export/data"]) {
+test("proxy protection covers the dashboard namespace plus the company-onboarding step", () => {
+  for (const path of ["/dashboard", "/dashboard/history", "/dashboard/settings/export/data", "/register/company"]) {
     assert.equal(isProtectedPath(path), true, path);
   }
-  for (const path of ["/", "/login", "/register", "/reset-password", "/dashboardish"]) {
+  for (const path of ["/", "/login", "/register", "/reset-password", "/dashboardish", "/register/companyish", "/register/company/x"]) {
     assert.equal(isProtectedPath(path), false, path);
   }
 });
