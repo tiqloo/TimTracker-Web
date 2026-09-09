@@ -1364,6 +1364,22 @@ export const workspaceSwitcher = {
   fallbackLabel: { de: "Workspace", en: "Workspace" },
   // Ticket 112 — links to app/(dashboard)/dashboard/workspaces/[workspaceId]/leave.
   leaveLink: { de: "Verlassen", en: "Leave" },
+  // Ticket 174 — role subtitle shown under each ORGANIZATION entry (never
+  // under PERSONAL, whose own name already says everything there is to
+  // say). Same three role strings as every other role-label namespace in
+  // this file (e.g. workspaceMembers below) — duplicated per this
+  // project's established "small string sets stay local to their own
+  // namespace" convention rather than a shared cross-namespace const.
+  roleOwner: { de: "Owner", en: "Owner" },
+  roleAdmin: { de: "Admin", en: "Admin" },
+  roleMember: { de: "Mitglied", en: "Member" },
+  organizationLabel: { de: "Unternehmen", en: "Organization" },
+  // Ticket 174 — links to the already-existing Ticket 100 flow
+  // (app/(dashboard)/dashboard/workspaces/new), same createButton copy
+  // components/SettingsClient.tsx's own WorkspaceSection already uses —
+  // this is a second, more convenient entry point to the SAME page, not
+  // a new capability.
+  createWorkspaceLink: { de: "Workspace erstellen", en: "Create workspace" },
 } satisfies Record<string, Translated>;
 
 // --- Ticket 102: Mitarbeiter einladen -----------------------------------

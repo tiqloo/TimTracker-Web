@@ -11,13 +11,27 @@
 // the same family of control.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { switchActiveWorkspace, type WorkspaceMembershipSummary } from "@/lib/application/workspace";
+import { Building2, Check, ChevronsUpDown, Plus, User } from "lucide-react";
+import { switchActiveWorkspace, type WorkspaceMembershipSummary, type WorkspaceRole } from "@/lib/application/workspace";
 import { getRepositories } from "@/lib/application/client";
 import { workspaceSwitcher as i18nWorkspaceSwitcher, t, type Lang } from "@/lib/i18n";
 
 const focusRingClass =
   "outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+// Ticket 174 — same role-label mapping as every other role display in
+// this app (e.g. app/(dashboard)/dashboard/workspaces/[workspaceId]/members),
+// kept local since it's only three short strings.
+function roleLabel(lang: Lang, role: WorkspaceRole): string {
+  switch (role) {
+    case "owner":
+      return t(lang, i18nWorkspaceSwitcher.roleOwner);
+    case "admin":
+      return t(lang, i18nWorkspaceSwitcher.roleAdmin);
+    case "member":
+      return t(lang, i18nWorkspaceSwitcher.roleMember);
+  }
+}
 
 // A plain top-level function, same shape as LoginForm.tsx's own
 // navigateAfterSignIn — the React Compiler ESLint rule
@@ -131,9 +145,30 @@ export function WorkspaceSwitcher({
                 aria-checked={workspace.workspaceId === activeWorkspaceId}
                 disabled={pending}
                 onClick={() => handleSwitch(workspace.workspaceId)}
-                className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`}
+                className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-foreground/80 transition-colors duration-150 hover:bg-paper hover:text-foreground focus-visible:bg-paper focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`}
               >
-                <span className="min-w-0 flex-1 truncate">{workspace.workspaceName}</span>
+                {/* Ticket 174: PERSONAL vs. ORGANIZATION must be
+                    recognizable at a glance — the whole point being
+                    "keine Verwechslung von privater und geschäftlicher
+                    Zeit" — same icon pair components/RegistrationChoice.tsx
+                    already uses for the same distinction at registration
+                    time. */}
+                {workspace.workspaceType === "PERSONAL" ? (
+                  <User size={14} strokeWidth={2} className="shrink-0 text-text-secondary" aria-hidden="true" />
+                ) : (
+                  <Building2 size={14} strokeWidth={2} className="shrink-0 text-text-secondary" aria-hidden="true" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{workspace.workspaceName}</span>
+                  {/* No subtitle for PERSONAL — its own name already says
+                      everything there is to say, adding "Persönlich"
+                      under "Persönlich" would be pure noise. */}
+                  {workspace.workspaceType !== "PERSONAL" && (
+                    <span className="block truncate text-xs text-text-secondary">
+                      {t(lang, i18nWorkspaceSwitcher.organizationLabel)} · {roleLabel(lang, workspace.role)}
+                    </span>
+                  )}
+                </span>
                 {workspace.workspaceId === activeWorkspaceId && (
                   <Check size={15} strokeWidth={2.2} className="shrink-0 text-brand" aria-hidden="true" />
                 )}
@@ -156,6 +191,21 @@ export function WorkspaceSwitcher({
               )}
             </div>
           ))}
+          {/* Ticket 174 — a second, more convenient entry point into the
+              already-existing Ticket 100 flow (also reachable via
+              Einstellungen, components/SettingsClient.tsx's own
+              WorkspaceSection) — not a new capability, just discoverable
+              from where a user is actually thinking about workspaces. */}
+          <div className="mt-1 border-t border-line pt-1">
+            <Link
+              href="/dashboard/workspaces/new"
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-text-secondary transition-colors duration-150 hover:bg-paper hover:text-foreground ${focusRingClass}`}
+            >
+              <Plus size={14} strokeWidth={2} className="shrink-0" aria-hidden="true" />
+              {t(lang, i18nWorkspaceSwitcher.createWorkspaceLink)}
+            </Link>
+          </div>
         </div>
       )}
     </div>
