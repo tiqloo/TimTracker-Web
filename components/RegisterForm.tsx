@@ -81,18 +81,30 @@ const MIN_PASSWORD_LENGTH = 6;
 //
 // useSearchParams() (for ?redirectTo=) requires a Suspense boundary around
 // it for Next.js's static-render bailout — same wrapper LoginForm.tsx uses.
+// Ticket 180 — "man landet zweimal auf derselben Seite": `flowContext`
+// swaps only the title/subtitle shown above the form (see
+// registerCopyByContext below), never the fields or submit logic
+// themselves — same reasoning as defaultRedirectTo above, kept
+// deliberately as the ONE narrow difference between the two paths.
 export function RegisterForm({
   lang,
   prefillEmail,
   defaultRedirectTo = "/dashboard/get-started",
+  flowContext = "personal",
 }: {
   lang: Lang;
   prefillEmail?: string;
   defaultRedirectTo?: string;
+  flowContext?: "personal" | "company";
 }) {
   return (
     <Suspense>
-      <RegisterFormInner lang={lang} prefillEmail={prefillEmail} defaultRedirectTo={defaultRedirectTo} />
+      <RegisterFormInner
+        lang={lang}
+        prefillEmail={prefillEmail}
+        defaultRedirectTo={defaultRedirectTo}
+        flowContext={flowContext}
+      />
     </Suspense>
   );
 }
@@ -101,10 +113,12 @@ function RegisterFormInner({
   lang,
   prefillEmail,
   defaultRedirectTo,
+  flowContext,
 }: {
   lang: Lang;
   prefillEmail?: string;
   defaultRedirectTo: string;
+  flowContext: "personal" | "company";
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -228,7 +242,14 @@ function RegisterFormInner({
   }
 
   return (
-    <AuthCard title={t(lang, i18nRegister.title)}>
+    <AuthCard
+      title={t(lang, flowContext === "company" ? i18nRegister.companyTitle : i18nRegister.title)}
+    >
+      {flowContext === "company" && (
+        <p className="-mt-4 mb-6 text-sm leading-6 text-text-secondary">
+          {t(lang, i18nRegister.companySubtitle)}
+        </p>
+      )}
       <button
         type="button"
         onClick={handleGoogleSignIn}

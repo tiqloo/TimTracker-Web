@@ -30,10 +30,17 @@ export function RegistrationChoice({ lang, prefillEmail }: { lang: Lang; prefill
   const [step, setStep] = useState<Step>("choice");
 
   if (step === "personal") {
-    return <RegisterForm lang={lang} prefillEmail={prefillEmail} />;
+    return <RegisterForm lang={lang} prefillEmail={prefillEmail} flowContext="personal" />;
   }
   if (step === "company") {
-    return <RegisterForm lang={lang} prefillEmail={prefillEmail} defaultRedirectTo="/register/company" />;
+    return (
+      <RegisterForm
+        lang={lang}
+        prefillEmail={prefillEmail}
+        defaultRedirectTo="/register/company"
+        flowContext="company"
+      />
+    );
   }
 
   return (

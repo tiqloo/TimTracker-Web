@@ -995,6 +995,15 @@ export const login = {
 
 export const register = {
   title: { de: "Konto erstellen", en: "Create Account" },
+  // Ticket 180 — shown instead of `title`/no subtitle when RegisterForm
+  // renders with flowContext="company" (components/RegistrationChoice.tsx),
+  // so the two registration paths visibly differ, not just their eventual
+  // destination.
+  companyTitle: { de: "Tiqloo für dein Unternehmen", en: "Tiqloo for your organization" },
+  companySubtitle: {
+    de: "Verwalte Arbeitszeiten und Projekte gemeinsam mit deinem Team.",
+    en: "Manage work hours and projects together with your team.",
+  },
   // Ticket 077: same Google-OAuth strings as the login namespace's own
   // continueWithGoogle/orDivider/oauthError — duplicated per namespace,
   // same pattern every other login/register pair here already follows
