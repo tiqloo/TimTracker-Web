@@ -75,6 +75,13 @@ export const nav = {
   // Ticket 121 (TimTracker-Starter repo) — only shown to an owner/admin
   // of the active workspace, see DashboardNav.tsx's own comment.
   teamTimes: { de: "Team-Zeiten", en: "Team times" },
+  // Ticket 181 (selbst gefunden) — same owner/admin gate as teamTimes
+  // above, see DashboardNav.tsx's own comment. Same label as
+  // workspaceMembers.pageTitle below (the page this links to) — not
+  // reused directly across namespaces per this file's own established
+  // "small string sets stay local" convention, just happens to read the
+  // same in both places.
+  members: { de: "Mitglieder", en: "Members" },
   // Ticket 030 (TimTracker-Starter repo) — new nav entry, own icon (see
   // DashboardNav.tsx's SupportIcon), otherwise same flat-link treatment
   // as every other entry in NAV_LINKS.

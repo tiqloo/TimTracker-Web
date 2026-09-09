@@ -35,7 +35,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings, Users } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings, UserCog, Users } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
@@ -80,6 +80,25 @@ const NAV_LINKS: {
 // (Ticket 103) — switch workspaces via the switcher first, same flow as
 // every other data-bearing page in this app.
 const TEAM_TIMES_LINK = { href: "/dashboard/team-times", label: nav.teamTimes, icon: Users };
+
+// Ticket 181 (selbst gefunden, 2026-09-09): /dashboard/workspaces/[id]/members
+// (Ticket 110, ✅ seit 2026-09-08 live) — und die von dort aus verlinkten
+// /settings (117) und /invitations (115) — hatten trotz vollständiger,
+// getesteter Umsetzung KEINEN einzigen Einstiegspunkt irgendwo in der
+// eigentlichen App (bestätigt per `grep` über app/ + components/): weder
+// hier in DashboardNav.tsx noch in SettingsClient.tsx noch im Workspace-
+// Switcher (Ticket 103/174) verlinkt irgendetwas dorthin — nur wer die
+// URL bereits kennt/manuell eingibt, erreicht sie. Für einen Owner/Admin
+// ist damit praktisch die gesamte Team-/Einladungs-/Workspace-
+// Verwaltung unauffindbar. `href` verweist bewusst statisch auf
+// `/dashboard/workspaces/[activeWorkspaceId]/members`, nicht auf eine
+// generische "Workspaces"-Übersicht — dieselbe "operiert auf dem
+// aktiven Workspace" Begründung wie TEAM_TIMES_LINK oben (Switcher zum
+// Wechseln, kein Auswahlschritt hier). Konstante statt Objekt-Literal, da
+// `href` von `activeWorkspaceId` abhängt (im JSX unten aufgelöst).
+function membersLink(activeWorkspaceId: string) {
+  return { href: `/dashboard/workspaces/${activeWorkspaceId}/members`, label: nav.members, icon: UserCog };
+}
 
 // Ticket 048: hand-drawn Mark()/SupportIcon()/ChevronIcon() SVGs replaced
 // with lucide-react (new dependency, see package.json) — "einfache
@@ -311,10 +330,20 @@ export function DashboardNav({
   // `lang === "de" ? ... : ...` ternary for both the toggle button's
   // aria-label and title below.
   const sidebarToggleLabel = t(lang, sidebarCollapsed ? nav.sidebarExpand : nav.sidebarCollapse);
-  const activeRole = workspaces.find((workspace) => workspace.workspaceId === activeWorkspaceId)?.role;
+  const activeWorkspace = workspaces.find((workspace) => workspace.workspaceId === activeWorkspaceId);
+  const activeRole = activeWorkspace?.role;
   const canViewTeamTimes = activeRole === "owner" || activeRole === "admin";
-  const navLinks = canViewTeamTimes
-    ? [...NAV_LINKS.slice(0, 3), TEAM_TIMES_LINK, ...NAV_LINKS.slice(3)]
+  // Ticket 181: same owner/admin gate as Team-Zeiten, plus excludes
+  // PERSONAL — a personal workspace always has exactly one member
+  // (Ticket 097), so "Mitglieder verwalten" would just show a lone
+  // owner row, nothing to actually manage.
+  const canViewMembers = canViewTeamTimes && activeWorkspace?.workspaceType !== "PERSONAL";
+  const adminLinks = [
+    ...(canViewTeamTimes ? [TEAM_TIMES_LINK] : []),
+    ...(canViewMembers ? [membersLink(activeWorkspaceId)] : []),
+  ];
+  const navLinks = adminLinks.length > 0
+    ? [...NAV_LINKS.slice(0, 3), ...adminLinks, ...NAV_LINKS.slice(3)]
     : NAV_LINKS;
 
   async function handleLogout() {
