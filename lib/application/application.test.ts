@@ -39,6 +39,7 @@ import {
   createOrganizationWorkspace,
   getActiveWorkspaceId,
   getActiveWorkspaceRole,
+  getActiveWorkspaceTimeFormat,
   getActiveWorkspaceTimeZone,
   getTeamTime,
   getWorkspaceLogoUrl,
@@ -684,6 +685,35 @@ test("getActiveWorkspaceTimeZone falls back to the personal workspace's timezone
 test("getActiveWorkspaceTimeZone requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(getActiveWorkspaceTimeZone(repos), UnauthorizedError);
+});
+
+// Ticket 188 (selbst gefunden) — the workspace's own "Zeitformat" setting
+// (Ticket 117), finally actually resolved for time-of-day rendering.
+// Same cookie+fallback resolution rule as getActiveWorkspaceTimeZone above.
+test("getActiveWorkspaceTimeFormat resolves the active (cookie-selected) workspace's own time format", async () => {
+  const { repos } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "member" },
+    activeWorkspaceCookie: "workspace-org-1",
+    settingsByWorkspace: {
+      "workspace-org-1": { ...DEFAULT_SETTINGS, id: "workspace-org-1", timeFormat: "12h" },
+    },
+  });
+  assert.equal(await getActiveWorkspaceTimeFormat(repos), "12h");
+});
+
+test("getActiveWorkspaceTimeFormat falls back to the personal workspace's time format for a stale/foreign cookie", async () => {
+  const { repos } = memoryRepositories({
+    activeWorkspaceCookie: "workspace-no-longer-a-member-of",
+    settingsByWorkspace: {
+      "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1", timeFormat: "12h" },
+    },
+  });
+  assert.equal(await getActiveWorkspaceTimeFormat(repos), "12h");
+});
+
+test("getActiveWorkspaceTimeFormat requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getActiveWorkspaceTimeFormat(repos), UnauthorizedError);
 });
 
 // Ticket 122 — the caller's own role in the active (cookie-selected)

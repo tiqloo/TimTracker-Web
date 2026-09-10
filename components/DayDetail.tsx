@@ -53,6 +53,7 @@ import { languageCodeToLocale } from "@/lib/domain/language";
 import { getRepositories } from "@/lib/application/client";
 import { listProjects } from "@/lib/application/projects";
 import type { WeekComparison } from "@/lib/application/dashboard";
+import type { WorkspaceTimeFormat } from "@/lib/application/workspace";
 import { AssignTimeAction } from "@/components/AssignTimeAction";
 import { computeDailyGoalProgress } from "@/lib/domain/daily-goal";
 import {
@@ -231,6 +232,7 @@ export function DayDetail({
   emptyMessage,
   emptyMessageDetail,
   lang,
+  timeFormat = "24h",
   projectColors,
   dailyGoalHours,
   weekComparison,
@@ -241,6 +243,11 @@ export function DayDetail({
   emptyMessage: string;
   emptyMessageDetail: string;
   lang: Lang;
+  // Ticket 188 (selbst gefunden) — Ticket 117's workspace "Zeitformat"
+  // setting (24h/12h), finally actually applied to time-of-day rendering.
+  // Optional with a "24h" default so this stays backward-compatible for
+  // any caller that hasn't been updated to fetch it yet.
+  timeFormat?: WorkspaceTimeFormat;
   // Ticket 040: projectId -> colorHex (no leading "#", same convention as
   // Project.colorHex/ColorSwatch) for every real project the caller knows
   // about, including archived ones (Ticket 040 edge case: an archived
@@ -492,14 +499,14 @@ export function DayDetail({
                     ? t(lang, dayDetail.projectTime)
                     : t(lang, dayDetail.unassignedTime);
               const endLabel = entry.endTime
-                ? formatTime(entry.endTime, locale)
+                ? formatTime(entry.endTime, locale, timeFormat)
                 : t(lang, dayDetail.running);
               return (
                 <div
                   key={segment.key}
                   title={dayDetailSegmentTooltip(
                     kindLabel,
-                    formatTime(entry.startTime, locale),
+                    formatTime(entry.startTime, locale, timeFormat),
                     endLabel,
                     durationLabel,
                   )}
@@ -546,9 +553,9 @@ export function DayDetail({
                       }}
                     />
                     <span className="font-mono tabular-nums">
-                      {formatTime(segment.entry.startTime, locale)} –{" "}
+                      {formatTime(segment.entry.startTime, locale, timeFormat)} –{" "}
                       {segment.entry.endTime
-                        ? formatTime(segment.entry.endTime, locale)
+                        ? formatTime(segment.entry.endTime, locale, timeFormat)
                         : t(lang, dayDetail.running)}
                     </span>
                   </span>

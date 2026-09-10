@@ -6,6 +6,7 @@ import { getTodayBreakdown, getTodayEntries, getWeekComparison } from "@/lib/app
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getDailyGoalHours } from "@/lib/application/daily-goal";
+import { getActiveWorkspaceTimeFormat } from "@/lib/application/workspace";
 import { canUseApp } from "@/lib/domain/subscription";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
@@ -57,11 +58,12 @@ export default async function TodayPage() {
   // makes directly on its injected Repositories instance (getAll()
   // includes archived projects — Ticket 040's edge case: an archived
   // project's past color must keep showing, archiving isn't deletion).
-  const [breakdown, entries, allProjects, dailyGoalHours] = await Promise.all([
+  const [breakdown, entries, allProjects, dailyGoalHours, timeFormat] = await Promise.all([
     getTodayBreakdown(repos),
     getTodayEntries(repos),
     repos.projects.getAll(),
     getDailyGoalHours(repos),
+    getActiveWorkspaceTimeFormat(repos),
   ]);
   const projectColors = Object.fromEntries(
     allProjects.map((project) => [project.id, project.colorHex]),
@@ -110,6 +112,7 @@ export default async function TodayPage() {
           emptyMessage={t(lang, dayDetail.noEntriesToday)}
           emptyMessageDetail={t(lang, dayDetail.noEntriesTodayDetail)}
           lang={lang}
+          timeFormat={timeFormat}
           projectColors={projectColors}
           dailyGoalHours={dailyGoalHours}
           weekComparison={weekComparison}

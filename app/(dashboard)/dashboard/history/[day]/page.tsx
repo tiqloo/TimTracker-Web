@@ -6,6 +6,7 @@ import { getRepositories } from "@/lib/application/server";
 import { getBreakdownForDay, getEntriesForDay } from "@/lib/application/dashboard";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
+import { getActiveWorkspaceTimeFormat } from "@/lib/application/workspace";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel } from "@/lib/format";
@@ -69,10 +70,11 @@ export default async function HistoryDayPage({
   // dashboard/page.tsx ("Heute") for DayDetail's timeline segments — see
   // that file's comment for why getAll() (archived included) is correct
   // here too.
-  const [breakdown, entries, allProjects] = await Promise.all([
+  const [breakdown, entries, allProjects, timeFormat] = await Promise.all([
     getBreakdownForDay(repos, day),
     getEntriesForDay(repos, day),
     repos.projects.getAll(),
+    getActiveWorkspaceTimeFormat(repos),
   ]);
   const projectColors = Object.fromEntries(
     allProjects.map((project) => [project.id, project.colorHex]),
@@ -97,6 +99,7 @@ export default async function HistoryDayPage({
         emptyMessage={t(lang, dayDetail.noEntriesThisDay)}
         emptyMessageDetail={t(lang, dayDetail.noEntriesThisDayDetail)}
         lang={lang}
+        timeFormat={timeFormat}
         projectColors={projectColors}
       />
     </main>

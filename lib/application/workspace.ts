@@ -21,6 +21,7 @@ import type {
   WorkspaceSettings,
   WorkspaceSettingsFields,
   WorkspaceSettingsInput,
+  WorkspaceTimeFormat,
 } from "@/lib/repositories/workspace.repository";
 import { resolveWorkspaceIdWithFallback } from "../repositories/workspace.repository.ts";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
@@ -219,6 +220,21 @@ export async function getActiveWorkspaceTimeZone(repos: Repositories): Promise<s
   const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
   const settings = await repos.workspace.getSettings(workspaceId);
   return settings.timezone;
+}
+
+// Ticket 188 (selbst gefunden): Ticket 117 shipped a full "Zeitformat"
+// (24h/12h) workspace setting with a working settings-UI (see
+// WorkspaceSettingsClient.tsx) and persists it via update_workspace_settings
+// — but nothing ever read `settings.timeFormat` back for actual time-of-day
+// rendering (DayDetail.tsx's formatTime() calls were driven only by UI
+// language, never by this setting). Same resolution rule as
+// getActiveWorkspaceTimeZone above.
+export async function getActiveWorkspaceTimeFormat(repos: Repositories): Promise<WorkspaceTimeFormat> {
+  const userId = await requireUser(repos);
+  const cookieValue = await repos.activeWorkspace.get();
+  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const settings = await repos.workspace.getSettings(workspaceId);
+  return settings.timeFormat;
 }
 
 // Ticket 122 — pages that need to know the CALLER's own role in the

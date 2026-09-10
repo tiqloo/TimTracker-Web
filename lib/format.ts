@@ -39,10 +39,26 @@ export function formatDuration(seconds: number, locale: string = "de-DE"): strin
 // so a caller resolving the visitor's language preference can render
 // English-locale time formatting too, same pattern as formatDayLabel/
 // formatFullDate below.
-export function formatTime(isoDateTime: string, locale: string = "de-DE"): string {
+//
+// Ticket 188 (selbst gefunden): `timeFormat` ergänzt (Ticket 117s
+// Workspace-Einstellung "Zeitformat", 24h/12h — bislang gespeichert, aber
+// nirgends beim Rendern gelesen). Ohne explizites `hour12` liefert
+// `toLocaleTimeString("en-US", ...)` JS' eigenen 12h/AM-PM-Default für
+// diese Locale — unabhängig davon, was der Nutzer in den
+// Workspace-Einstellungen tatsächlich gewählt hat. `timeFormat` (nicht
+// `locale`) entscheidet jetzt allein über 12h/24h, exakt wie die
+// Einstellungsseite es dem Nutzer verspricht ("24-Stunden (14:30)" /
+// "12-Stunden (2:30 PM)"); `locale` bleibt nur noch für eventuelle
+// Ziffern-/Trennzeichen-Konventionen relevant. Literal `"24h" | "12h"`
+// statt eines Imports aus lib/repositories/* — diese Datei bleibt bewusst
+// abhängigkeitsfrei von der Repository-Schicht, siehe Datei-Kommentar
+// oben; `WorkspaceTimeFormat` (lib/application/workspace.ts) ist
+// strukturell derselbe Typ.
+export function formatTime(isoDateTime: string, locale: string = "de-DE", timeFormat: "24h" | "12h" = "24h"): string {
   return new Date(isoDateTime).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: timeFormat === "12h",
   });
 }
 

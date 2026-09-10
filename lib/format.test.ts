@@ -42,24 +42,61 @@ test("formatDuration: very long durations (> 24h, e.g. a yearly aggregate) don't
   assert.equal(formatDuration(oneYearSeconds, "en-US"), "8760h 42m");
 });
 
-test("formatTime: renders 24h HH:MM in the requested locale, defaulting to de-DE", () => {
+test("formatTime: renders 24h HH:MM by default (timeFormat='24h'), regardless of locale", () => {
   const iso = "2026-08-24T08:34:00Z";
   // Compare against the locale's own toLocaleTimeString output for the
   // same Date/options rather than a hardcoded clock string, so this test
   // doesn't depend on (and isn't broken by) the runner's local timezone.
+  // `hour12: false` here is the actual claim this test's own name makes —
+  // Ticket 188 (selbst gefunden): without it, this same computation for
+  // "en-US" silently matches JS' own 12h/AM-PM default for that locale,
+  // so the previous version of this test passed while formatTime() itself
+  // rendered "02:34 AM" for English users — a real regression this test
+  // was supposed to (but didn't) catch. `timeFormat` (not `locale`) is
+  // now the actual source of truth for 12h/24h, mirroring Ticket 117's
+  // "Zeitformat" workspace setting — this test covers its "24h" default.
   const expectedDefault = new Date(iso).toLocaleTimeString("de-DE", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   const expectedDe = new Date(iso).toLocaleTimeString("de-DE", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   const expectedEn = new Date(iso).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   assert.equal(formatTime(iso), expectedDefault);
   assert.equal(formatTime(iso, "de-DE"), expectedDe);
   assert.equal(formatTime(iso, "en-US"), expectedEn);
+  // The actual cross-platform guarantee that matters (Ticket 188): the
+  // SAME instant renders IDENTICALLY regardless of UI language, matching
+  // the native Mac app's TimeFormatter.timeOfDayString, which never
+  // varies by locale either.
+  assert.equal(formatTime(iso, "de-DE"), formatTime(iso, "en-US"));
+  assert.doesNotMatch(formatTime(iso, "en-US"), /AM|PM/);
+});
+
+test("formatTime: renders 12h AM/PM when the workspace's timeFormat setting is '12h'", () => {
+  // Ticket 188 (selbst gefunden) — Ticket 117's "Zeitformat" workspace
+  // setting was persisted (update_workspace_settings) but never actually
+  // consulted anywhere time-of-day was rendered; this pins the branch
+  // that closes that gap. 08:34 UTC either shows a leading-zero morning
+  // hour or an afternoon one depending on the runner's local timezone —
+  // assert against the locale's own computation (same pattern as above)
+  // rather than a hardcoded literal, and separately assert the one thing
+  // that must always hold regardless of timezone: an AM/PM marker present.
+  const iso = "2026-08-24T08:34:00Z";
+  const expected = new Date(iso).toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  assert.equal(formatTime(iso, "de-DE", "12h"), expected);
+  assert.match(formatTime(iso, "de-DE", "12h"), /AM|PM/i);
+  assert.match(formatTime(iso, "en-US", "12h"), /AM|PM/i);
 });
