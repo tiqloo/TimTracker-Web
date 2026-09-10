@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -21,6 +22,23 @@ const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 // needs a "now" reference for the (defensive) case where one is.
 function currentTimeMs(): number {
   return Date.now();
+}
+
+// Ticket 185 (selbst gefunden): browser-tab title — the formatted day
+// itself (same string as the H1/AccessGate title below), not a generic
+// "Historie" label, so multiple open day tabs stay distinguishable.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ day: string }>;
+}): Promise<Metadata> {
+  const { day } = await params;
+  if (!ISO_DAY_RE.test(day)) return {};
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  const locale = languageCodeToLocale(lang);
+  return { title: formatDayLabel(day, locale) };
 }
 
 // Arbitrary past-day detail — renders in the exact same layout as "Heute"

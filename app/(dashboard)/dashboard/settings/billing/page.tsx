@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
@@ -25,6 +26,14 @@ function currentTimeMs(): number {
 // Nur-Lesen-Modus" (during trial AND read-only/expired mode) — gating
 // this page behind the very entitlement check it exists to let a user fix
 // would be self-defeating.
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, billing.pageTitle) };
+}
+
 export default async function BillingSettingsPage() {
   const repos = await getRepositories();
   const [subscription, headerList] = await Promise.all([

@@ -1,9 +1,19 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getProfile } from "@/lib/application/auth";
 import { displayNameOrFallback } from "@/lib/domain/profile";
 import { SupportClient } from "@/components/SupportClient";
+import { support, t } from "@/lib/i18n";
+
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, support.pageTitle) };
+}
 
 // "Support" (Ticket 030, TimTracker-Starter repo) — Server Component for
 // the initial language/profile fetch, same split as settings/page.tsx

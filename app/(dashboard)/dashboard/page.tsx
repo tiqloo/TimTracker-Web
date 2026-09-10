@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
@@ -10,6 +11,18 @@ import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
 import { TodayLiveRefresh } from "@/components/TodayLiveRefresh";
 import { dayDetail, t, today } from "@/lib/i18n";
+
+// Ticket 185 (selbst gefunden): browser-tab title. Same
+// getEffectiveLanguageCode() resolution as the page component below —
+// React's cache() wrapper (lib/application/server.ts/language.ts) means
+// this doesn't cost a second real fetch, same reasoning as every other
+// (dashboard)/*-page independently resolving `lang` for its own strings.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, today.pageTitle) };
+}
 
 // Wrapped so eslint's react-hooks/purity rule (which flags a direct
 // Date.now() call anywhere in a component body, Server Components

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { Check, Circle, Download, Laptop, RefreshCw, UserRoundCheck } from "lucide-react";
@@ -43,6 +44,14 @@ function Step({
       </span>
     </li>
   );
+}
+
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, onboarding.title) };
 }
 
 export default async function GetStartedPage() {

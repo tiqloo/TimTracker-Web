@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
@@ -32,6 +33,14 @@ import { history, projects as projectsI18n, t, type Translated } from "@/lib/i18
 // hand-rolled grid instead of a dependency, and this file's projectQuery
 // helper below for how the filter is threaded through every link/form/
 // export URL on this page.
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, history.pageTitle) };
+}
+
 export default async function HistoryPage({
   searchParams,
 }: {

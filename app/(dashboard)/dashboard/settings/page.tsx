@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode, getLanguagePreference } from "@/lib/application/language";
@@ -26,6 +27,14 @@ import { settings, t } from "@/lib/i18n";
 // subscription overview card can render without a second client-side
 // round trip, replacing the previous bare "Abo verwalten →" link that
 // used to live directly in this file.
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, settings.pageTitle) };
+}
+
 export default async function SettingsPage() {
   const repos = await getRepositories();
   const headerList = await headers();

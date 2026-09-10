@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getSubscriptionStatus } from "@/lib/application/billing";
@@ -6,6 +7,14 @@ import { canUseApp } from "@/lib/domain/subscription";
 import { InviteMemberClient } from "@/components/InviteMemberClient";
 import { AccessGate } from "@/components/AccessGate";
 import { inviteMember as i18nInviteMember, t } from "@/lib/i18n";
+
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, i18nInviteMember.pageTitle) };
+}
 
 // "Mitarbeiter einladen" (Ticket 102) — same Server Component split as
 // workspaces/new/page.tsx: initial language/access-gate fetch here, the

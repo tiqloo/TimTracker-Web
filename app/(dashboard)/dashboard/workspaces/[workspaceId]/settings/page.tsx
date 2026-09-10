@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getWorkspaceSettings, type WorkspaceSettings } from "@/lib/application/workspace";
@@ -22,6 +23,14 @@ import { errorFeedbackProps } from "@/lib/ui/feedback";
 // gated part, enforced by a separate membership lookup below purely to
 // decide whether the form renders editable or read-only (never the
 // actual authorization boundary, which stays server-side).
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, i18n.pageTitle) };
+}
+
 export default async function WorkspaceSettingsPage({
   params,
 }: {

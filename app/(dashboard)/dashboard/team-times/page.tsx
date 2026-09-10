@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getSubscriptionStatus } from "@/lib/application/billing";
@@ -34,6 +35,14 @@ import { errorFeedbackProps } from "@/lib/ui/feedback";
 // pages' own comments. A plain member navigating here directly gets the
 // RPC's 42501, caught below and shown as a clear message instead of a
 // crash.
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, teamTimes.pageTitle) };
+}
+
 export default async function TeamTimesPage({
   searchParams,
 }: {

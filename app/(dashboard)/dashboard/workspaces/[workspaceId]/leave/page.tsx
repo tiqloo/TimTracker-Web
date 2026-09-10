@@ -1,9 +1,18 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getWorkspaceSwitcherData } from "@/lib/application/workspace";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { LeaveWorkspaceClient } from "@/components/LeaveWorkspaceClient";
 import { leaveWorkspace as i18nLeaveWorkspace, leaveWorkspacePageDescription, t } from "@/lib/i18n";
+
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, i18nLeaveWorkspace.pageTitle) };
+}
 import { errorMessageClass } from "@/lib/ui/status-styles";
 import { errorFeedbackProps } from "@/lib/ui/feedback";
 

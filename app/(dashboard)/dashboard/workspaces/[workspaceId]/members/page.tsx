@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { listWorkspaceMembers, type WorkspaceMemberRow } from "@/lib/application/workspace";
@@ -19,6 +20,14 @@ import { errorFeedbackProps } from "@/lib/ui/feedback";
 // (or a member of a completely different workspace) navigating here
 // directly gets the RPC's 42501 rejection, caught below and shown as a
 // clear message instead of a crash.
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, i18nWorkspaceMembers.pageTitle) };
+}
+
 export default async function WorkspaceMembersPage({
   params,
 }: {

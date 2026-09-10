@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { AccessGate } from "@/components/AccessGate";
@@ -18,6 +19,14 @@ import { addDaysIso, buildChartBars, formatDayLabel, resolveChartGranularity, re
 import { history, t, type Translated } from "@/lib/i18n";
 
 function currentTime(): Date { return new Date(); }
+
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, history.analyticsTitle) };
+}
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; project?: string }> }) {
   const repos = await getRepositories();

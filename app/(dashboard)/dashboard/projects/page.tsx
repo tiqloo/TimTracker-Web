@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { listProjects } from "@/lib/application/projects";
@@ -23,6 +24,14 @@ import { projects as i18nProjects, t } from "@/lib/i18n";
 // actions are user-driven mutations with immediate UI feedback, the same
 // reason app/(auth)/register/page.tsx etc. are Client Components rather
 // than server actions/route handlers.
+// Ticket 185 (selbst gefunden): browser-tab title.
+export async function generateMetadata(): Promise<Metadata> {
+  const repos = await getRepositories();
+  const headerList = await headers();
+  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  return { title: t(lang, i18nProjects.pageTitle) };
+}
+
 export default async function ProjectsPage() {
   const repos = await getRepositories();
   const headerList = await headers();

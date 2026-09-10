@@ -46,11 +46,20 @@ const METADATA_BY_LANG = {
 // (Ticket 022) — the browser-tab title and any social-preview description
 // are visible UI text too, so they follow the language preference like
 // everything else now does, not just the page body.
+//
+// Ticket 185 (selbst gefunden): `title` ist jetzt ein Objekt mit
+// `template` statt eines reinen Strings — jede (dashboard)/*-Seite setzt
+// künftig ihren eigenen `metadata.title` (z. B. "Heute"), der über dieses
+// Next.js-eigene Template-Mechanismus zu "Heute · Tiqloo" wird, statt
+// diesen `default`-Wert hier komplett zu überschreiben. Seiten OHNE
+// eigenen Titel (Homepage, Auth-Seiten) zeigen weiterhin unverändert
+// `default` — rein additiv, kein bestehendes Verhalten geändert.
 export async function generateMetadata(): Promise<Metadata> {
   const repos = await getRepositories();
   const headerList = await headers();
   const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
-  return METADATA_BY_LANG[lang];
+  const { title, description } = METADATA_BY_LANG[lang];
+  return { title: { default: title, template: `%s · Tiqloo` }, description };
 }
 
 // The one place the language preference (Ticket 018, Phase 1e —
