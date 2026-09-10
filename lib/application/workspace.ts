@@ -22,6 +22,7 @@ import type {
   WorkspaceSettingsFields,
   WorkspaceSettingsInput,
   WorkspaceTimeFormat,
+  WeekStart,
 } from "@/lib/repositories/workspace.repository";
 import { resolveWorkspaceIdWithFallback } from "../repositories/workspace.repository.ts";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
@@ -235,6 +236,19 @@ export async function getActiveWorkspaceTimeFormat(repos: Repositories): Promise
   const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
   const settings = await repos.workspace.getSettings(workspaceId);
   return settings.timeFormat;
+}
+
+// Ticket 188 (selbst gefunden, Folge-Fund): Ticket 117s "Wochenbeginn"
+// (Montag/Sonntag) hatte denselben "gespeichert, nie gelesen"-Bug wie
+// timeFormat oben — jede "Diese Woche"-Berechnung war fest auf Montag
+// verdrahtet (lib/format.ts's startOfWeekIso). Gleiche Cookie-Fallback-
+// Auflösung wie getActiveWorkspaceTimeZone/getActiveWorkspaceTimeFormat.
+export async function getActiveWorkspaceWeekStart(repos: Repositories): Promise<WeekStart> {
+  const userId = await requireUser(repos);
+  const cookieValue = await repos.activeWorkspace.get();
+  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const settings = await repos.workspace.getSettings(workspaceId);
+  return settings.weekStart;
 }
 
 // Ticket 122 — pages that need to know the CALLER's own role in the

@@ -102,11 +102,22 @@ export function addDaysIso(isoDay: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function startOfWeekIso(isoDay: string): string {
+// Ticket 188 (selbst gefunden, Folge-Fund): `weekStart` ergänzt — Ticket
+// 117s Workspace-Einstellung "Wochenbeginn" (Montag/Sonntag, gespeichert
+// über `update_workspace_settings`) hatte genau wie `timeFormat` bislang
+// keinen einzigen Aufrufer, der sie tatsächlich las; jede "Diese
+// Woche"-Berechnung (History-/Analytics-Preset, Heutes
+// Wochenvergleich) war fest auf Montag verdrahtet. Literal
+// `"monday" | "sunday"` statt eines Imports aus lib/repositories/* —
+// dieselbe bewusste Abhängigkeitsfreiheit wie `formatTime`s
+// `timeFormat`-Parameter oben; `WeekStart` (lib/application/workspace.ts)
+// ist strukturell derselbe Typ.
+export function startOfWeekIso(isoDay: string, weekStart: "monday" | "sunday" = "monday"): string {
   const date = new Date(`${isoDay}T00:00:00Z`);
   const weekday = date.getUTCDay(); // 0 = Sunday
-  const diffToMonday = weekday === 0 ? -6 : 1 - weekday;
-  return addDaysIso(isoDay, diffToMonday);
+  const diffToStart =
+    weekStart === "sunday" ? -weekday : weekday === 0 ? -6 : 1 - weekday;
+  return addDaysIso(isoDay, diffToStart);
 }
 
 export function startOfMonthIso(isoDay: string): string {

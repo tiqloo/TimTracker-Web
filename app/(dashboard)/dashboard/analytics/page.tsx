@@ -11,7 +11,7 @@ import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEntriesForRange, getHistory, isoToday } from "@/lib/application/dashboard";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getRepositories } from "@/lib/application/server";
-import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
+import { getActiveWorkspaceTimeZone, getActiveWorkspaceWeekStart } from "@/lib/application/workspace";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { buildHistorySummary, buildProjectTimeTotals } from "@/lib/domain/history-insights";
@@ -36,7 +36,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) return <AccessGate title={t(lang, history.analyticsTitle)} status={subscription.status} lang={lang} />;
 
-  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  const [timeZone, weekStart] = await Promise.all([
+    getActiveWorkspaceTimeZone(repos),
+    getActiveWorkspaceWeekStart(repos),
+  ]);
   const today = isoToday(new Date(), timeZone);
   const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
@@ -52,7 +55,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const chartBars = buildChartBars(breakdowns, from, to, granularity);
   const presets: { label: Translated; from: string; to: string }[] = [
     { label: history.last30Days, from: addDaysIso(today, -29), to: today },
-    { label: history.thisWeek, from: startOfWeekIso(today), to: today },
+    { label: history.thisWeek, from: startOfWeekIso(today, weekStart), to: today },
     { label: history.thisMonth, from: startOfMonthIso(today), to: today },
     { label: history.thisYear, from: startOfYearIso(today), to: today },
   ];

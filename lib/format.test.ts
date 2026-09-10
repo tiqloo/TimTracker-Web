@@ -6,7 +6,7 @@
 // seconds, very long durations).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatDuration, formatTime } from "./format.ts";
+import { formatDuration, formatTime, startOfWeekIso } from "./format.ts";
 
 test("formatDuration: German locale uses spaced-out 'h'/'min' words", () => {
   assert.equal(formatDuration(0, "de-DE"), "0 min");
@@ -99,4 +99,31 @@ test("formatTime: renders 12h AM/PM when the workspace's timeFormat setting is '
   assert.equal(formatTime(iso, "de-DE", "12h"), expected);
   assert.match(formatTime(iso, "de-DE", "12h"), /AM|PM/i);
   assert.match(formatTime(iso, "en-US", "12h"), /AM|PM/i);
+});
+
+// Ticket 188 (selbst gefunden, Folge-Fund) — Ticket 117's "Wochenbeginn"
+// workspace setting had the exact same "saved but never read" bug as
+// timeFormat: every "this week" computation was hardcoded to
+// Monday-start regardless of this setting.
+test("startOfWeekIso: defaults to Monday-start when no weekStart is given", () => {
+  // 2026-08-24 is itself a Monday.
+  assert.equal(startOfWeekIso("2026-08-24"), "2026-08-24");
+  assert.equal(startOfWeekIso("2026-08-27"), "2026-08-24"); // Thursday -> that week's Monday
+  assert.equal(startOfWeekIso("2026-08-23"), "2026-08-17"); // Sunday -> the PRECEDING Monday, not itself
+});
+
+test("startOfWeekIso: explicit weekStart='monday' matches the default", () => {
+  assert.equal(startOfWeekIso("2026-08-27", "monday"), "2026-08-24");
+  assert.equal(startOfWeekIso("2026-08-23", "monday"), "2026-08-17");
+});
+
+test("startOfWeekIso: weekStart='sunday' treats Sunday as the week's own first day", () => {
+  // Same reference days as the Monday-start test above, so the two
+  // conventions' actual difference is directly visible: Thursday's week
+  // now starts one day earlier (Sunday the 23rd, not Monday the 24th),
+  // and Sunday itself is now the start of ITS OWN week, not the tail end
+  // of the previous one.
+  assert.equal(startOfWeekIso("2026-08-27", "sunday"), "2026-08-23"); // Thursday -> that week's Sunday
+  assert.equal(startOfWeekIso("2026-08-23", "sunday"), "2026-08-23"); // Sunday is its own week's start
+  assert.equal(startOfWeekIso("2026-08-24", "sunday"), "2026-08-23"); // Monday -> the PRECEDING Sunday
 });

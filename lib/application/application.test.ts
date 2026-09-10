@@ -20,6 +20,7 @@ import {
   assignTimeEntryToProject,
   getBreakdownForDay,
   getEntriesForDay,
+  getWeekComparison,
 } from "./dashboard.ts";
 import { getFullDataExport } from "./data-export.ts";
 import {
@@ -41,6 +42,7 @@ import {
   getActiveWorkspaceRole,
   getActiveWorkspaceTimeFormat,
   getActiveWorkspaceTimeZone,
+  getActiveWorkspaceWeekStart,
   getTeamTime,
   getWorkspaceLogoUrl,
   getWorkspaceSettings,
@@ -714,6 +716,54 @@ test("getActiveWorkspaceTimeFormat falls back to the personal workspace's time f
 test("getActiveWorkspaceTimeFormat requires an authenticated user", async () => {
   const { repos } = memoryRepositories({ userId: null });
   await assert.rejects(getActiveWorkspaceTimeFormat(repos), UnauthorizedError);
+});
+
+// Ticket 188 (selbst gefunden, Folge-Fund) — Ticket 117s "Wochenbeginn"
+// setting, same "gespeichert, nie gelesen"-Bug wie timeFormat oben.
+test("getActiveWorkspaceWeekStart resolves the active (cookie-selected) workspace's own week start", async () => {
+  const { repos } = memoryRepositories({
+    memberships: { "workspace-personal-1": "owner", "workspace-org-1": "member" },
+    activeWorkspaceCookie: "workspace-org-1",
+    settingsByWorkspace: {
+      "workspace-org-1": { ...DEFAULT_SETTINGS, id: "workspace-org-1", weekStart: "sunday" },
+    },
+  });
+  assert.equal(await getActiveWorkspaceWeekStart(repos), "sunday");
+});
+
+test("getActiveWorkspaceWeekStart falls back to the personal workspace's week start for a stale/foreign cookie", async () => {
+  const { repos } = memoryRepositories({
+    activeWorkspaceCookie: "workspace-no-longer-a-member-of",
+    settingsByWorkspace: {
+      "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1", weekStart: "sunday" },
+    },
+  });
+  assert.equal(await getActiveWorkspaceWeekStart(repos), "sunday");
+});
+
+test("getActiveWorkspaceWeekStart requires an authenticated user", async () => {
+  const { repos } = memoryRepositories({ userId: null });
+  await assert.rejects(getActiveWorkspaceWeekStart(repos), UnauthorizedError);
+});
+
+test("getWeekComparison treats the week-start day itself as having nothing to compare against, per the workspace's own weekStart convention", async () => {
+  const { repos, state } = memoryRepositories();
+  // 2026-08-23 is a Sunday. Under weekStart="sunday" it IS the first day
+  // of its own week — short-circuits (Ticket 045's own "first day of the
+  // week has no prior days to compare" edge case) without ever calling
+  // getHistory at all.
+  const resultSunday = await getWeekComparison(repos, "2026-08-23", 3600, "sunday");
+  assert.equal(resultSunday, null);
+  assert.ok(!state.calls.some((call) => call.method === "entries.breakdown"));
+
+  // Under the DEFAULT "monday" convention, that same Sunday is the LAST
+  // day of its week (Monday the 17th started it), not the first — this
+  // is the exact distinction Ticket 188 fixed: before it, every call
+  // behaved as if "monday" were the only possible convention, so this
+  // path is what proves weekStartDay is actually consulted rather than
+  // silently ignored.
+  await getWeekComparison(repos, "2026-08-23", 3600, "monday");
+  assert.ok(state.calls.some((call) => call.method === "entries.breakdown"));
 });
 
 // Ticket 122 — the caller's own role in the active (cookie-selected)

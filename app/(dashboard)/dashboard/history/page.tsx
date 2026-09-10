@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getHistory, isoToday } from "@/lib/application/dashboard";
-import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
+import { getActiveWorkspaceTimeZone, getActiveWorkspaceWeekStart } from "@/lib/application/workspace";
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { languageCodeToLocale } from "@/lib/domain/language";
@@ -58,7 +58,10 @@ export default async function HistoryPage({
     return <AccessGate title={t(lang, history.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
-  const timeZone = await getActiveWorkspaceTimeZone(repos);
+  const [timeZone, weekStart] = await Promise.all([
+    getActiveWorkspaceTimeZone(repos),
+    getActiveWorkspaceWeekStart(repos),
+  ]);
   const today = isoToday(new Date(), timeZone);
   const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
@@ -84,7 +87,7 @@ export default async function HistoryPage({
 
   const presets: { label: Translated; from: string; to: string }[] = [
     { label: history.last30Days, from: addDaysIso(today, -29), to: today },
-    { label: history.thisWeek, from: startOfWeekIso(today), to: today },
+    { label: history.thisWeek, from: startOfWeekIso(today, weekStart), to: today },
     { label: history.thisMonth, from: startOfMonthIso(today), to: today },
     { label: history.thisYear, from: startOfYearIso(today), to: today },
   ];

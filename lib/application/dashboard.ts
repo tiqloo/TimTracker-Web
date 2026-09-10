@@ -7,6 +7,7 @@ import { calendarDayInTimeZone, PRODUCT_TIME_ZONE } from "../domain/calendar-day
 import { ValidationError } from "../domain/application-error.ts";
 import { addDaysIso, startOfWeekIso } from "../format.ts";
 import { getActiveWorkspaceTimeZone } from "./workspace.ts";
+import type { WeekStart } from "./workspace.ts";
 
 // Exported (not just an internal helper) so app/* pages that need "today"
 // as a plain ISO string for their own purposes (e.g. building default
@@ -144,8 +145,9 @@ export async function getWeekComparison(
   repos: Repositories,
   day: string,
   todayTotalSeconds: number,
+  weekStartDay: WeekStart = "monday",
 ): Promise<WeekComparison | null> {
-  const weekStart = startOfWeekIso(day);
+  const weekStart = startOfWeekIso(day, weekStartDay);
   // Monday itself (or, equivalently, `day` being the first calendar day of
   // its week): no earlier day in this week can exist yet, so there's
   // nothing to compare against at all — same "identisch zum 'Montag ohne

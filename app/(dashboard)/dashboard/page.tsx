@@ -6,7 +6,7 @@ import { getTodayBreakdown, getTodayEntries, getWeekComparison } from "@/lib/app
 import { getSubscriptionStatus } from "@/lib/application/billing";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { getDailyGoalHours } from "@/lib/application/daily-goal";
-import { getActiveWorkspaceTimeFormat } from "@/lib/application/workspace";
+import { getActiveWorkspaceTimeFormat, getActiveWorkspaceWeekStart } from "@/lib/application/workspace";
 import { canUseApp } from "@/lib/domain/subscription";
 import { DayDetail } from "@/components/DayDetail";
 import { AccessGate } from "@/components/AccessGate";
@@ -58,12 +58,13 @@ export default async function TodayPage() {
   // makes directly on its injected Repositories instance (getAll()
   // includes archived projects — Ticket 040's edge case: an archived
   // project's past color must keep showing, archiving isn't deletion).
-  const [breakdown, entries, allProjects, dailyGoalHours, timeFormat] = await Promise.all([
+  const [breakdown, entries, allProjects, dailyGoalHours, timeFormat, weekStart] = await Promise.all([
     getTodayBreakdown(repos),
     getTodayEntries(repos),
     repos.projects.getAll(),
     getDailyGoalHours(repos),
     getActiveWorkspaceTimeFormat(repos),
+    getActiveWorkspaceWeekStart(repos),
   ]);
   const projectColors = Object.fromEntries(
     allProjects.map((project) => [project.id, project.colorHex]),
@@ -72,7 +73,7 @@ export default async function TodayPage() {
   // .totalSeconds) as its comparison point, so it runs after the
   // Promise.all above rather than inside it — one extra getHistory() call
   // (reused, no new repository method) for the current week's prior days.
-  const weekComparison = await getWeekComparison(repos, breakdown.day, breakdown.totalSeconds);
+  const weekComparison = await getWeekComparison(repos, breakdown.day, breakdown.totalSeconds, weekStart);
   const nowMs = currentTimeMs();
   const entriesVersion = entries
     .map((entry) => `${entry.id}:${entry.updatedAt}:${entry.endTime ?? "running"}`)
