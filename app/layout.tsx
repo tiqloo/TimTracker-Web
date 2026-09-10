@@ -54,12 +54,31 @@ const METADATA_BY_LANG = {
 // diesen `default`-Wert hier komplett zu überschreiben. Seiten OHNE
 // eigenen Titel (Homepage, Auth-Seiten) zeigen weiterhin unverändert
 // `default` — rein additiv, kein bestehendes Verhalten geändert.
+//
+// Ticket 186 (selbst gefunden): `metadataBase` + `openGraph`/`twitter`
+// ergänzt — ohne `metadataBase` warnt Next.js selbst im Dev-Log
+// ("metadataBase property ... not set, using http://localhost:3000")
+// und jede relative OG-URL würde in Produktion tatsächlich auf localhost
+// aufgelöst; `NEXT_PUBLIC_SITE_URL` ist bereits die etablierte,
+// produktionskorrekt gesetzte Variable (siehe auth.repository.ts/
+// auth/callback/route.ts), kein neuer Wert nötig. `openGraph`/`twitter`
+// bewusst NUR Text (Titel/Beschreibung, dieselben bereits bestehenden,
+// freigegebenen Marketing-Strings) — ein eigenes Vorschaubild bräuchte
+// eine echte Marken-Asset-Entscheidung (Design), siehe
+// docs/tickets/186-social-preview-metadata.md (TimTracker-Starter repo)
+// für den bewusst offen gelassenen Rest.
 export async function generateMetadata(): Promise<Metadata> {
   const repos = await getRepositories();
   const headerList = await headers();
   const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
   const { title, description } = METADATA_BY_LANG[lang];
-  return { title: { default: title, template: `%s · Tiqloo` }, description };
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL!),
+    title: { default: title, template: `%s · Tiqloo` },
+    description,
+    openGraph: { title, description, type: "website", locale: lang === "de" ? "de_DE" : "en_US" },
+    twitter: { card: "summary", title, description },
+  };
 }
 
 // The one place the language preference (Ticket 018, Phase 1e —
