@@ -1,14 +1,16 @@
+import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { isoToday } from "@/lib/application/dashboard";
 import { getHistoryExportData } from "@/lib/application/export";
 import { getActiveWorkspaceTimeZone } from "@/lib/application/workspace";
 import { getSubscriptionStatus } from "@/lib/application/billing";
+import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { canUseApp } from "@/lib/domain/subscription";
 import { formatDayLabel, resolveHistoryRange } from "@/lib/format";
 import { renderHistoryExportPdf } from "@/lib/pdf/history-export-document";
 import { requireUser } from "@/lib/application/auth";
-import { ForbiddenError } from "@/lib/domain/application-error";
 import { routeErrorResponse } from "@/lib/http/route-error";
+import { exportGate, t } from "@/lib/i18n";
 
 // PDF export for "Historie" — sibling of ../route.ts's CSV export, same
 // access gate, same date-range resolution, same ExportRow/DailyBreakdown
@@ -38,7 +40,12 @@ async function createPdfExportResponse(request: Request): Promise<Response> {
 
   const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
-    throw new ForbiddenError("An active subscription is required for this export.");
+    const headerList = await headers();
+    const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+    return new Response(t(lang, exportGate.noAccess), {
+      status: 403,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   const timeZone = await getActiveWorkspaceTimeZone(repos);
