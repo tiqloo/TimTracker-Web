@@ -9,15 +9,17 @@ test("resolveNavLinkIds: PERSONAL always gets the full flat list regardless of r
   assert.deepEqual(resolveNavLinkIds("PERSONAL", undefined), expected);
 });
 
-test("resolveNavLinkIds: ORGANIZATION owner/admin see teamTimes + employees, member does not", () => {
+test("resolveNavLinkIds: ORGANIZATION owner/admin see teamTimes + employees + overview, member does not", () => {
   for (const role of ["owner", "admin"] as const) {
     const ids = resolveNavLinkIds("ORGANIZATION", role);
     assert.ok(ids.includes("teamTimes"), `${role} should see teamTimes`);
     assert.ok(ids.includes("employees"), `${role} should see employees`);
+    assert.ok(ids.includes("overview"), `${role} should see overview`);
   }
   const memberIds = resolveNavLinkIds("ORGANIZATION", "member");
   assert.ok(!memberIds.includes("teamTimes"));
   assert.ok(!memberIds.includes("employees"));
+  assert.ok(!memberIds.includes("overview"));
 });
 
 test("resolveNavLinkIds: ORGANIZATION never includes settings in the main row (moved to the account dropdown)", () => {

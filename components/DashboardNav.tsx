@@ -35,13 +35,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, CreditCard, FolderKanban, History, Mail, Settings, UserCog, Users } from "lucide-react";
+import { BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, CreditCard, FolderKanban, History, LayoutDashboard, Mail, Settings, UserCog, Users } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { resolveManagementLinkIds, resolveNavLinkIds, type ManagementLinkId, type NavLinkId } from "@/lib/domain/dashboard-nav";
-import { nav, t, type Lang, type Translated } from "@/lib/i18n";
+import { companyOverview, nav, t, type Lang, type Translated } from "@/lib/i18n";
 
 // Shared with every focus-visible ring elsewhere in the app (AuthCard.tsx/
 // ProjectsClient.tsx/SettingsClient.tsx/SupportClient.tsx's inputClass) —
@@ -96,6 +96,9 @@ function dashboardNavLinkDescriptors(
       label: nav.employees,
       icon: UserCog,
     },
+    // Ticket 191 — reuses companyOverview.pageTitle rather than a new
+    // duplicate nav.overview string (both render "Übersicht"/"Overview").
+    overview: { href: "/dashboard/overview", label: companyOverview.pageTitle, icon: LayoutDashboard },
   };
 }
 

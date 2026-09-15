@@ -409,5 +409,28 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
         totalSeconds: row.total_seconds,
       }));
     },
+
+    async listRunningEntries(workspaceId) {
+      const { data, error } = await client.rpc("list_workspace_running_entries", {
+        target_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      const rows = data as {
+        user_id: string;
+        email: string;
+        display_name: string | null;
+        project_id: string;
+        project_name: string;
+        start_time: string;
+      }[];
+      return rows.map((row) => ({
+        userId: row.user_id,
+        email: row.email,
+        displayName: row.display_name,
+        projectId: row.project_id,
+        projectName: row.project_name,
+        startTime: row.start_time,
+      }));
+    },
   };
 }

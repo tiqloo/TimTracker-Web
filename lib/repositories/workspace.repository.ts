@@ -289,6 +289,15 @@ export interface WorkspaceRepository {
   // sessions (a per-session export/correction view is explicitly
   // out-of-scope V1 per the ticket's own AK).
   listTeamTime(workspaceId: string, fromDay: string, toDay: string, filter?: TeamTimeFilter): Promise<TeamTimeRow[]>;
+
+  // Ticket 191 — backed by a SECURITY DEFINER RPC
+  // (list_workspace_running_entries, TimTracker-Starter repo) with the
+  // same owner/admin-only gate as listTeamTime above. Unlike
+  // listTeamTime (aggregated per day+member), this returns one row per
+  // currently-open time entry (end_time is null) — the "Aktuell aktiv"
+  // list on the new Team-Dashboard (Ticket 191) needs the individual
+  // in-progress session, not a daily sum.
+  listRunningEntries(workspaceId: string): Promise<RunningEntryRow[]>;
 }
 
 // Ticket 121 — "Team-Zeiten für Admins".
@@ -305,6 +314,22 @@ export interface TeamTimeFilter {
   projectId?: string;
   limit?: number;
   offset?: number;
+}
+
+// Ticket 191 — one row of "a currently-open time entry in this
+// workspace", for the Team-Dashboard's "Aktuell aktiv" list.
+// projectName already resolves the two fixed system projects
+// ("Arbeitszeit"/"Pause") like any other project — see the RPC's own
+// migration comment — so no null-handling is needed here beyond a plain
+// project-less entry, which cannot occur (every time_entries row has a
+// project_id, see that same comment).
+export interface RunningEntryRow {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  projectId: string;
+  projectName: string;
+  startTime: string;
 }
 
 // Ticket 117 — "Workspace-Einstellungen". `WorkspaceSettingsFields` is

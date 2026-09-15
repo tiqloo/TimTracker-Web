@@ -19,6 +19,7 @@ export type NavLinkId =
   | "projects"
   | "support"
   | "settings"
+  | "overview"
   | "teamTimes"
   | "employees";
 
@@ -39,7 +40,7 @@ export function resolveNavLinkIds(workspaceKind: WorkspaceKind, role: WorkspaceR
     return ["today", "history", "analytics", "projects", "support", "settings"];
   }
   if (isAdminRole(role)) {
-    return ["today", "history", "teamTimes", "employees", "projects", "analytics", "support"];
+    return ["overview", "today", "history", "teamTimes", "employees", "projects", "analytics", "support"];
   }
   return ["today", "history", "projects", "analytics", "support"];
 }

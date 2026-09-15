@@ -10,6 +10,7 @@ import type {
   InvitationRole,
   PendingInvitationSummary,
   ResentInvitation,
+  RunningEntryRow,
   TeamTimeFilter,
   TeamTimeRow,
   Workspace,
@@ -52,6 +53,7 @@ export type {
   WorkspaceTimeFormat,
   TeamTimeFilter,
   TeamTimeRow,
+  RunningEntryRow,
 } from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
 
@@ -452,4 +454,63 @@ export async function getTeamTime(
 ): Promise<TeamTimeRow[]> {
   await requireUser(repos);
   return repos.workspace.listTeamTime(workspaceId, fromDay, toDay, filter);
+}
+
+// Ticket 191 — same reasoning as getTeamTime above: list_workspace_running_entries
+// (TimTracker-Starter repo) is itself the authoritative owner/admin check.
+export async function getRunningEntries(repos: Repositories, workspaceId: string): Promise<RunningEntryRow[]> {
+  await requireUser(repos);
+  return repos.workspace.listRunningEntries(workspaceId);
+}
+
+// Ticket 191 — "Unternehmensübersicht / Team-Dashboard". A single
+// composite read for the new /dashboard/overview page, combining three
+// already-existing/newly-added RPCs rather than having the page call each
+// one separately: member count (110), today's per-member totals (121,
+// scoped to fromDay=toDay=today), and currently-running entries (191,
+// this same ticket). All three share the exact same
+// is_workspace_admin_or_owner gate server-side — this function itself
+// does no additional authorization, same "the RPC is the authority"
+// pattern as getTeamTime/getRunningEntries above.
+export interface WorkspaceOverviewMemberTotal {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  totalSeconds: number;
+}
+
+export interface WorkspaceOverview {
+  memberCount: number;
+  activeTodayCount: number;
+  totalSecondsToday: number;
+  runningEntries: RunningEntryRow[];
+  todayByMember: WorkspaceOverviewMemberTotal[];
+}
+
+export async function getWorkspaceOverview(
+  repos: Repositories,
+  workspaceId: string,
+  today: string,
+): Promise<WorkspaceOverview> {
+  await requireUser(repos);
+  const [members, todayRows, runningEntries] = await Promise.all([
+    repos.workspace.listMembers(workspaceId),
+    repos.workspace.listTeamTime(workspaceId, today, today),
+    repos.workspace.listRunningEntries(workspaceId),
+  ]);
+
+  return {
+    memberCount: members.filter((member) => member.status === "active").length,
+    activeTodayCount: todayRows.length,
+    totalSecondsToday: todayRows.reduce((sum, row) => sum + row.totalSeconds, 0),
+    runningEntries,
+    todayByMember: todayRows
+      .map((row) => ({
+        userId: row.userId,
+        email: row.email,
+        displayName: row.displayName,
+        totalSeconds: row.totalSeconds,
+      }))
+      .sort((a, b) => b.totalSeconds - a.totalSeconds),
+  };
 }

@@ -43,8 +43,10 @@ import {
   getActiveWorkspaceTimeFormat,
   getActiveWorkspaceTimeZone,
   getActiveWorkspaceWeekStart,
+  getRunningEntries,
   getTeamTime,
   getWorkspaceLogoUrl,
+  getWorkspaceOverview,
   getWorkspaceSettings,
   getWorkspaceSwitcherData,
   inviteWorkspaceMember,
@@ -66,7 +68,7 @@ import {
   updateWorkspaceSettings,
   uploadWorkspaceLogo,
 } from "./workspace.ts";
-import type { TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
+import type { RunningEntryRow, TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -140,6 +142,7 @@ interface MemoryState {
   // level in workspace.repository.test.ts; this fake only needs to prove
   // getTeamTime() delegates and requires auth).
   teamTimeRowsByWorkspace: Record<string, TeamTimeRow[]>;
+  runningEntriesByWorkspace: Record<string, RunningEntryRow[]>;
   // projectId -> assigned member rows, for the Ticket 123 fakes below.
   projectMemberRowsByProject: Record<string, ProjectMemberRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
@@ -179,6 +182,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       "workspace-personal-1": { ...DEFAULT_SETTINGS, id: "workspace-personal-1" },
     },
     teamTimeRowsByWorkspace: {},
+    runningEntriesByWorkspace: {},
     projectMemberRowsByProject: {},
     calls: [],
     ...overrides,
@@ -445,6 +449,10 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async listTeamTime(workspaceId, fromDay, toDay, filter) {
         record("workspace.listTeamTime", workspaceId, fromDay, toDay, filter);
         return state.teamTimeRowsByWorkspace[workspaceId] ?? [];
+      },
+      async listRunningEntries(workspaceId) {
+        record("workspace.listRunningEntries", workspaceId);
+        return state.runningEntriesByWorkspace[workspaceId] ?? [];
       },
     },
     activeWorkspace: {
@@ -1419,6 +1427,79 @@ test("getTeamTime propagates a repository error (e.g. caller isn't an owner/admi
   // this test only proves requireUser() gates the call — the RPC-error
   // propagation itself is proven in workspace.repository.test.ts.
   await assert.rejects(getTeamTime({ ...repos, workspace: { ...repos.workspace, listTeamTime: async () => { throw new Error("Only workspace owners/admins may view team time"); } } }, "workspace-team-1", "2026-01-01", "2026-01-02"), /owners\/admins may view team time/);
+});
+
+// Ticket 191 — list_workspace_running_entries.
+const RUNNING_ENTRY_ROW: RunningEntryRow = {
+  userId: "user-2",
+  email: "colleague@example.test",
+  displayName: "Colleague",
+  projectId: "project-1",
+  projectName: "Project One",
+  startTime: "2026-01-01T08:00:00Z",
+};
+
+test("getRunningEntries requires authentication and delegates to the repository", async () => {
+  const { repos, state } = memoryRepositories({
+    runningEntriesByWorkspace: { "workspace-team-1": [RUNNING_ENTRY_ROW] },
+  });
+
+  const rows = await getRunningEntries(repos, "workspace-team-1");
+
+  assert.deepEqual(rows, [RUNNING_ENTRY_ROW]);
+  assert.deepEqual(state.calls.at(-1), { method: "workspace.listRunningEntries", args: ["workspace-team-1"] });
+});
+
+test("getRunningEntries propagates a repository error instead of swallowing it", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(
+    getRunningEntries(
+      { ...repos, workspace: { ...repos.workspace, listRunningEntries: async () => { throw new Error("Only workspace owners/admins may view running entries"); } } },
+      "workspace-team-1",
+    ),
+    /owners\/admins may view running entries/,
+  );
+});
+
+// Ticket 191 — "Unternehmensübersicht / Team-Dashboard": combines
+// listMembers/listTeamTime/listRunningEntries into one composite read.
+test("getWorkspaceOverview combines member count, today's per-member totals, and running entries", async () => {
+  const { repos } = memoryRepositories({
+    memberRowsByWorkspace: {
+      "workspace-team-1": [
+        { userId: "user-1", email: "owner@example.test", displayName: "Owner", role: "owner", status: "active", since: "2026-01-01" },
+        { userId: "user-2", email: "colleague@example.test", displayName: "Colleague", role: "member", status: "active", since: "2026-01-01" },
+        // An invited-but-not-yet-accepted row must not count as a member.
+        { userId: null, email: "pending@example.test", displayName: null, role: "member", status: "invited", since: "2026-01-01" },
+      ],
+    },
+    teamTimeRowsByWorkspace: {
+      "workspace-team-1": [
+        { userId: "user-1", email: "owner@example.test", displayName: "Owner", day: "2026-01-01", totalSeconds: 1800 },
+        { userId: "user-2", email: "colleague@example.test", displayName: "Colleague", day: "2026-01-01", totalSeconds: 7200 },
+      ],
+    },
+    runningEntriesByWorkspace: { "workspace-team-1": [RUNNING_ENTRY_ROW] },
+  });
+
+  const overview = await getWorkspaceOverview(repos, "workspace-team-1", "2026-01-01");
+
+  assert.equal(overview.memberCount, 2, "the invited-but-not-accepted row must not count");
+  assert.equal(overview.activeTodayCount, 2);
+  assert.equal(overview.totalSecondsToday, 9000);
+  assert.deepEqual(overview.runningEntries, [RUNNING_ENTRY_ROW]);
+  // Sorted by totalSeconds descending.
+  assert.deepEqual(overview.todayByMember.map((m) => m.userId), ["user-2", "user-1"]);
+});
+
+test("getWorkspaceOverview reports empty stats for a workspace with no members/time/running entries yet", async () => {
+  const { repos } = memoryRepositories();
+  const overview = await getWorkspaceOverview(repos, "workspace-empty-1", "2026-01-01");
+  assert.equal(overview.memberCount, 0);
+  assert.equal(overview.activeTodayCount, 0);
+  assert.equal(overview.totalSecondsToday, 0);
+  assert.deepEqual(overview.runningEntries, []);
+  assert.deepEqual(overview.todayByMember, []);
 });
 
 test("getTeamTime requires an authenticated user", async () => {

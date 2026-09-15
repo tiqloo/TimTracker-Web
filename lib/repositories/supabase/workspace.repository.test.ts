@@ -594,3 +594,37 @@ test("listTeamTime propagates an RPC error (e.g. caller isn't an owner/admin) in
   const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view team time") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).listTeamTime("ws-1", "2026-01-01", "2026-01-02"), /owners\/admins may view team time/);
 });
+
+// Ticket 191 — listRunningEntries, same "SECURITY DEFINER RPC" shape as listTeamTime above.
+test("listRunningEntries calls list_workspace_running_entries and maps the returned rows", async () => {
+  const { client, calls } = rpcClient({
+    data: [
+      {
+        user_id: "user-1",
+        email: "a@example.test",
+        display_name: "A",
+        project_id: "00000000-0000-0000-0000-000000000001",
+        project_name: "Arbeitszeit",
+        start_time: "2026-01-01T08:00:00+00:00",
+      },
+    ],
+    error: null,
+  });
+  const rows = await createSupabaseWorkspaceRepository(client).listRunningEntries("ws-1");
+  assert.deepEqual(rows, [
+    {
+      userId: "user-1",
+      email: "a@example.test",
+      displayName: "A",
+      projectId: "00000000-0000-0000-0000-000000000001",
+      projectName: "Arbeitszeit",
+      startTime: "2026-01-01T08:00:00+00:00",
+    },
+  ]);
+  assert.deepEqual(calls, [{ fn: "list_workspace_running_entries", args: { target_workspace_id: "ws-1" } }]);
+});
+
+test("listRunningEntries propagates an RPC error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view running entries") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).listRunningEntries("ws-1"), /owners\/admins may view running entries/);
+});

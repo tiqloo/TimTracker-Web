@@ -1745,6 +1745,38 @@ export const teamTimes = {
   },
 } satisfies Record<string, Translated>;
 
+// --- Ticket 191: Unternehmensübersicht / Team-Dashboard -----------------
+export const companyOverview = {
+  pageTitle: { de: "Übersicht", en: "Overview" },
+  greeting: { de: "Guten Tag", en: "Hello" },
+  membersLabel: { de: "Mitarbeiter", en: "Employees" },
+  activeTodayLabel: { de: "Heute aktiv", en: "Active today" },
+  totalTimeTodayLabel: { de: "Arbeitszeit heute", en: "Working time today" },
+  runningTimersLabel: { de: "Laufende Timer", en: "Running timers" },
+  currentlyActiveHeading: { de: "Aktuell aktiv", en: "Currently active" },
+  timeTodayHeading: { de: "Arbeitszeit heute", en: "Working time today" },
+  noRunningTimers: {
+    de: "Gerade läuft kein Timer.",
+    en: "No timer is currently running.",
+  },
+  noTimeToday: {
+    de: "Heute wurde noch keine Zeit erfasst.",
+    en: "No time has been tracked yet today.",
+  },
+  noMembersYet: {
+    de: "Dieser Workspace hat noch keine Mitarbeiter.",
+    en: "This workspace has no employees yet.",
+  },
+  loadError: {
+    de: "Die Übersicht konnte nicht geladen werden.",
+    en: "The overview could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Nur Owner und Admins können die Unternehmensübersicht sehen.",
+    en: "Only owners and admins can view the company overview.",
+  },
+} satisfies Record<string, Translated>;
+
 // --- Ticket 112: Workspace verlassen ------------------------------------
 export const leaveWorkspace = {
   pageTitle: { de: "Workspace verlassen", en: "Leave workspace" },
