@@ -174,7 +174,22 @@ export function WorkspaceMembersClient({
               const action = activeAction?.userId === member.userId ? activeAction.mode : null;
               return (
                 <tr key={key} className="border-b border-line/60 last:border-0">
-                  <td className="px-4 py-3">{member.displayName ?? t(lang, i18nWorkspaceMembers.noDisplayNameFallback)}</td>
+                  <td className="px-4 py-3">
+                    {/* Ticket 192 (selbst gefunden) — only an "active" row
+                        has a real userId to link a profile for; a
+                        pending/expired/revoked invitation has no account
+                        yet (same reasoning as isRoleEditable() above). */}
+                    {member.userId ? (
+                      <Link
+                        href={`/dashboard/workspaces/${workspaceId}/members/${member.userId}`}
+                        className="text-foreground underline-offset-2 hover:underline focus-visible:underline"
+                      >
+                        {member.displayName ?? t(lang, i18nWorkspaceMembers.noDisplayNameFallback)}
+                      </Link>
+                    ) : (
+                      member.displayName ?? t(lang, i18nWorkspaceMembers.noDisplayNameFallback)
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-text-secondary">{member.email}</td>
                   <td className="px-4 py-3">
                     {isRoleEditable(member) ? (

@@ -43,6 +43,7 @@ import {
   getActiveWorkspaceTimeFormat,
   getActiveWorkspaceTimeZone,
   getActiveWorkspaceWeekStart,
+  getMemberTimeEntries,
   getRunningEntries,
   getTeamTime,
   getWorkspaceLogoUrl,
@@ -68,7 +69,7 @@ import {
   updateWorkspaceSettings,
   uploadWorkspaceLogo,
 } from "./workspace.ts";
-import type { RunningEntryRow, TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
+import type { MemberTimeEntryRow, RunningEntryRow, TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -143,6 +144,7 @@ interface MemoryState {
   // getTeamTime() delegates and requires auth).
   teamTimeRowsByWorkspace: Record<string, TeamTimeRow[]>;
   runningEntriesByWorkspace: Record<string, RunningEntryRow[]>;
+  memberTimeEntriesByWorkspace: Record<string, MemberTimeEntryRow[]>;
   // projectId -> assigned member rows, for the Ticket 123 fakes below.
   projectMemberRowsByProject: Record<string, ProjectMemberRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
@@ -183,6 +185,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     },
     teamTimeRowsByWorkspace: {},
     runningEntriesByWorkspace: {},
+    memberTimeEntriesByWorkspace: {},
     projectMemberRowsByProject: {},
     calls: [],
     ...overrides,
@@ -453,6 +456,10 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async listRunningEntries(workspaceId) {
         record("workspace.listRunningEntries", workspaceId);
         return state.runningEntriesByWorkspace[workspaceId] ?? [];
+      },
+      async listMemberTimeEntries(workspaceId, userId, fromDay, toDay, filter) {
+        record("workspace.listMemberTimeEntries", workspaceId, userId, fromDay, toDay, filter);
+        return state.memberTimeEntriesByWorkspace[workspaceId] ?? [];
       },
     },
     activeWorkspace: {
@@ -1500,6 +1507,51 @@ test("getWorkspaceOverview reports empty stats for a workspace with no members/t
   assert.equal(overview.totalSecondsToday, 0);
   assert.deepEqual(overview.runningEntries, []);
   assert.deepEqual(overview.todayByMember, []);
+});
+
+// Ticket 192 — list_workspace_member_time_entries.
+const MEMBER_TIME_ENTRY_ROW: MemberTimeEntryRow = {
+  id: "entry-1",
+  projectId: "project-1",
+  projectName: "Project One",
+  day: "2026-01-01",
+  startTime: "2026-01-01T08:00:00Z",
+  endTime: "2026-01-01T09:00:00Z",
+};
+
+test("getMemberTimeEntries requires authentication and delegates to the repository with every argument", async () => {
+  const { repos, state } = memoryRepositories({
+    memberTimeEntriesByWorkspace: { "workspace-team-1": [MEMBER_TIME_ENTRY_ROW] },
+  });
+
+  const rows = await getMemberTimeEntries(repos, "workspace-team-1", "user-2", "2026-01-01", "2026-01-02", { projectId: "project-1" });
+
+  assert.deepEqual(rows, [MEMBER_TIME_ENTRY_ROW]);
+  assert.deepEqual(state.calls.at(-1), {
+    method: "workspace.listMemberTimeEntries",
+    args: ["workspace-team-1", "user-2", "2026-01-01", "2026-01-02", { projectId: "project-1" }],
+  });
+});
+
+test("getMemberTimeEntries works without an explicit filter", async () => {
+  const { repos } = memoryRepositories({
+    memberTimeEntriesByWorkspace: { "workspace-team-1": [MEMBER_TIME_ENTRY_ROW] },
+  });
+  assert.deepEqual(await getMemberTimeEntries(repos, "workspace-team-1", "user-2", "2026-01-01", "2026-01-02"), [MEMBER_TIME_ENTRY_ROW]);
+});
+
+test("getMemberTimeEntries propagates a repository error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(
+    getMemberTimeEntries(
+      { ...repos, workspace: { ...repos.workspace, listMemberTimeEntries: async () => { throw new Error("Only workspace owners/admins may view a member's time entries"); } } },
+      "workspace-team-1",
+      "user-2",
+      "2026-01-01",
+      "2026-01-02",
+    ),
+    /owners\/admins may view a member's time entries/,
+  );
 });
 
 test("getTeamTime requires an authenticated user", async () => {

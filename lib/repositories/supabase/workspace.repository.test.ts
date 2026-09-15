@@ -628,3 +628,94 @@ test("listRunningEntries propagates an RPC error (e.g. caller isn't an owner/adm
   const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view running entries") });
   await assert.rejects(createSupabaseWorkspaceRepository(client).listRunningEntries("ws-1"), /owners\/admins may view running entries/);
 });
+
+// Ticket 192 — listMemberTimeEntries, same "SECURITY DEFINER RPC" shape as listTeamTime, scoped to one member.
+test("listMemberTimeEntries calls list_workspace_member_time_entries with every filter/pagination field and maps the returned rows", async () => {
+  const { client, calls } = rpcClient({
+    data: [
+      {
+        id: "entry-1",
+        project_id: "project-1",
+        project_name: "Project One",
+        day: "2026-01-01T00:00:00+00:00",
+        start_time: "2026-01-01T08:00:00+00:00",
+        end_time: "2026-01-01T09:00:00+00:00",
+      },
+    ],
+    error: null,
+  });
+  const rows = await createSupabaseWorkspaceRepository(client).listMemberTimeEntries("ws-1", "user-1", "2026-01-01", "2026-01-02", {
+    projectId: "project-1",
+    limit: 50,
+    offset: 10,
+  });
+  assert.deepEqual(rows, [
+    {
+      id: "entry-1",
+      projectId: "project-1",
+      projectName: "Project One",
+      day: "2026-01-01",
+      startTime: "2026-01-01T08:00:00+00:00",
+      endTime: "2026-01-01T09:00:00+00:00",
+    },
+  ]);
+  assert.deepEqual(calls, [
+    {
+      fn: "list_workspace_member_time_entries",
+      args: {
+        target_workspace_id: "ws-1",
+        target_user_id: "user-1",
+        from_day: "2026-01-01",
+        to_day: "2026-01-02",
+        filter_project_id: "project-1",
+        page_limit: 50,
+        page_offset: 10,
+      },
+    },
+  ]);
+});
+
+test("listMemberTimeEntries defaults filter/pagination fields when no filter object is given", async () => {
+  const { client, calls } = rpcClient({ data: [], error: null });
+  await createSupabaseWorkspaceRepository(client).listMemberTimeEntries("ws-1", "user-1", "2026-01-01", "2026-01-02");
+  assert.deepEqual(calls, [
+    {
+      fn: "list_workspace_member_time_entries",
+      args: {
+        target_workspace_id: "ws-1",
+        target_user_id: "user-1",
+        from_day: "2026-01-01",
+        to_day: "2026-01-02",
+        filter_project_id: null,
+        page_limit: 200,
+        page_offset: 0,
+      },
+    },
+  ]);
+});
+
+test("listMemberTimeEntries reports a still-running entry with endTime null", async () => {
+  const { client } = rpcClient({
+    data: [
+      {
+        id: "entry-1",
+        project_id: "project-1",
+        project_name: "Project One",
+        day: "2026-01-01T00:00:00+00:00",
+        start_time: "2026-01-01T08:00:00+00:00",
+        end_time: null,
+      },
+    ],
+    error: null,
+  });
+  const rows = await createSupabaseWorkspaceRepository(client).listMemberTimeEntries("ws-1", "user-1", "2026-01-01", "2026-01-02");
+  assert.equal(rows[0].endTime, null);
+});
+
+test("listMemberTimeEntries propagates an RPC error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view a member's time entries") });
+  await assert.rejects(
+    createSupabaseWorkspaceRepository(client).listMemberTimeEntries("ws-1", "user-1", "2026-01-01", "2026-01-02"),
+    /owners\/admins may view a member's time entries/,
+  );
+});

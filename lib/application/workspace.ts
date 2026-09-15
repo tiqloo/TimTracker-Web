@@ -8,6 +8,8 @@ import type {
   CreatedInvitation,
   InvitationPreview,
   InvitationRole,
+  MemberTimeEntryFilter,
+  MemberTimeEntryRow,
   PendingInvitationSummary,
   ResentInvitation,
   RunningEntryRow,
@@ -54,6 +56,8 @@ export type {
   TeamTimeFilter,
   TeamTimeRow,
   RunningEntryRow,
+  MemberTimeEntryFilter,
+  MemberTimeEntryRow,
 } from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
 
@@ -461,6 +465,22 @@ export async function getTeamTime(
 export async function getRunningEntries(repos: Repositories, workspaceId: string): Promise<RunningEntryRow[]> {
   await requireUser(repos);
   return repos.workspace.listRunningEntries(workspaceId);
+}
+
+// Ticket 192 — "Mitarbeiterprofil". Same reasoning as getTeamTime/
+// getRunningEntries above: list_workspace_member_time_entries
+// (TimTracker-Starter repo) is itself the authoritative owner/admin
+// check.
+export async function getMemberTimeEntries(
+  repos: Repositories,
+  workspaceId: string,
+  userId: string,
+  fromDay: string,
+  toDay: string,
+  filter?: MemberTimeEntryFilter,
+): Promise<MemberTimeEntryRow[]> {
+  await requireUser(repos);
+  return repos.workspace.listMemberTimeEntries(workspaceId, userId, fromDay, toDay, filter);
 }
 
 // Ticket 191 — "Unternehmensübersicht / Team-Dashboard". A single

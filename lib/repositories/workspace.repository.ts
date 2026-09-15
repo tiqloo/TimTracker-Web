@@ -298,6 +298,20 @@ export interface WorkspaceRepository {
   // list on the new Team-Dashboard (Ticket 191) needs the individual
   // in-progress session, not a daily sum.
   listRunningEntries(workspaceId: string): Promise<RunningEntryRow[]>;
+
+  // Ticket 192 — backed by a SECURITY DEFINER RPC
+  // (list_workspace_member_time_entries, TimTracker-Starter repo), same
+  // owner/admin-only gate as listTeamTime/listRunningEntries above, but
+  // scoped to ONE member's raw sessions (start/end/project) instead of an
+  // aggregate or "currently running" slice — the employee detail page's
+  // time-entries list needs the individual sessions.
+  listMemberTimeEntries(
+    workspaceId: string,
+    userId: string,
+    fromDay: string,
+    toDay: string,
+    filter?: MemberTimeEntryFilter,
+  ): Promise<MemberTimeEntryRow[]>;
 }
 
 // Ticket 121 — "Team-Zeiten für Admins".
@@ -330,6 +344,25 @@ export interface RunningEntryRow {
   projectId: string;
   projectName: string;
   startTime: string;
+}
+
+// Ticket 192 — one row of "a real (possibly still-running) time entry"
+// for the employee detail page's session list. `endTime` is null for a
+// currently-open entry, same convention as RunningEntryRow's own
+// startTime-only shape — the page renders "läuft" for a null endTime.
+export interface MemberTimeEntryRow {
+  id: string;
+  projectId: string;
+  projectName: string;
+  day: string;
+  startTime: string;
+  endTime: string | null;
+}
+
+export interface MemberTimeEntryFilter {
+  projectId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 // Ticket 117 — "Workspace-Einstellungen". `WorkspaceSettingsFields` is

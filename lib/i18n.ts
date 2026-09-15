@@ -1777,6 +1777,43 @@ export const companyOverview = {
   },
 } satisfies Record<string, Translated>;
 
+// --- Ticket 192: Mitarbeiterprofil und Mitarbeiterdetails ---------------
+export const employeeProfile = {
+  memberSinceLabel: { de: "Mitglied seit", en: "Member since" },
+  todayLabel: { de: "Heute", en: "Today" },
+  thisWeekLabel: { de: "Diese Woche", en: "This week" },
+  thisMonthLabel: { de: "Dieser Monat", en: "This month" },
+  projectsHeading: { de: "Projekte", en: "Projects" },
+  noProjectsInRange: {
+    de: "Im gewählten Zeitraum wurde kein Projekt bearbeitet.",
+    en: "No project was worked on in the selected period.",
+  },
+  entriesHeading: { de: "Zeiteinträge", en: "Time entries" },
+  noEntriesInRange: {
+    de: "Im gewählten Zeitraum wurden keine Zeiteinträge erfasst.",
+    en: "No time entries were tracked in the selected period.",
+  },
+  running: { de: "läuft", en: "running" },
+  fromLabel: { de: "Von", en: "From" },
+  toLabel: { de: "Bis", en: "To" },
+  projectLabel: { de: "Projekt", en: "Project" },
+  allProjects: { de: "Alle Projekte", en: "All projects" },
+  apply: { de: "Anwenden", en: "Apply" },
+  backToMembers: { de: "Zurück zu den Mitarbeitern", en: "Back to employees" },
+  loadError: {
+    de: "Das Mitarbeiterprofil konnte nicht geladen werden.",
+    en: "The employee profile could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Nur Owner und Admins können Mitarbeiterprofile sehen.",
+    en: "Only owners and admins can view employee profiles.",
+  },
+  notFoundError: {
+    de: "Dieser Mitarbeiter wurde in diesem Workspace nicht gefunden.",
+    en: "This employee was not found in this workspace.",
+  },
+} satisfies Record<string, Translated>;
+
 // --- Ticket 112: Workspace verlassen ------------------------------------
 export const leaveWorkspace = {
   pageTitle: { de: "Workspace verlassen", en: "Leave workspace" },
