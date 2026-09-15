@@ -11,6 +11,7 @@ import {
   shouldRedirectAuthenticatedUser,
   shouldValidateHistoryRange,
 } from "@/lib/http/proxy-routing";
+import { buildCsp } from "@/lib/http/csp";
 
 // "/" is the public marketing homepage (unauthenticated visitors land
 // here, and signed-in users may revisit it too — it is never gated or
@@ -61,16 +62,24 @@ import {
 // things silently, curl alone won't show it" failure mode the ticket's
 // Edge Cases section warned about.
 //
-// SUPABASE_HOST: same reasoning as the createServerClient call below —
-// this is the one Supabase project this deployment's NEXT_PUBLIC_SUPABASE_URL
-// actually points at (the real production project in a Vercel build, the
-// local Docker stack in local dev/testing — see README.md's ".env.local:
-// lokal gegen Docker"). Deriving it from the same env var everything else
-// here already uses keeps this a single source of truth with no risk of
-// drift from a hardcoded value, while still being a precise single-origin
-// allowlist entry (new URL(...).origin), not a wildcard.
-const SUPABASE_HOST = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
-
+// buildCsp() itself lives in lib/http/csp.ts (Ticket 190) — a plain
+// module with no "next/server" import, same reasoning as
+// lib/http/proxy-routing.ts already splits out the routing predicates:
+// this file can't be unit-tested directly (`node --test` can't resolve
+// "next/server" outside Next's own bundler), so any logic worth pinning
+// with a test has to live where it can be imported standalone.
+//
+// SUPABASE_HOST allowlisting (both https:// and, since Ticket 190, the
+// wss:// variant Realtime needs): same reasoning as the createServerClient
+// call below — this is the one Supabase project this deployment's
+// NEXT_PUBLIC_SUPABASE_URL actually points at (the real production project
+// in a Vercel build, the local Docker stack in local dev/testing — see
+// README.md's ".env.local: lokal gegen Docker"). Deriving it from the same
+// env var everything else here already uses keeps this a single source of
+// truth with no risk of drift from a hardcoded value, while still being a
+// precise single-origin allowlist entry (new URL(...).origin), not a
+// wildcard.
+//
 // What was actually checked before writing this directive list (see the
 // ticket for why this matters — an overly strict CSP fails silently, not
 // with a build error):
@@ -109,31 +118,6 @@ const SUPABASE_HOST = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 //   refactoring every inline style prop to a class. This is the only
 //   'unsafe-inline' anywhere in this policy — script-src uses a real
 //   nonce instead, never 'unsafe-inline'/'unsafe-eval'.
-function buildCsp(nonce: string): string {
-  return [
-    "default-src 'self'",
-    // 'strict-dynamic' trusts any script a nonce'd script itself inserts
-    // (how Next.js loads its own chunked bundles at runtime) without
-    // listing every chunk individually — official Next.js guidance for
-    // this exact nonce setup. Browsers that don't support it just fall
-    // back to the 'self'/nonce entries.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self'",
-    "font-src 'self'",
-    `connect-src 'self' ${SUPABASE_HOST}`,
-    "frame-src 'none'",
-    // Equivalent to X-Frame-Options: DENY (next.config.ts), kept
-    // alongside it for browsers that only honor one or the other — this
-    // site is never meant to be embedded anywhere.
-    "frame-ancestors 'none'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "upgrade-insecure-requests",
-  ].join("; ");
-}
-
 // CSP is production-only, same reasoning as previously documented in
 // next.config.ts: `next dev`'s Fast Refresh/HMR has its own inline-script
 // and eval needs that a strict CSP isn't verified against here, and this
@@ -165,7 +149,7 @@ export async function proxy(request: NextRequest) {
   const nonce = isProduction
     ? Buffer.from(crypto.randomUUID()).toString("base64")
     : null;
-  const csp = nonce ? buildCsp(nonce) : null;
+  const csp = nonce ? buildCsp(process.env.NEXT_PUBLIC_SUPABASE_URL!, nonce) : null;
 
   const requestHeaders = new Headers(request.headers);
   if (nonce && csp) {
