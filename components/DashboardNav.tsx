@@ -35,11 +35,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, FolderKanban, History, Settings, UserCog, Users } from "lucide-react";
+import { BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, CreditCard, FolderKanban, History, Mail, Settings, UserCog, Users } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
+import { resolveManagementLinkIds, resolveNavLinkIds, type ManagementLinkId, type NavLinkId } from "@/lib/domain/dashboard-nav";
 import { nav, t, type Lang, type Translated } from "@/lib/i18n";
 
 // Shared with every focus-visible ring elsewhere in the app (AuthCard.tsx/
@@ -55,49 +56,75 @@ const focusRingClass =
 // plain text, unchanged, rather than retrofitting icons everywhere just
 // for consistency's sake — out of scope for this ticket. `icon` is
 // therefore optional, not a new shared convention.
-const NAV_LINKS: {
+type NavLinkDescriptor = {
   href: string;
   label: Translated;
   icon?: React.ComponentType<{ size?: number; strokeWidth?: number }>;
-}[] = [
-  { href: "/dashboard", label: nav.today, icon: CalendarDays },
-  { href: "/dashboard/history", label: nav.history, icon: History },
-  { href: "/dashboard/analytics", label: nav.analytics, icon: BarChart3 },
-  { href: "/dashboard/projects", label: nav.projects, icon: FolderKanban },
-  { href: "/dashboard/support", label: nav.support, icon: SupportIcon },
-  { href: "/dashboard/settings", label: nav.settings, icon: Settings },
-];
+};
 
-// Ticket 121 — "Team-Zeiten" is only meaningful (and only ever
-// server-side permitted, see list_workspace_team_time's own 42501) for
-// an owner/admin of the CURRENTLY ACTIVE workspace — a plain member would
-// only ever hit a 403 landing here, so it's conditionally inserted into
-// the nav below rather than listed in the flat NAV_LINKS array every
-// other entry lives in. Operates on the active workspace (not an
-// arbitrary `/dashboard/workspaces/[id]/...` route) for the same reason
-// "Historie"/"Auswertung" do: its project filter needs
-// repos.projects.getAll(), which is itself active-workspace-scoped
-// (Ticket 103) — switch workspaces via the switcher first, same flow as
-// every other data-bearing page in this app.
-const TEAM_TIMES_LINK = { href: "/dashboard/team-times", label: nav.teamTimes, icon: Users };
+// Ticket 173 (selbst gefunden) — which link ids apply to the active
+// workspace's type/role is decided by the pure, unit-tested
+// lib/domain/dashboard-nav.ts; this map only resolves an id to the
+// actual {href, label, icon} a link needs (activeWorkspaceId-dependent
+// hrefs and lucide-react icons don't belong in that framework-free
+// file). "history"/"today" are relabeled (not duplicated) for an
+// organization context — see dashboardNavLinkDescriptors()'s own
+// `orgLabels` argument.
+function dashboardNavLinkDescriptors(
+  activeWorkspaceId: string,
+  historyLabel: Translated,
+): Record<NavLinkId, NavLinkDescriptor> {
+  return {
+    today: { href: "/dashboard", label: nav.today, icon: CalendarDays },
+    history: { href: "/dashboard/history", label: historyLabel, icon: History },
+    analytics: { href: "/dashboard/analytics", label: nav.analytics, icon: BarChart3 },
+    projects: { href: "/dashboard/projects", label: nav.projects, icon: FolderKanban },
+    support: { href: "/dashboard/support", label: nav.support, icon: SupportIcon },
+    settings: { href: "/dashboard/settings", label: nav.settings, icon: Settings },
+    // Ticket 121 — "Team-Zeiten" operates on the ACTIVE workspace (not an
+    // arbitrary `/dashboard/workspaces/[id]/...` route) since its project
+    // filter needs repos.projects.getAll(), itself active-workspace-scoped
+    // (Ticket 103) — switch workspaces via the switcher first, same flow
+    // as every other data-bearing page in this app.
+    teamTimes: { href: "/dashboard/team-times", label: nav.teamTimes, icon: Users },
+    // Ticket 181 (selbst gefunden) → Ticket 173: /dashboard/workspaces/[id]/members
+    // (Ticket 110) had zero entry point anywhere in the app before 181
+    // added exactly this link; 173 renames its label to "Mitarbeiter" in
+    // the new grouped organization nav and moves it next to Team-Zeiten.
+    employees: {
+      href: `/dashboard/workspaces/${activeWorkspaceId}/members`,
+      label: nav.employees,
+      icon: UserCog,
+    },
+  };
+}
 
-// Ticket 181 (selbst gefunden, 2026-09-09): /dashboard/workspaces/[id]/members
-// (Ticket 110, ✅ seit 2026-09-08 live) — und die von dort aus verlinkten
-// /settings (117) und /invitations (115) — hatten trotz vollständiger,
-// getesteter Umsetzung KEINEN einzigen Einstiegspunkt irgendwo in der
-// eigentlichen App (bestätigt per `grep` über app/ + components/): weder
-// hier in DashboardNav.tsx noch in SettingsClient.tsx noch im Workspace-
-// Switcher (Ticket 103/174) verlinkt irgendetwas dorthin — nur wer die
-// URL bereits kennt/manuell eingibt, erreicht sie. Für einen Owner/Admin
-// ist damit praktisch die gesamte Team-/Einladungs-/Workspace-
-// Verwaltung unauffindbar. `href` verweist bewusst statisch auf
-// `/dashboard/workspaces/[activeWorkspaceId]/members`, nicht auf eine
-// generische "Workspaces"-Übersicht — dieselbe "operiert auf dem
-// aktiven Workspace" Begründung wie TEAM_TIMES_LINK oben (Switcher zum
-// Wechseln, kein Auswahlschritt hier). Konstante statt Objekt-Literal, da
-// `href` von `activeWorkspaceId` abhängt (im JSX unten aufgelöst).
-function membersLink(activeWorkspaceId: string) {
-  return { href: `/dashboard/workspaces/${activeWorkspaceId}/members`, label: nav.members, icon: UserCog };
+// Ticket 173 — the "Verwaltung" group rendered inside UserMenu's dropdown
+// (not the main nav row, see lib/domain/dashboard-nav.ts's own comment
+// for why: adding 3 more items to the main row would overflow the fixed
+// mobile bottom bar, which has no scroll affordance). Einladungen (Ticket
+// 115) had zero entry point anywhere before this, same "built but
+// unlinked" pattern as 181's original members-link fix.
+function managementLinkDescriptors(activeWorkspaceId: string): Record<ManagementLinkId, NavLinkDescriptor> {
+  return {
+    invitations: {
+      href: `/dashboard/workspaces/${activeWorkspaceId}/invitations`,
+      label: nav.invitations,
+      icon: Mail,
+    },
+    workspaceSettings: {
+      href: `/dashboard/workspaces/${activeWorkspaceId}/settings`,
+      label: nav.workspaceSettingsLink,
+      icon: Building2,
+    },
+    // No separate workspace billing yet (Ticket 135 still open) — reuses
+    // the existing personal billing page, see that ticket's own
+    // "Konkretisierung" note for why this is a deliberate stopgap.
+    // nav.workspaceBilling ("Abrechnung"), not nav.billing ("Abo") — same
+    // target page, distinct label so this doesn't read as a duplicate of
+    // the personal "Abo" entry it sits below.
+    billing: { href: "/dashboard/settings/billing", label: nav.workspaceBilling, icon: CreditCard },
+  };
 }
 
 // Ticket 048: hand-drawn Mark()/SupportIcon()/ChevronIcon() SVGs replaced
@@ -174,6 +201,7 @@ function UserMenu({
   avatarUrl,
   pending,
   onLogout,
+  managementLinks,
   placement = "down",
   tone = "light",
   compact = false,
@@ -183,6 +211,18 @@ function UserMenu({
   avatarUrl: string | null;
   pending: boolean;
   onLogout: () => void;
+  // Ticket 173 — the "Verwaltung" group (Einladungen/Workspace-
+  // Einstellungen/Abrechnung), only non-empty for an ORGANIZATION
+  // owner/admin. The pre-existing "Abo" entry below stays unconditional
+  // regardless of the active workspace — it manages the signed-in
+  // person's OWN subscription, not anything workspace-scoped, so it
+  // would be wrong to hide it just because an organization happens to be
+  // active (confirmed by live testing: a member switching into an
+  // organization must still reach their personal subscription). Once
+  // Ticket 135 gives organizations their own billing page, "Abrechnung"
+  // here and "Abo" below will point at two different pages instead of
+  // sharing one — until then this is a deliberate, harmless duplicate.
+  managementLinks: NavLinkDescriptor[];
   placement?: "up" | "down";
   tone?: "light" | "dark";
   compact?: boolean;
@@ -290,6 +330,25 @@ function UserMenu({
           >
             {t(lang, nav.billing)}
           </Link>
+          {managementLinks.length > 0 && (
+            <>
+              <div role="separator" className="my-1 border-t border-line" />
+              <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-[0.14em] text-text-secondary uppercase">
+                {t(lang, nav.managementSectionLabel)}
+              </p>
+              {managementLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link key={link.href} href={link.href} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+                    <span className="flex items-center gap-2">
+                      {Icon && <Icon size={14} strokeWidth={1.8} />}
+                      {t(lang, link.label)}
+                    </span>
+                  </Link>
+                );
+              })}
+            </>
+          )}
           <div role="separator" className="my-1 border-t border-line" />
           <button
             type="button"
@@ -332,19 +391,17 @@ export function DashboardNav({
   const sidebarToggleLabel = t(lang, sidebarCollapsed ? nav.sidebarExpand : nav.sidebarCollapse);
   const activeWorkspace = workspaces.find((workspace) => workspace.workspaceId === activeWorkspaceId);
   const activeRole = activeWorkspace?.role;
-  const canViewTeamTimes = activeRole === "owner" || activeRole === "admin";
-  // Ticket 181: same owner/admin gate as Team-Zeiten, plus excludes
-  // PERSONAL — a personal workspace always has exactly one member
-  // (Ticket 097), so "Mitglieder verwalten" would just show a lone
-  // owner row, nothing to actually manage.
-  const canViewMembers = canViewTeamTimes && activeWorkspace?.workspaceType !== "PERSONAL";
-  const adminLinks = [
-    ...(canViewTeamTimes ? [TEAM_TIMES_LINK] : []),
-    ...(canViewMembers ? [membersLink(activeWorkspaceId)] : []),
-  ];
-  const navLinks = adminLinks.length > 0
-    ? [...NAV_LINKS.slice(0, 3), ...adminLinks, ...NAV_LINKS.slice(3)]
-    : NAV_LINKS;
+  const workspaceKind = activeWorkspace?.workspaceType ?? "PERSONAL";
+  const isOrganization = workspaceKind !== "PERSONAL";
+
+  // Ticket 173 (selbst gefunden) — id selection is the pure, unit-tested
+  // lib/domain/dashboard-nav.ts; this component only maps ids to
+  // {href, label, icon} descriptors (activeWorkspaceId/icons don't belong
+  // in that framework-free file).
+  const navDescriptors = dashboardNavLinkDescriptors(activeWorkspaceId, isOrganization ? nav.myTime : nav.history);
+  const navLinks = resolveNavLinkIds(workspaceKind, activeRole).map((id) => navDescriptors[id]);
+  const managementDescriptors = managementLinkDescriptors(activeWorkspaceId);
+  const managementLinks = resolveManagementLinkIds(workspaceKind, activeRole).map((id) => managementDescriptors[id]);
 
   async function handleLogout() {
     setPending(true);
@@ -425,12 +482,27 @@ export function DashboardNav({
         </div>
 
         {!sidebarCollapsed && (
-          <WorkspaceSwitcher lang={lang} workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} />
+          <>
+            <WorkspaceSwitcher lang={lang} workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} />
+            {/* Ticket 173 — "Workspace-Typ wird erkennbar" for the
+                organization case specifically: PERSONAL already reads
+                clearly from the switcher's own workspace name above
+                (usually literally "Persönlich", Ticket 097) — an extra
+                "PERSÖNLICH" eyebrow under an already-"Persönlich"-labeled
+                switcher duplicated the same word, confirmed by live
+                browser testing before this was scoped down to
+                ORGANIZATION only. */}
+            {isOrganization && (
+              <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.16em] text-text-secondary uppercase">
+                {t(lang, nav.organizationEyebrow)}
+              </p>
+            )}
+          </>
         )}
         <nav className="flex flex-col gap-1">{navigationLinks(true, sidebarCollapsed)}</nav>
 
         <div className="mt-auto border-t border-line pt-4">
-          <UserMenu lang={lang} displayName={displayName} avatarUrl={avatarUrl} pending={pending} onLogout={handleLogout} placement="up" compact={sidebarCollapsed} />
+          <UserMenu lang={lang} displayName={displayName} avatarUrl={avatarUrl} pending={pending} onLogout={handleLogout} managementLinks={managementLinks} placement="up" compact={sidebarCollapsed} />
         </div>
       </aside>
 
@@ -443,7 +515,7 @@ export function DashboardNav({
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white"><Mark /></span>
             Tiqloo
           </Link>
-          <UserMenu lang={lang} displayName={displayName} avatarUrl={avatarUrl} pending={pending} onLogout={handleLogout} />
+          <UserMenu lang={lang} displayName={displayName} avatarUrl={avatarUrl} pending={pending} onLogout={handleLogout} managementLinks={managementLinks} />
         </div>
       </header>
       <nav className="fixed right-3 bottom-3 left-3 z-40 flex gap-1 rounded-2xl border border-line/80 bg-surface/95 p-1.5 shadow-[0_18px_50px_-20px_rgba(24,24,23,0.38)] backdrop-blur-xl lg:hidden">

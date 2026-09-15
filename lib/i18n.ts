@@ -82,6 +82,36 @@ export const nav = {
   // "small string sets stay local" convention, just happens to read the
   // same in both places.
   members: { de: "Mitglieder", en: "Members" },
+  // Ticket 173 (TimTracker-Starter repo) — the org-context nav label for
+  // the same members page (nav.members above stays the generic term used
+  // elsewhere); the user's own nav mockup calls this "Mitarbeiter", not
+  // "Mitglieder", specifically in the organization sidebar section.
+  employees: { de: "Mitarbeiter", en: "Employees" },
+  // Ticket 173 — org-context relabel of nav.today for the exact same
+  // route (/dashboard): "Meine Zeiten" reads correctly once "Heute" is no
+  // longer the only time-tracking nav entry (Team-Zeiten/Mitarbeiter now
+  // sit alongside it) — this is a label swap, not a second nav entry.
+  myTime: { de: "Meine Zeiten", en: "My time" },
+  // Ticket 173 — links to the already-built-but-never-linked invitation
+  // management page (Ticket 115), same "Verwaltung" dropdown group as
+  // workspaceSettingsLink/billing below.
+  invitations: { de: "Einladungen", en: "Invitations" },
+  workspaceSettingsLink: { de: "Workspace-Einstellungen", en: "Workspace settings" },
+  // Distinct from nav.billing ("Abo", the short personal-subscription
+  // dropdown entry) — same target page for now (no separate workspace
+  // billing yet, Ticket 135), but a different label so the "Verwaltung"
+  // group reads as organization billing, not a duplicate "Abo" entry.
+  workspaceBilling: { de: "Abrechnung", en: "Billing" },
+  // Ticket 173 — eyebrow label above the nav links, ORGANIZATION only
+  // (PERSONAL already reads clearly from the switcher's own workspace
+  // name above, usually literally "Persönlich" — an extra eyebrow there
+  // duplicated that same word, confirmed by live browser testing).
+  // Reuses the exact same word as workspaceSwitcher.organizationLabel
+  // (not re-imported here to avoid a cross-namespace dependency for one
+  // string — same "small string sets stay local" convention this file
+  // already follows).
+  organizationEyebrow: { de: "Unternehmen", en: "Organization" },
+  managementSectionLabel: { de: "Verwaltung", en: "Management" },
   // Ticket 030 (TimTracker-Starter repo) — new nav entry, own icon (see
   // DashboardNav.tsx's SupportIcon), otherwise same flat-link treatment
   // as every other entry in NAV_LINKS.
