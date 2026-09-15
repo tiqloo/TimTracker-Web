@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { getRepositories } from "@/lib/application/server";
 import { getSubscriptionStatus } from "@/lib/application/billing";
@@ -205,8 +206,28 @@ export default async function TeamTimesPage({
                   .sort((a, b) => (a.displayName ?? a.email).localeCompare(b.displayName ?? b.email))
                   .map((row) => (
                     <li key={`${row.userId}-${row.day}`} className="flex items-center justify-between gap-4 pl-4 text-sm">
-                      <span className="text-foreground/70">{row.displayName ?? row.email}</span>
-                      <span className="font-mono tabular-nums text-foreground/70">{formatDuration(row.totalSeconds, locale)}</span>
+                      {/* Ticket 194 (selbst gefunden) — Name UND E-Mail
+                          gestapelt statt nur einem der beiden (vorher
+                          `row.displayName ?? row.email`), Zeile verlinkt
+                          zum Mitarbeiterprofil (Ticket 192). userId ist
+                          hier nie null (im Gegensatz zu
+                          WorkspaceMemberRow) — jede Zeile stammt aus
+                          einem echten Zeiteintrag, nie aus einer noch
+                          offenen Einladung. */}
+                      <Link
+                        href={`/dashboard/workspaces/${activeWorkspaceId}/members/${row.userId}`}
+                        className="min-w-0 text-foreground/70 hover:text-foreground hover:underline"
+                      >
+                        {row.displayName ? (
+                          <>
+                            <span className="block truncate font-medium text-foreground">{row.displayName}</span>
+                            <span className="block truncate text-xs text-text-secondary">{row.email}</span>
+                          </>
+                        ) : (
+                          <span className="block truncate">{row.email}</span>
+                        )}
+                      </Link>
+                      <span className="shrink-0 font-mono tabular-nums text-foreground/70">{formatDuration(row.totalSeconds, locale)}</span>
                     </li>
                   ))}
               </ul>
