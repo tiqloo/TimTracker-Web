@@ -35,13 +35,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, CreditCard, FolderKanban, History, LayoutDashboard, Mail, Settings, UserCog, Users } from "lucide-react";
+import { BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock, CreditCard, FolderKanban, History, LayoutDashboard, Mail, PieChart, Settings, UserCog, Users } from "lucide-react";
 import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { resolveManagementLinkIds, resolveNavLinkIds, type ManagementLinkId, type NavLinkId } from "@/lib/domain/dashboard-nav";
-import { companyOverview, nav, t, type Lang, type Translated } from "@/lib/i18n";
+import { companyAnalytics, companyOverview, nav, t, type Lang, type Translated } from "@/lib/i18n";
 
 // Shared with every focus-visible ring elsewhere in the app (AuthCard.tsx/
 // ProjectsClient.tsx/SettingsClient.tsx/SupportClient.tsx's inputClass) —
@@ -99,6 +99,11 @@ function dashboardNavLinkDescriptors(
     // Ticket 191 — reuses companyOverview.pageTitle rather than a new
     // duplicate nav.overview string (both render "Übersicht"/"Overview").
     overview: { href: "/dashboard/overview", label: companyOverview.pageTitle, icon: LayoutDashboard },
+    // Ticket 193 — additional to (not a replacement of) "analytics"
+    // above: the personal page stays an admin/owner's own time, this is
+    // the workspace-wide view. Reuses companyAnalytics.pageTitle rather
+    // than a new duplicate nav string, same pattern as "overview" above.
+    companyAnalytics: { href: "/dashboard/company-analytics", label: companyAnalytics.pageTitle, icon: PieChart },
   };
 }
 
@@ -420,8 +425,23 @@ export function DashboardNav({
 
   function navigationLinks(vertical: boolean, compact = false) {
     return navLinks.map((link) => {
+      // "/dashboard" itself stays exact-match-only (unchanged) — every
+      // dashboard route starts with that prefix, so a boundary check
+      // alone would make "Heute" active everywhere. Ticket 193 (selbst
+      // gefunden): every OTHER link used plain `pathname.startsWith(link.href)`,
+      // which falsely also marked "Auswertung" (/dashboard/analytics) as
+      // active while actually on the new "Auswertungen" page — first
+      // tried at /dashboard/analytics/company, a real sub-path of
+      // /dashboard/analytics by URL structure, so a boundary check alone
+      // couldn't distinguish "sibling that shares a prefix" from "real
+      // child route" — moved that page to /dashboard/company-analytics
+      // instead (no shared prefix at all) AND hardened this check to a
+      // real path boundary (`/`), belt-and-suspenders against the next
+      // sibling pair that happens to share a prefix.
       const active =
-        link.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(link.href);
+        link.href === "/dashboard"
+          ? pathname === "/dashboard"
+          : pathname === link.href || pathname.startsWith(`${link.href}/`);
       const Icon = link.icon;
 
       return (

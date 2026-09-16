@@ -312,6 +312,20 @@ export interface WorkspaceRepository {
     toDay: string,
     filter?: MemberTimeEntryFilter,
   ): Promise<MemberTimeEntryRow[]>;
+
+  // Ticket 193 — backed by a SECURITY DEFINER RPC
+  // (list_workspace_project_time, TimTracker-Starter repo), same
+  // owner/admin-only gate as the other workspace-analytics reads above.
+  // Unlike listTeamTime (aggregated per day+member only), each row here
+  // also carries a project — the company analytics page derives total
+  // time, time-per-member, time-per-project AND working-day count (a
+  // distinct `day` count) from this one row set.
+  listProjectTime(
+    workspaceId: string,
+    fromDay: string,
+    toDay: string,
+    filter?: TeamTimeFilter,
+  ): Promise<ProjectTimeRow[]>;
 }
 
 // Ticket 121 — "Team-Zeiten für Admins".
@@ -363,6 +377,21 @@ export interface MemberTimeEntryFilter {
   projectId?: string;
   limit?: number;
   offset?: number;
+}
+
+// Ticket 193 — one row of "seconds worked by this member on this project
+// on this day" — the company analytics page's raw material, aggregated
+// further (by member, by project, or not at all for the total) entirely
+// in the application layer, same "RPC returns the raw dimension, the app
+// does the grouping" split as TeamTimeRow/team-times/page.tsx.
+export interface ProjectTimeRow {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  projectId: string;
+  projectName: string;
+  day: string;
+  totalSeconds: number;
 }
 
 // Ticket 117 — "Workspace-Einstellungen". `WorkspaceSettingsFields` is

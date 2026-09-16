@@ -21,7 +21,8 @@ export type NavLinkId =
   | "settings"
   | "overview"
   | "teamTimes"
-  | "employees";
+  | "employees"
+  | "companyAnalytics";
 
 export type ManagementLinkId = "invitations" | "workspaceSettings" | "billing";
 
@@ -40,7 +41,12 @@ export function resolveNavLinkIds(workspaceKind: WorkspaceKind, role: WorkspaceR
     return ["today", "history", "analytics", "projects", "support", "settings"];
   }
   if (isAdminRole(role)) {
-    return ["overview", "today", "history", "teamTimes", "employees", "projects", "analytics", "support"];
+    // Ticket 193 — "analytics" ("Auswertung", the personal page) stays
+    // for an admin/owner's own time; "companyAnalytics" ("Auswertungen",
+    // plural, Ticket 193's new page) is the additional workspace-wide
+    // view, exactly the two-entry split the original nav mockup called
+    // for ("Auswertung" for a member, "Auswertungen" for an owner/admin).
+    return ["overview", "today", "history", "teamTimes", "employees", "projects", "analytics", "companyAnalytics", "support"];
   }
   return ["today", "history", "projects", "analytics", "support"];
 }

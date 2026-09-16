@@ -719,3 +719,76 @@ test("listMemberTimeEntries propagates an RPC error (e.g. caller isn't an owner/
     /owners\/admins may view a member's time entries/,
   );
 });
+
+// Ticket 193 — listProjectTime, same "SECURITY DEFINER RPC" shape as listTeamTime, with an added project dimension.
+test("listProjectTime calls list_workspace_project_time with every filter/pagination field and maps the returned rows", async () => {
+  const { client, calls } = rpcClient({
+    data: [
+      {
+        user_id: "user-1",
+        email: "a@example.test",
+        display_name: "A",
+        project_id: "project-1",
+        project_name: "Project One",
+        day: "2026-01-01T00:00:00+00:00",
+        total_seconds: 3600,
+      },
+    ],
+    error: null,
+  });
+  const rows = await createSupabaseWorkspaceRepository(client).listProjectTime("ws-1", "2026-01-01", "2026-01-02", {
+    userId: "user-1",
+    projectId: "project-1",
+    limit: 50,
+    offset: 10,
+  });
+  assert.deepEqual(rows, [
+    {
+      userId: "user-1",
+      email: "a@example.test",
+      displayName: "A",
+      projectId: "project-1",
+      projectName: "Project One",
+      day: "2026-01-01",
+      totalSeconds: 3600,
+    },
+  ]);
+  assert.deepEqual(calls, [
+    {
+      fn: "list_workspace_project_time",
+      args: {
+        target_workspace_id: "ws-1",
+        from_day: "2026-01-01",
+        to_day: "2026-01-02",
+        filter_user_id: "user-1",
+        filter_project_id: "project-1",
+        page_limit: 50,
+        page_offset: 10,
+      },
+    },
+  ]);
+});
+
+test("listProjectTime defaults filter/pagination fields when no filter object is given", async () => {
+  const { client, calls } = rpcClient({ data: [], error: null });
+  await createSupabaseWorkspaceRepository(client).listProjectTime("ws-1", "2026-01-01", "2026-01-02");
+  assert.deepEqual(calls, [
+    {
+      fn: "list_workspace_project_time",
+      args: {
+        target_workspace_id: "ws-1",
+        from_day: "2026-01-01",
+        to_day: "2026-01-02",
+        filter_user_id: null,
+        filter_project_id: null,
+        page_limit: 1000,
+        page_offset: 0,
+      },
+    },
+  ]);
+});
+
+test("listProjectTime propagates an RPC error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { client } = rpcClient({ data: null, error: new Error("Only workspace owners/admins may view project time") });
+  await assert.rejects(createSupabaseWorkspaceRepository(client).listProjectTime("ws-1", "2026-01-01", "2026-01-02"), /owners\/admins may view project time/);
+});

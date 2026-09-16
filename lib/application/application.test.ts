@@ -43,7 +43,9 @@ import {
   getActiveWorkspaceTimeFormat,
   getActiveWorkspaceTimeZone,
   getActiveWorkspaceWeekStart,
+  getCompanyAnalytics,
   getMemberTimeEntries,
+  getProjectTime,
   getRunningEntries,
   getTeamTime,
   getWorkspaceLogoUrl,
@@ -69,7 +71,7 @@ import {
   updateWorkspaceSettings,
   uploadWorkspaceLogo,
 } from "./workspace.ts";
-import type { MemberTimeEntryRow, RunningEntryRow, TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
+import type { MemberTimeEntryRow, ProjectTimeRow, RunningEntryRow, TeamTimeRow, WorkspaceInvitationRow, WorkspaceMemberRow, WorkspaceSettings } from "./workspace.ts";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "../domain/application-error.ts";
 import type { Profile } from "../domain/profile.ts";
 import type { Project } from "../domain/project.ts";
@@ -145,6 +147,7 @@ interface MemoryState {
   teamTimeRowsByWorkspace: Record<string, TeamTimeRow[]>;
   runningEntriesByWorkspace: Record<string, RunningEntryRow[]>;
   memberTimeEntriesByWorkspace: Record<string, MemberTimeEntryRow[]>;
+  projectTimeRowsByWorkspace: Record<string, ProjectTimeRow[]>;
   // projectId -> assigned member rows, for the Ticket 123 fakes below.
   projectMemberRowsByProject: Record<string, ProjectMemberRow[]>;
   calls: Array<{ method: string; args: unknown[] }>;
@@ -186,6 +189,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     teamTimeRowsByWorkspace: {},
     runningEntriesByWorkspace: {},
     memberTimeEntriesByWorkspace: {},
+    projectTimeRowsByWorkspace: {},
     projectMemberRowsByProject: {},
     calls: [],
     ...overrides,
@@ -460,6 +464,10 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
       async listMemberTimeEntries(workspaceId, userId, fromDay, toDay, filter) {
         record("workspace.listMemberTimeEntries", workspaceId, userId, fromDay, toDay, filter);
         return state.memberTimeEntriesByWorkspace[workspaceId] ?? [];
+      },
+      async listProjectTime(workspaceId, fromDay, toDay, filter) {
+        record("workspace.listProjectTime", workspaceId, fromDay, toDay, filter);
+        return state.projectTimeRowsByWorkspace[workspaceId] ?? [];
       },
     },
     activeWorkspace: {
@@ -1552,6 +1560,100 @@ test("getMemberTimeEntries propagates a repository error (e.g. caller isn't an o
     ),
     /owners\/admins may view a member's time entries/,
   );
+});
+
+// Ticket 193 — list_workspace_project_time + getCompanyAnalytics's aggregation.
+const PROJECT_TIME_ROW_1: ProjectTimeRow = {
+  userId: "user-1",
+  email: "owner@example.test",
+  displayName: "Owner",
+  projectId: "project-1",
+  projectName: "Project One",
+  day: "2026-01-01",
+  totalSeconds: 3600,
+};
+const PROJECT_TIME_ROW_2: ProjectTimeRow = {
+  userId: "user-1",
+  email: "owner@example.test",
+  displayName: "Owner",
+  projectId: "project-2",
+  projectName: "Project Two",
+  day: "2026-01-02",
+  totalSeconds: 1800,
+};
+const PROJECT_TIME_ROW_3: ProjectTimeRow = {
+  userId: "user-2",
+  email: "colleague@example.test",
+  displayName: "Colleague",
+  projectId: "project-1",
+  projectName: "Project One",
+  day: "2026-01-01",
+  totalSeconds: 7200,
+};
+
+test("getProjectTime requires authentication and delegates to the repository with the filter object", async () => {
+  const { repos, state } = memoryRepositories({
+    projectTimeRowsByWorkspace: { "workspace-team-1": [PROJECT_TIME_ROW_1] },
+  });
+
+  const rows = await getProjectTime(repos, "workspace-team-1", "2026-01-01", "2026-01-02", { userId: "user-1" });
+
+  assert.deepEqual(rows, [PROJECT_TIME_ROW_1]);
+  assert.deepEqual(state.calls.at(-1), {
+    method: "workspace.listProjectTime",
+    args: ["workspace-team-1", "2026-01-01", "2026-01-02", { userId: "user-1" }],
+  });
+});
+
+test("getProjectTime propagates a repository error (e.g. caller isn't an owner/admin) instead of swallowing it", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(
+    getProjectTime(
+      { ...repos, workspace: { ...repos.workspace, listProjectTime: async () => { throw new Error("Only workspace owners/admins may view project time"); } } },
+      "workspace-team-1",
+      "2026-01-01",
+      "2026-01-02",
+    ),
+    /owners\/admins may view project time/,
+  );
+});
+
+test("getCompanyAnalytics aggregates total time, time-per-member, time-per-project and distinct working days", async () => {
+  const { repos } = memoryRepositories({
+    projectTimeRowsByWorkspace: {
+      "workspace-team-1": [PROJECT_TIME_ROW_1, PROJECT_TIME_ROW_2, PROJECT_TIME_ROW_3],
+    },
+  });
+
+  const analytics = await getCompanyAnalytics(repos, "workspace-team-1", "2026-01-01", "2026-01-02");
+
+  assert.equal(analytics.totalSeconds, 3600 + 1800 + 7200);
+  assert.equal(analytics.workingDays, 2, "2026-01-01 and 2026-01-02 are the only distinct days");
+  assert.deepEqual(
+    analytics.byMember.map((m) => [m.userId, m.totalSeconds]),
+    [
+      ["user-2", 7200],
+      ["user-1", 3600 + 1800],
+    ],
+    "sorted descending by total time",
+  );
+  assert.deepEqual(
+    analytics.byProject.map((p) => [p.projectId, p.totalSeconds]),
+    [
+      ["project-1", 3600 + 7200],
+      ["project-2", 1800],
+    ],
+    "sorted descending by total time, summed across members",
+  );
+});
+
+test("getCompanyAnalytics reports empty/zero stats for a workspace with no time in range", async () => {
+  const { repos } = memoryRepositories();
+  const analytics = await getCompanyAnalytics(repos, "workspace-empty-1", "2026-01-01", "2026-01-02");
+  assert.equal(analytics.totalSeconds, 0);
+  assert.equal(analytics.workingDays, 0);
+  assert.deepEqual(analytics.byMember, []);
+  assert.deepEqual(analytics.byProject, []);
 });
 
 test("getTeamTime requires an authenticated user", async () => {

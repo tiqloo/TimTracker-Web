@@ -11,6 +11,7 @@ import type {
   MemberTimeEntryFilter,
   MemberTimeEntryRow,
   PendingInvitationSummary,
+  ProjectTimeRow,
   ResentInvitation,
   RunningEntryRow,
   TeamTimeFilter,
@@ -58,6 +59,7 @@ export type {
   RunningEntryRow,
   MemberTimeEntryFilter,
   MemberTimeEntryRow,
+  ProjectTimeRow,
 } from "@/lib/repositories/workspace.repository";
 export { ForbiddenError } from "../domain/application-error.ts";
 
@@ -532,5 +534,88 @@ export async function getWorkspaceOverview(
         totalSeconds: row.totalSeconds,
       }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds),
+  };
+}
+
+// Ticket 193 — same reasoning as getTeamTime/getRunningEntries above:
+// list_workspace_project_time (TimTracker-Starter repo) is itself the
+// authoritative owner/admin check.
+export async function getProjectTime(
+  repos: Repositories,
+  workspaceId: string,
+  fromDay: string,
+  toDay: string,
+  filter?: TeamTimeFilter,
+): Promise<ProjectTimeRow[]> {
+  await requireUser(repos);
+  return repos.workspace.listProjectTime(workspaceId, fromDay, toDay, filter);
+}
+
+// Ticket 193 — "Unternehmensauswertungen". A single composite read for
+// the new company-analytics page: total time, time-per-member,
+// time-per-project and working-day count (a distinct `day` count) are
+// all just different groupings of the SAME raw (day, member, project)
+// row set from getProjectTime — no separate RPC round trip per metric.
+export interface CompanyAnalyticsMemberTotal {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  totalSeconds: number;
+}
+
+export interface CompanyAnalyticsProjectTotal {
+  projectId: string;
+  projectName: string;
+  totalSeconds: number;
+}
+
+export interface CompanyAnalytics {
+  totalSeconds: number;
+  workingDays: number;
+  byMember: CompanyAnalyticsMemberTotal[];
+  byProject: CompanyAnalyticsProjectTotal[];
+}
+
+export async function getCompanyAnalytics(
+  repos: Repositories,
+  workspaceId: string,
+  fromDay: string,
+  toDay: string,
+  filter?: TeamTimeFilter,
+): Promise<CompanyAnalytics> {
+  const rows = await getProjectTime(repos, workspaceId, fromDay, toDay, filter);
+
+  const byMemberMap = new Map<string, CompanyAnalyticsMemberTotal>();
+  const byProjectMap = new Map<string, CompanyAnalyticsProjectTotal>();
+  const days = new Set<string>();
+  let totalSeconds = 0;
+
+  for (const row of rows) {
+    totalSeconds += row.totalSeconds;
+    days.add(row.day);
+
+    const member = byMemberMap.get(row.userId) ?? {
+      userId: row.userId,
+      email: row.email,
+      displayName: row.displayName,
+      totalSeconds: 0,
+    };
+    member.totalSeconds += row.totalSeconds;
+    byMemberMap.set(row.userId, member);
+
+    const project = byProjectMap.get(row.projectId) ?? {
+      projectId: row.projectId,
+      projectName: row.projectName,
+      totalSeconds: 0,
+    };
+    project.totalSeconds += row.totalSeconds;
+    byProjectMap.set(row.projectId, project);
+  }
+
+  return {
+    totalSeconds,
+    workingDays: days.size,
+    byMember: Array.from(byMemberMap.values()).sort((a, b) => b.totalSeconds - a.totalSeconds),
+    byProject: Array.from(byProjectMap.values()).sort((a, b) => b.totalSeconds - a.totalSeconds),
   };
 }

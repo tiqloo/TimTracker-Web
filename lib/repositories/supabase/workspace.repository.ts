@@ -461,5 +461,36 @@ export function createSupabaseWorkspaceRepository(client: SupabaseClient): Works
         endTime: row.end_time,
       }));
     },
+
+    async listProjectTime(workspaceId, fromDay, toDay, filter) {
+      const { data, error } = await client.rpc("list_workspace_project_time", {
+        target_workspace_id: workspaceId,
+        from_day: fromDay,
+        to_day: toDay,
+        filter_user_id: filter?.userId ?? null,
+        filter_project_id: filter?.projectId ?? null,
+        page_limit: filter?.limit ?? 1000,
+        page_offset: filter?.offset ?? 0,
+      });
+      if (error) throw error;
+      const rows = data as {
+        user_id: string;
+        email: string;
+        display_name: string | null;
+        project_id: string;
+        project_name: string;
+        day: string;
+        total_seconds: number;
+      }[];
+      return rows.map((row) => ({
+        userId: row.user_id,
+        email: row.email,
+        displayName: row.display_name,
+        projectId: row.project_id,
+        projectName: row.project_name,
+        day: row.day.slice(0, 10),
+        totalSeconds: row.total_seconds,
+      }));
+    },
   };
 }

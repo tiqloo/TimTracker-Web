@@ -1777,6 +1777,40 @@ export const companyOverview = {
   },
 } satisfies Record<string, Translated>;
 
+// --- Ticket 193: Unternehmensauswertungen --------------------------------
+export const companyAnalytics = {
+  pageTitle: { de: "Auswertungen", en: "Analytics" },
+  pageDescription: {
+    de: "Erfasste Arbeitszeit deines gesamten Unternehmens nach Mitarbeiter und Projekt.",
+    en: "Your whole company's tracked working time by employee and project.",
+  },
+  last7Days: { de: "Letzte 7 Tage", en: "Last 7 Days" },
+  last30Days: { de: "Letzte 30 Tage", en: "Last 30 Days" },
+  fromLabel: { de: "Von", en: "From" },
+  toLabel: { de: "Bis", en: "To" },
+  memberLabel: { de: "Mitarbeiter", en: "Employee" },
+  allMembers: { de: "Alle Mitarbeiter", en: "All employees" },
+  projectLabel: { de: "Projekt", en: "Project" },
+  allProjects: { de: "Alle Projekte", en: "All projects" },
+  apply: { de: "Anwenden", en: "Apply" },
+  totalTimeLabel: { de: "Gesamtzeit", en: "Total time" },
+  workingDaysLabel: { de: "Arbeitstage", en: "Working days" },
+  byMemberHeading: { de: "Zeit pro Mitarbeiter", en: "Time by employee" },
+  byProjectHeading: { de: "Zeit pro Projekt", en: "Time by project" },
+  emptyState: {
+    de: "Für diesen Zeitraum und diese Filter wurde keine Zeit erfasst.",
+    en: "No time was tracked for this period and these filters.",
+  },
+  loadError: {
+    de: "Die Unternehmensauswertung konnte nicht geladen werden.",
+    en: "The company analytics could not be loaded.",
+  },
+  forbiddenError: {
+    de: "Nur Owner und Admins können Unternehmensauswertungen sehen.",
+    en: "Only owners and admins can view company analytics.",
+  },
+} satisfies Record<string, Translated>;
+
 // --- Ticket 192: Mitarbeiterprofil und Mitarbeiterdetails ---------------
 export const employeeProfile = {
   memberSinceLabel: { de: "Mitglied seit", en: "Member since" },
