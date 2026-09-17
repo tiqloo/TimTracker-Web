@@ -62,6 +62,34 @@ export function formatTime(isoDateTime: string, locale: string = "de-DE", timeFo
   });
 }
 
+// Ticket 195 ("Zeiteinträge manuell bearbeiten/löschen/nachtragen"): the
+// browser's own local wall-clock reading of an ISO instant, zero-padded
+// 24h, suitable as an `<input type="time">` value — the HTML spec
+// requires that exact "HH:mm" shape for the value attribute regardless of
+// display locale/timeFormat, so this deliberately does NOT reuse
+// formatTime above (a locale-/hour12-aware *display* string, not a valid
+// input value). Same "browser's own local timezone, not a workspace IANA
+// timezone" convention formatTime already relies on implicitly (no
+// `timeZone` option passed to `toLocale*` anywhere in this file) — a
+// workspace's members are assumed to actually be in that timezone, same
+// reasoning Ticket 118 applied only to DAY-BOUNDARY math, never to what
+// numeral a clock face shows a viewer.
+export function toTimeInputValue(isoDateTime: string): string {
+  const date = new Date(isoDateTime);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+// Inverse of toTimeInputValue, combined with a day (`yyyy-MM-dd`) — same
+// local-time parsing convention formatDayLabel above already uses (no "Z"
+// suffix, so JS interprets the literal as the browser's own local time),
+// so a value read via toTimeInputValue() and written back through this
+// function round-trips to the exact same instant.
+export function fromDayAndTimeInput(day: string, hhmm: string): string {
+  return new Date(`${day}T${hhmm}:00`).toISOString();
+}
+
 // "24. August 2026" — used as the heading on a "Historie" day-detail page
 // (history/[day]/page.tsx). Parsed as local midnight (not UTC) so the
 // displayed date always matches the `day` string itself regardless of the

@@ -55,7 +55,21 @@ import { listProjects } from "@/lib/application/projects";
 import type { WeekComparison } from "@/lib/application/dashboard";
 import type { WorkspaceTimeFormat } from "@/lib/application/workspace";
 import { AssignTimeAction } from "@/components/AssignTimeAction";
+import { EditTimeEntryAction } from "@/components/EditTimeEntryAction";
+import { DeleteTimeEntryAction } from "@/components/DeleteTimeEntryAction";
+import { AddTimeEntryAction } from "@/components/AddTimeEntryAction";
 import { computeDailyGoalProgress } from "@/lib/domain/daily-goal";
+// Ticket 195: reuses the SAME union-of-overlapping-intervals aggregation
+// (Ticket 086) the server side already uses for every authoritative
+// breakdown (getBreakdown()/export/team-times/analytics) — this
+// component's own local recompute-after-a-mutation logic used to sum
+// each entry's duration independently (fine when the only possible
+// mutation was Ticket 034's single-field project reassignment, which can
+// never create or change an overlap). Now that entries can be freely
+// edited/created, two entries genuinely CAN end up overlapping, and the
+// local numbers must agree with what a page reload / export / team-times
+// would show for the exact same data — no second, drifting formula.
+import { buildDailyBreakdowns } from "@/lib/domain/time-entry-aggregation.ts";
 import {
   dayDetail,
   dayDetailSegmentTooltip,
@@ -187,42 +201,27 @@ function buildTimeline(entries: TimeEntry[], nowMs: number): TimelineSegment[] {
   return segments;
 }
 
-// Ticket 034: recomputes a DailyBreakdown from an up-to-date entries array
-// after a successful assign — same formula, same field-by-field meaning as
-// buildBreakdown() in lib/repositories/supabase/time-entries.repository.ts
-// (standardSeconds/projectSeconds/pauseSeconds from segmentKind() above,
-// totalSeconds excludes pause, unassignedSeconds = max(0, total -
-// project)). Deliberately duplicated here rather than imported — same
-// precedent and same reasoning as STANDARD_PROJECT_ID/PAUSE_PROJECT_ID at
-// the top of this file: components/ sits one layer above
-// lib/application/*, and the Hexagonal boundary means it must never reach
-// into lib/repositories/supabase/* (an adapter) directly. Keep in sync if
-// the formula ever changes — same "single formula, three call sites"
-// obligation the adapter's own comment already documents.
-function computeBreakdown(day: string, entries: TimeEntry[], nowMs: number): DailyBreakdown {
-  let standardSeconds = 0;
-  let projectSeconds = 0;
-  let pauseSeconds = 0;
+function emptyBreakdown(day: string): DailyBreakdown {
+  return { day, standardSeconds: 0, projectSeconds: 0, pauseSeconds: 0, totalSeconds: 0, unassignedSeconds: 0 };
+}
 
-  for (const entry of entries) {
-    const start = new Date(entry.startTime).getTime();
-    const end = entry.endTime ? new Date(entry.endTime).getTime() : nowMs;
-    const seconds = Math.max(0, Math.round((end - start) / 1000));
-    const kind = segmentKind(entry);
-    if (kind === "pause") pauseSeconds += seconds;
-    else if (kind === "auto") standardSeconds += seconds;
-    else projectSeconds += seconds;
-  }
-
-  const totalSeconds = standardSeconds + projectSeconds;
-  return {
-    day,
-    standardSeconds,
-    projectSeconds,
-    pauseSeconds,
-    totalSeconds,
-    unassignedSeconds: Math.max(0, totalSeconds - projectSeconds),
-  };
+// Ticket 034 (extended by Ticket 195): recomputes a DailyBreakdown from an
+// up-to-date entries array after a successful assign/edit/delete/create —
+// delegates to the shared buildDailyBreakdowns() (lib/domain/
+// time-entry-aggregation.ts, see this file's own import comment above)
+// rather than a locally duplicated formula, since that function is
+// already framework-free and safe to import from a Client Component (the
+// Hexagonal-boundary concern that used to justify duplicating this logic
+// only applies to lib/repositories/supabase/* adapters, not lib/domain/*).
+// Every entries array this component ever holds shares one `day` by
+// construction (getForDay()-fetched, or a newly created entry explicitly
+// scoped to this same day) — a plain `[0]` is therefore always the right
+// (only possible) bucket, with an explicit empty-array fallback for the
+// "just deleted the last entry" case (buildDailyBreakdowns returns no
+// buckets at all for an empty entries array).
+function recomputeBreakdown(day: string, entries: TimeEntry[], nowMs: number): DailyBreakdown {
+  const [breakdown] = buildDailyBreakdowns(entries, new Date(nowMs));
+  return breakdown ?? emptyBreakdown(day);
 }
 
 export function DayDetail({
@@ -296,22 +295,23 @@ export function DayDetail({
     return () => window.clearInterval(interval);
   }, [hasRunningEntry]);
 
-  // Real (non-system) projects for the assign dropdown, fetched once,
-  // lazily, and shared by every AssignTimeAction instance on this page —
-  // not per-row, so a day with several unassigned segments doesn't fire
-  // the same request once per segment. `hasUnassignedOnMount` is captured
-  // once via a lazy useState initializer specifically so it stays stable
-  // across the whole component lifetime even though `breakdown` itself
-  // changes after an assign (unassignedSeconds only ever goes down from
-  // an assign, never up, so "did this day start with something to
-  // assign" is the right, one-time gate for whether to fetch at all —
-  // most days have nothing unassigned, and those pay no extra request).
-  const [hasUnassignedOnMount] = useState(() => initialBreakdown.unassignedSeconds > 0);
+  // Real (non-system) projects for the assign/edit/add dropdowns, fetched
+  // once and shared by every AssignTimeAction/EditTimeEntryAction/
+  // AddTimeEntryAction instance on this page — not per-row/action, so a
+  // day with several entries doesn't fire the same request repeatedly.
+  //
+  // Ticket 195 (selbst gefunden, Anpassung): vor diesem Ticket wurde nur
+  // geladen, wenn der Tag beim Mounten bereits nicht zugeordnete Zeit
+  // hatte (`hasUnassignedOnMount`-Gate) — korrekt, solange die einzige
+  // Aktion, die eine Projektliste braucht, "Jetzt zuordnen" war. Jetzt
+  // brauchen AUCH das Bearbeiten eines bereits zugeordneten Eintrags und
+  // "+ Zeit nachtragen" (immer sichtbar, auch an einem leeren Tag) diese
+  // Liste — das alte Gate hätte beide Fälle stumm mit einer leeren
+  // Auswahl zurückgelassen. Lädt jetzt unbedingt bei jedem Mount.
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [projectsError, setProjectsError] = useState(false);
 
   useEffect(() => {
-    if (!hasUnassignedOnMount) return;
     let cancelled = false;
     (async () => {
       try {
@@ -325,12 +325,35 @@ export function DayDetail({
     return () => {
       cancelled = true;
     };
-  }, [hasUnassignedOnMount]);
+  }, []);
 
   function handleAssigned(updated: TimeEntry) {
     const nextEntries = entries.map((entry) => (entry.id === updated.id ? updated : entry));
     setEntries(nextEntries);
-    setBreakdown(computeBreakdown(initialBreakdown.day, nextEntries, nowMs));
+    setBreakdown(recomputeBreakdown(initialBreakdown.day, nextEntries, nowMs));
+  }
+
+  // Ticket 195: shared by EditTimeEntryAction (replace) / DeleteTimeEntryAction
+  // (remove) / AddTimeEntryAction (append) — three different array
+  // operations, but the exact same "patch entries, then recompute the
+  // breakdown from the patched array" shape handleAssigned above already
+  // established.
+  function handleUpdated(updated: TimeEntry) {
+    const nextEntries = entries.map((entry) => (entry.id === updated.id ? updated : entry));
+    setEntries(nextEntries);
+    setBreakdown(recomputeBreakdown(initialBreakdown.day, nextEntries, nowMs));
+  }
+
+  function handleDeleted(deletedId: string) {
+    const nextEntries = entries.filter((entry) => entry.id !== deletedId);
+    setEntries(nextEntries);
+    setBreakdown(recomputeBreakdown(initialBreakdown.day, nextEntries, nowMs));
+  }
+
+  function handleCreated(created: TimeEntry) {
+    const nextEntries = [...entries, created];
+    setEntries(nextEntries);
+    setBreakdown(recomputeBreakdown(initialBreakdown.day, nextEntries, nowMs));
   }
 
   // Ticket 038: formatDuration/formatTime now take the same locale
@@ -359,15 +382,29 @@ export function DayDetail({
   // avoid a crash, it's a pure display choice.
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col gap-1 rounded-xl border border-line bg-surface p-4">
-        <p className="text-sm text-foreground/80">{emptyMessage}</p>
-        <p className="text-sm text-foreground/60">{emptyMessageDetail}</p>
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-foreground/80">{emptyMessage}</p>
+          <p className="text-sm text-foreground/60">{emptyMessageDetail}</p>
+        </div>
+        {/* Ticket 195 edge case: "+ Zeit nachtragen" stays reachable even
+            on a completely empty day — backfilling a day that had NO
+            automatic tracking at all (worked offline, app wasn't running)
+            is a first-class case, not just a correction to an existing
+            entry. */}
+        <AddTimeEntryAction
+          day={initialBreakdown.day}
+          projects={projects}
+          projectsError={projectsError}
+          lang={lang}
+          onCreated={handleCreated}
+        />
       </div>
     );
   }
 
   const currentBreakdown = hasRunningEntry
-    ? computeBreakdown(initialBreakdown.day, entries, liveNowMs)
+    ? recomputeBreakdown(initialBreakdown.day, entries, liveNowMs)
     : breakdown;
   const timeline = buildTimeline(entries, liveNowMs);
 
@@ -563,15 +600,15 @@ export function DayDetail({
                     {formatDuration((segment.endMs - segment.startMs) / 1000, locale)}
                   </span>
                 </div>
-                {/* Ticket 034: the "Jetzt zuordnen" action, one per
-                    unassigned (kind "auto" — see this file's own top
-                    comment: unassigned currently equals all automatic
-                    time) entry — placed right at its own row per the
-                    ticket's edge case (several non-contiguous unassigned
-                    segments on the same day must each be assignable
-                    independently, not as one all-or-nothing action). */}
-                {segment.kind === "auto" && (
-                  <div className="pl-4">
+                <div className="flex flex-wrap items-start gap-3 pl-4">
+                  {/* Ticket 034: the "Jetzt zuordnen" action, one per
+                      unassigned (kind "auto" — see this file's own top
+                      comment: unassigned currently equals all automatic
+                      time) entry — placed right at its own row per the
+                      ticket's edge case (several non-contiguous unassigned
+                      segments on the same day must each be assignable
+                      independently, not as one all-or-nothing action). */}
+                  {segment.kind === "auto" && (
                     <AssignTimeAction
                       entry={segment.entry}
                       projects={projects}
@@ -579,11 +616,36 @@ export function DayDetail({
                       lang={lang}
                       onAssigned={handleAssigned}
                     />
-                  </div>
-                )}
+                  )}
+                  {/* Ticket 195: Bearbeiten/Löschen — unlike AssignTimeAction
+                      above, these render on EVERY entry, regardless of
+                      segment kind (automatic, already-assigned project,
+                      pause, or a previously manually-added one — all
+                      equally correctable/removable). */}
+                  <EditTimeEntryAction
+                    entry={segment.entry}
+                    day={initialBreakdown.day}
+                    projects={projects}
+                    projectsError={projectsError}
+                    lang={lang}
+                    onUpdated={handleUpdated}
+                  />
+                  <DeleteTimeEntryAction entryId={segment.entry.id} lang={lang} onDeleted={handleDeleted} />
+                </div>
               </li>
             ))}
         </ul>
+
+        {/* Ticket 195: "+ Zeit nachtragen" — always available at the end
+            of a non-empty day too (the empty-state's own copy above
+            handles the "day has zero entries at all" case). */}
+        <AddTimeEntryAction
+          day={initialBreakdown.day}
+          projects={projects}
+          projectsError={projectsError}
+          lang={lang}
+          onCreated={handleCreated}
+        />
       </section>
     </>
   );

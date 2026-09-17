@@ -5,7 +5,7 @@ import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import { calendarDayInTimeZone, PRODUCT_TIME_ZONE } from "../domain/calendar-day.ts";
 import { ValidationError } from "../domain/application-error.ts";
-import { addDaysIso, startOfWeekIso } from "../format.ts";
+import { addDaysIso, fromDayAndTimeInput, startOfWeekIso } from "../format.ts";
 import { getActiveWorkspaceTimeZone } from "./workspace.ts";
 import type { WeekStart } from "./workspace.ts";
 
@@ -199,4 +199,74 @@ export async function assignTimeEntryToProject(
     throw new ValidationError("Project must not be empty.");
   }
   return repos.timeEntries.updateProject(entryId, trimmedProjectId);
+}
+
+// Ticket 195 ("Zeiteinträge manuell bearbeiten/löschen/nachtragen") — the
+// one validation rule shared by editing AND creating an entry, kept as a
+// single helper so both use cases below fail with the exact same message
+// for the exact same mistake rather than two near-duplicate checks
+// drifting apart over time.
+function requireEndAfterStart(startTime: string, endTime: string): void {
+  if (new Date(endTime).getTime() <= new Date(startTime).getTime()) {
+    throw new ValidationError("End time must be after start time.");
+  }
+}
+
+// `startTime`/`endTime` here are raw "HH:mm" strings straight out of the
+// edit form's <input type="time"> fields (see components/
+// EditTimeEntryAction.tsx) — converted to full ISO instants via
+// fromDayAndTimeInput(day, ...) here, at the application boundary, so
+// neither the component nor the repository adapter needs to know the
+// day+HH:mm -> instant conversion exists. `day` is the entry's OWN day
+// (unchanged by this ticket — see 195's "Scoping-Entscheidung": editing
+// moves an entry within its day, never to a different one).
+export async function updateTimeEntry(
+  repos: Repositories,
+  entryId: string,
+  day: string,
+  input: { projectId: string; startTime: string; endTime: string; note: string | null },
+): Promise<TimeEntry> {
+  const projectId = input.projectId.trim();
+  if (!projectId) {
+    throw new ValidationError("Project must not be empty.");
+  }
+  const startTime = fromDayAndTimeInput(day, input.startTime);
+  const endTime = fromDayAndTimeInput(day, input.endTime);
+  requireEndAfterStart(startTime, endTime);
+  return repos.timeEntries.updateEntry(entryId, {
+    projectId,
+    startTime,
+    endTime,
+    note: input.note?.trim() || null,
+  });
+}
+
+export async function deleteTimeEntry(repos: Repositories, entryId: string): Promise<void> {
+  return repos.timeEntries.deleteEntry(entryId);
+}
+
+// Same HH:mm -> instant conversion as updateTimeEntry above; `day` here
+// is which day-detail page the "+ Zeit nachtragen" action was opened
+// from (components/AddTimeEntryAction.tsx), not derived from the times
+// themselves — a manually backfilled entry is always scoped to the page
+// the user was already looking at, same reasoning as the edit form.
+export async function createTimeEntry(
+  repos: Repositories,
+  day: string,
+  input: { projectId: string; startTime: string; endTime: string; note: string | null },
+): Promise<TimeEntry> {
+  const projectId = input.projectId.trim();
+  if (!projectId) {
+    throw new ValidationError("Project must not be empty.");
+  }
+  const startTime = fromDayAndTimeInput(day, input.startTime);
+  const endTime = fromDayAndTimeInput(day, input.endTime);
+  requireEndAfterStart(startTime, endTime);
+  return repos.timeEntries.createEntry({
+    day,
+    projectId,
+    startTime,
+    endTime,
+    note: input.note?.trim() || null,
+  });
 }

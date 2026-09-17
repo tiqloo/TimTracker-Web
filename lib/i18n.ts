@@ -241,6 +241,49 @@ export const dayDetail = {
     en: "No projects created yet.",
   },
   assignNoProjectsCta: { de: "Projekt anlegen", en: "Create project" },
+  // Ticket 195 ("Zeiteinträge manuell bearbeiten/löschen/nachtragen") —
+  // shares this namespace with the Ticket-034 strings above rather than a
+  // new one: same page, same per-entry inline-action family, same
+  // wording conventions (Speichern/Abbrechen already established by
+  // Assign*). editAction/deleteAction are the two new tertiary links
+  // rendered on EVERY entry row (Assign* stays limited to unassigned
+  // ones — see DayDetail.tsx).
+  editAction: { de: "Bearbeiten", en: "Edit" },
+  editStartLabel: { de: "Start", en: "Start" },
+  editEndLabel: { de: "Ende", en: "End" },
+  editProjectLabel: { de: "Projekt", en: "Project" },
+  editNoteLabel: { de: "Notiz (optional)", en: "Note (optional)" },
+  editSave: { de: "Speichern", en: "Save" },
+  editSuccess: { de: "Zeiteintrag wurde aktualisiert.", en: "Time entry updated." },
+  editError: {
+    de: "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+    en: "Saving failed. Please try again.",
+  },
+  editEndBeforeStartError: {
+    de: "Das Ende muss nach dem Start liegen.",
+    en: "The end time must be after the start time.",
+  },
+  deleteAction: { de: "Löschen", en: "Delete" },
+  deleteConfirmPrompt: {
+    de: "Diesen Zeiteintrag wirklich löschen?",
+    en: "Really delete this time entry?",
+  },
+  deleteConfirm: { de: "Ja, löschen", en: "Yes, delete" },
+  deleteSuccess: { de: "Zeiteintrag wurde gelöscht.", en: "Time entry deleted." },
+  deleteError: {
+    de: "Löschen fehlgeschlagen. Bitte erneut versuchen.",
+    en: "Deleting failed. Please try again.",
+  },
+  // "+ Zeit nachtragen" — a single, always-visible action at the bottom
+  // of the entries list (and in the empty state, see DayDetail.tsx),
+  // NOT per-entry, since it creates a brand-new one rather than acting on
+  // an existing row.
+  addAction: { de: "Zeit nachtragen", en: "Add time entry" },
+  addSuccess: { de: "Zeiteintrag wurde angelegt.", en: "Time entry created." },
+  addError: {
+    de: "Anlegen fehlgeschlagen. Bitte erneut versuchen.",
+    en: "Creating failed. Please try again.",
+  },
 } satisfies Record<string, Translated>;
 
 // Native `title` tooltip for one segment on the new day timeline (Ticket

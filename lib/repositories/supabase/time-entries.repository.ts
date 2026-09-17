@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TimeEntriesRepository } from "../time-entries.repository";
+import type {
+  CreateTimeEntryInput,
+  TimeEntriesRepository,
+  UpdateTimeEntryInput,
+} from "../time-entries.repository";
 import type {
   TimeEntry,
   TimeEntrySource,
@@ -123,6 +127,83 @@ export function createSupabaseTimeEntriesRepository(
         .from("time_entries")
         .update({ project_id: projectId, updated_at: new Date().toISOString() })
         .eq("id", entryId)
+        .select(TIME_ENTRY_COLUMNS)
+        .maybeSingle();
+      if (error) throw error;
+      return toDomain(requireUpdatedRow(data as TimeEntryRow | null, "Time entry"));
+    },
+
+    // Ticket 195: full edit — same explicit `updated_at` reasoning as
+    // updateProject above (no DB trigger re-stamps it on UPDATE).
+    // `endTime`/`startTime` arrive as already-validated ISO instants (see
+    // lib/application/dashboard.ts#updateTimeEntry) — the DB's own
+    // `time_entries_end_after_start_check` CHECK constraint
+    // (TimTracker-Starter migration `20260926090000_time_entry_end_after_start.sql`)
+    // is the authoritative, defense-in-depth backstop either way.
+    async updateEntry(entryId: string, input: UpdateTimeEntryInput) {
+      const { data, error } = await client
+        .from("time_entries")
+        .update({
+          project_id: input.projectId,
+          start_time: input.startTime,
+          end_time: input.endTime,
+          note: input.note,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", entryId)
+        .select(TIME_ENTRY_COLUMNS)
+        .maybeSingle();
+      if (error) throw error;
+      return toDomain(requireUpdatedRow(data as TimeEntryRow | null, "Time entry"));
+    },
+
+    // Ticket 195: soft-delete via `deleted_at`, not a hard DELETE — see
+    // this method's own doc on the TimeEntriesRepository interface for
+    // why. `.is("deleted_at", null)` in the WHERE clause makes this
+    // idempotent (a second delete attempt on an already-tombstoned row
+    // matches zero rows and surfaces as the same "not found" error as
+    // deleting a nonexistent id, rather than silently re-stamping
+    // `deleted_at`/`updated_at` a second time).
+    async deleteEntry(entryId: string) {
+      const { data, error } = await client
+        .from("time_entries")
+        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", entryId)
+        .is("deleted_at", null)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      requireUpdatedRow(data, "Time entry");
+    },
+
+    // Ticket 195: manual backfill entry. Same id/user_id/workspace_id
+    // pattern projects.repository.ts#create already established (`id`
+    // has no DB default, `user_id`/`workspace_id` are both required by
+    // the INSERT RLS policy) — see that method's own comment for the
+    // full history of why each of the three is set explicitly here.
+    // `source: "manual"` (not "automatic") is the one fixed value this
+    // method always writes — matches the native app's own manual-
+    // project-tracking sessions, and is how a backfilled entry stays
+    // distinguishable from real automatic tracking in any future
+    // reporting that cares about the distinction.
+    async createEntry(input: CreateTimeEntryInput) {
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError || !userData.user) throw userError ?? new Error("Not authenticated");
+      const workspaceId = await getActiveWorkspaceId();
+      const { data, error } = await client
+        .from("time_entries")
+        .insert({
+          id: crypto.randomUUID(),
+          user_id: userData.user.id,
+          workspace_id: workspaceId,
+          project_id: input.projectId,
+          day: input.day,
+          start_time: input.startTime,
+          end_time: input.endTime,
+          source: "manual",
+          note: input.note,
+          updated_at: new Date().toISOString(),
+        })
         .select(TIME_ENTRY_COLUMNS)
         .maybeSingle();
       if (error) throw error;

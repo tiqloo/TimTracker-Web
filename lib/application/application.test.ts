@@ -18,10 +18,14 @@ import {
 import { setDailyGoalHours } from "./daily-goal.ts";
 import {
   assignTimeEntryToProject,
+  createTimeEntry,
+  deleteTimeEntry,
   getBreakdownForDay,
   getEntriesForDay,
   getWeekComparison,
+  updateTimeEntry,
 } from "./dashboard.ts";
+import { fromDayAndTimeInput } from "../format.ts";
 import { getFullDataExport } from "./data-export.ts";
 import {
   archiveProject,
@@ -265,6 +269,15 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
         return [];
       },
       async updateProject(id, projectId) { record("entries.assign", id, projectId); return { ...ENTRY, id, projectId }; },
+      async updateEntry(id, input) {
+        record("entries.update", id, input);
+        return { ...ENTRY, id, projectId: input.projectId, startTime: input.startTime, endTime: input.endTime, note: input.note };
+      },
+      async deleteEntry(id) { record("entries.delete", id); },
+      async createEntry(input) {
+        record("entries.create", input);
+        return { ...ENTRY, id: "entry-new", day: input.day, projectId: input.projectId, startTime: input.startTime, endTime: input.endTime, note: input.note, source: "manual" };
+      },
     },
     subscription: {
       async getCurrent() { record("subscription.get"); return state.subscription; },
@@ -543,6 +556,90 @@ test("assignment trims the project id and rejects blank selections", async () =>
   assert.equal((await assignTimeEntryToProject(repos, "entry-1", " project-2 ")).projectId, "project-2");
   await assert.rejects(assignTimeEntryToProject(repos, "entry-1", "  "), ValidationError);
   assert.deepEqual(state.calls, [{ method: "entries.assign", args: ["entry-1", "project-2"] }]);
+});
+
+// Ticket 195 ("Zeiteinträge manuell bearbeiten/löschen/nachtragen").
+test("updateTimeEntry converts HH:mm to ISO instants on the entry's own day, trims/nullifies the note, and rejects a blank project", async () => {
+  const { repos, state } = memoryRepositories();
+  const updated = await updateTimeEntry(repos, "entry-1", "2026-01-05", {
+    projectId: " project-2 ",
+    startTime: "08:00",
+    endTime: "09:30",
+    note: "  gefixt  ",
+  });
+  assert.equal(updated.projectId, "project-2");
+  assert.deepEqual(state.calls, [
+    {
+      method: "entries.update",
+      args: [
+        "entry-1",
+        {
+          projectId: "project-2",
+          startTime: fromDayAndTimeInput("2026-01-05", "08:00"),
+          endTime: fromDayAndTimeInput("2026-01-05", "09:30"),
+          note: "gefixt",
+        },
+      ],
+    },
+  ]);
+
+  await assert.rejects(
+    updateTimeEntry(repos, "entry-1", "2026-01-05", { projectId: "  ", startTime: "08:00", endTime: "09:00", note: null }),
+    ValidationError,
+  );
+});
+
+test("updateTimeEntry rejects an end time that is not strictly after the start time", async () => {
+  const { repos } = memoryRepositories();
+  await assert.rejects(
+    updateTimeEntry(repos, "entry-1", "2026-01-05", { projectId: "project-2", startTime: "09:00", endTime: "09:00", note: null }),
+    ValidationError,
+  );
+  await assert.rejects(
+    updateTimeEntry(repos, "entry-1", "2026-01-05", { projectId: "project-2", startTime: "09:30", endTime: "09:00", note: null }),
+    ValidationError,
+  );
+});
+
+test("deleteTimeEntry delegates straight to the repository", async () => {
+  const { repos, state } = memoryRepositories();
+  await deleteTimeEntry(repos, "entry-1");
+  assert.deepEqual(state.calls, [{ method: "entries.delete", args: ["entry-1"] }]);
+});
+
+test("createTimeEntry converts HH:mm on the given day, defaults an empty note to null, and rejects a blank project or end<=start", async () => {
+  const { repos, state } = memoryRepositories();
+  const created = await createTimeEntry(repos, "2026-01-06", {
+    projectId: "project-2",
+    startTime: "14:00",
+    endTime: "16:00",
+    note: "",
+  });
+  assert.equal(created.day, "2026-01-06");
+  assert.equal(created.source, "manual");
+  assert.deepEqual(state.calls, [
+    {
+      method: "entries.create",
+      args: [
+        {
+          day: "2026-01-06",
+          projectId: "project-2",
+          startTime: fromDayAndTimeInput("2026-01-06", "14:00"),
+          endTime: fromDayAndTimeInput("2026-01-06", "16:00"),
+          note: null,
+        },
+      ],
+    },
+  ]);
+
+  await assert.rejects(
+    createTimeEntry(repos, "2026-01-06", { projectId: "", startTime: "14:00", endTime: "16:00", note: null }),
+    ValidationError,
+  );
+  await assert.rejects(
+    createTimeEntry(repos, "2026-01-06", { projectId: "project-2", startTime: "16:00", endTime: "14:00", note: null }),
+    ValidationError,
+  );
 });
 
 test("dashboard day use cases preserve repository data and provide an empty breakdown", async () => {

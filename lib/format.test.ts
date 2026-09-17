@@ -6,7 +6,7 @@
 // seconds, very long durations).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatDuration, formatTime, startOfWeekIso } from "./format.ts";
+import { formatDuration, formatTime, fromDayAndTimeInput, startOfWeekIso, toTimeInputValue } from "./format.ts";
 
 test("formatDuration: German locale uses spaced-out 'h'/'min' words", () => {
   assert.equal(formatDuration(0, "de-DE"), "0 min");
@@ -99,6 +99,37 @@ test("formatTime: renders 12h AM/PM when the workspace's timeFormat setting is '
   assert.equal(formatTime(iso, "de-DE", "12h"), expected);
   assert.match(formatTime(iso, "de-DE", "12h"), /AM|PM/i);
   assert.match(formatTime(iso, "en-US", "12h"), /AM|PM/i);
+});
+
+// Ticket 195 ("Zeiteinträge manuell bearbeiten/löschen/nachtragen") —
+// toTimeInputValue/fromDayAndTimeInput power the new edit/create forms'
+// <input type="time"> fields. Both computed against the runner's own
+// local timezone (same convention as formatTime's own tests above) rather
+// than a hardcoded literal, so this suite stays green regardless of which
+// timezone CI/a contributor's machine happens to run in.
+test("toTimeInputValue: renders zero-padded 24h HH:mm in the local timezone, never locale-/AM-PM-formatted", () => {
+  const iso = "2026-08-24T08:05:00Z";
+  const local = new Date(iso);
+  const expected = `${String(local.getHours()).padStart(2, "0")}:${String(local.getMinutes()).padStart(2, "0")}`;
+  assert.equal(toTimeInputValue(iso), expected);
+  assert.doesNotMatch(toTimeInputValue(iso), /AM|PM/i);
+});
+
+test("fromDayAndTimeInput: round-trips with toTimeInputValue for the same local instant", () => {
+  const iso = "2026-08-24T08:05:00Z";
+  const day = "2026-08-24";
+  const hhmm = toTimeInputValue(iso);
+  // The round-trip must land on the exact same minute it started from —
+  // this is the actual guarantee the edit form depends on: opening an
+  // entry, not touching the time fields, and saving must be a no-op.
+  const roundTripped = fromDayAndTimeInput(day, hhmm);
+  assert.equal(toTimeInputValue(roundTripped), hhmm);
+});
+
+test("fromDayAndTimeInput: two different HH:mm inputs on the same day produce a later instant for the later time", () => {
+  const earlier = fromDayAndTimeInput("2026-08-24", "08:00");
+  const later = fromDayAndTimeInput("2026-08-24", "17:30");
+  assert.ok(new Date(later).getTime() > new Date(earlier).getTime());
 });
 
 // Ticket 188 (selbst gefunden, Folge-Fund) — Ticket 117's "Wochenbeginn"

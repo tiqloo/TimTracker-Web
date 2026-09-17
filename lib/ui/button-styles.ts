@@ -75,3 +75,11 @@ export const tertiaryButtonClass =
 
 export const primaryButtonSmallClass = `${BASE} h-7 px-2.5 text-xs bg-brand text-background hover:bg-brand/90`;
 export const secondaryButtonSmallClass = `${BASE} h-7 px-2.5 text-xs border border-line bg-surface text-foreground hover:bg-paper`;
+// Ticket 195 ("Zeiteinträge manuell bearbeiten/löschen/nachtragen") — the
+// Small-size counterpart to dangerButtonClass above, for
+// DeleteTimeEntryAction.tsx's inline per-row "Ja, löschen" confirm
+// (exactly the kind of compact, in-context action the Small variants
+// exist for, see this file's own top comment — a destructive confirm
+// button next to a text prompt, not a full-size page action). Same
+// accessible-black-text override as dangerButtonClass, same reasoning.
+export const dangerButtonSmallClass = `${BASE} h-7 px-2.5 text-xs bg-danger text-black hover:bg-danger/90`;
