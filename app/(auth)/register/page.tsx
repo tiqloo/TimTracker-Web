@@ -3,6 +3,7 @@ import { getRepositories } from "@/lib/application/server";
 import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { RegisterForm } from "@/components/RegisterForm";
 import { RegistrationChoice } from "@/components/RegistrationChoice";
+import { productFeatures } from "@/lib/config/product-features";
 
 // Server Component wrapper (Ticket 022) — same split/reasoning as
 // app/(auth)/login/page.tsx.
@@ -34,7 +35,7 @@ export default async function RegisterPage({
   const headerList = await headers();
   const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
 
-  if (email || redirectTo) {
+  if (!productFeatures.organizationRegistration || email || redirectTo) {
     return <RegisterForm lang={lang} prefillEmail={email} />;
   }
 

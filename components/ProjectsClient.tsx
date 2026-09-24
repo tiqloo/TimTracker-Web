@@ -36,6 +36,7 @@ import { common, projects as i18nProjects, t, type Lang } from "@/lib/i18n";
 import { primaryButtonClass, secondaryButtonClass } from "@/lib/ui/button-styles";
 import { errorMessageClass } from "@/lib/ui/status-styles";
 import { errorFeedbackProps, warningFeedbackProps } from "@/lib/ui/feedback";
+import { productFeatures } from "@/lib/config/product-features";
 
 const inputClass =
   "w-full rounded-md border border-line bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50";
@@ -532,7 +533,7 @@ function ProjectRow({
                   {t(lang, i18nProjects.archived)}
                 </span>
               )}
-              {project.isRestricted && (
+              {productFeatures.workspaceAndTeam && project.isRestricted && (
                 <span className="ml-2 rounded bg-paper px-1.5 py-0.5 text-xs font-normal text-foreground/60">
                   {t(lang, i18nProjects.restricted)}
                 </span>
@@ -560,16 +561,18 @@ function ProjectRow({
                   ? t(lang, i18nProjects.reactivate)
                   : t(lang, i18nProjects.archive)}
             </button>
-            <button type="button" onClick={() => setManagingAccess((prev) => !prev)} className={rowActionButtonClass}>
-              {t(lang, i18nProjects.manageAccess)}
-            </button>
+            {productFeatures.workspaceAndTeam && (
+              <button type="button" onClick={() => setManagingAccess((prev) => !prev)} className={rowActionButtonClass}>
+                {t(lang, i18nProjects.manageAccess)}
+              </button>
+            )}
           </div>
         )}
       </div>
       {project.notes && (
         <p className="truncate text-xs text-foreground/60">{project.notes}</p>
       )}
-      {managingAccess && (
+      {productFeatures.workspaceAndTeam && managingAccess && (
         <ProjectAccessPanel
           project={project}
           workspaceId={workspaceId}

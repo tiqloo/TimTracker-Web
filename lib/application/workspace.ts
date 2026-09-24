@@ -31,6 +31,7 @@ import type {
 import { resolveWorkspaceIdWithFallback } from "../repositories/workspace.repository.ts";
 import { ForbiddenError, ValidationError } from "../domain/application-error.ts";
 import { requireUser } from "./auth.ts";
+import { productFeatures } from "../config/product-features.ts";
 
 export type {
   AcceptedInvitation,
@@ -107,6 +108,7 @@ export async function resolveActiveWorkspaceId(
   userId: string,
   requestedWorkspaceId: string | null | undefined,
 ): Promise<string> {
+  if (!productFeatures.workspaceAndTeam) return repos.workspace.getPersonalWorkspaceId(userId);
   return resolveWorkspaceIdWithFallback(repos.workspace, userId, requestedWorkspaceId);
 }
 
@@ -168,6 +170,7 @@ export async function acceptWorkspaceInvitation(repos: Repositories, token: stri
 // matching the caller's own account email.
 export async function listPendingInvitations(repos: Repositories): Promise<PendingInvitationSummary[]> {
   await requireUser(repos);
+  if (!productFeatures.invitations) return [];
   return repos.workspace.listPendingInvitations();
 }
 
@@ -192,6 +195,13 @@ export interface WorkspaceSwitcherData {
 
 export async function getWorkspaceSwitcherData(repos: Repositories): Promise<WorkspaceSwitcherData> {
   const userId = await requireUser(repos);
+  if (!productFeatures.workspaceAndTeam) {
+    const personalWorkspaceId = await repos.workspace.getPersonalWorkspaceId(userId);
+    const workspaces = (await repos.workspace.listMemberships(userId)).filter(
+      (workspace) => workspace.workspaceId === personalWorkspaceId,
+    );
+    return { workspaces, activeWorkspaceId: personalWorkspaceId };
+  }
   const [workspaces, cookieValue] = await Promise.all([
     repos.workspace.listMemberships(userId),
     repos.activeWorkspace.get(),
@@ -211,6 +221,10 @@ export async function getWorkspaceSwitcherData(repos: Repositories): Promise<Wor
 export async function switchActiveWorkspace(repos: Repositories, workspaceId: string): Promise<void> {
   const userId = await requireUser(repos);
   await requireWorkspaceMembership(repos, userId, workspaceId);
+  if (!productFeatures.workspaceAndTeam) {
+    const personalWorkspaceId = await repos.workspace.getPersonalWorkspaceId(userId);
+    if (workspaceId !== personalWorkspaceId) throw new ForbiddenError("Workspace switching is disabled in personal mode.");
+  }
   await repos.activeWorkspace.set(workspaceId);
 }
 
@@ -226,7 +240,7 @@ export async function switchActiveWorkspace(repos: Repositories, workspaceId: st
 export async function getActiveWorkspaceTimeZone(repos: Repositories): Promise<string> {
   const userId = await requireUser(repos);
   const cookieValue = await repos.activeWorkspace.get();
-  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const workspaceId = await resolveActiveWorkspaceId(repos, userId, cookieValue);
   const settings = await repos.workspace.getSettings(workspaceId);
   return settings.timezone;
 }
@@ -241,7 +255,7 @@ export async function getActiveWorkspaceTimeZone(repos: Repositories): Promise<s
 export async function getActiveWorkspaceTimeFormat(repos: Repositories): Promise<WorkspaceTimeFormat> {
   const userId = await requireUser(repos);
   const cookieValue = await repos.activeWorkspace.get();
-  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const workspaceId = await resolveActiveWorkspaceId(repos, userId, cookieValue);
   const settings = await repos.workspace.getSettings(workspaceId);
   return settings.timeFormat;
 }
@@ -254,7 +268,7 @@ export async function getActiveWorkspaceTimeFormat(repos: Repositories): Promise
 export async function getActiveWorkspaceWeekStart(repos: Repositories): Promise<WeekStart> {
   const userId = await requireUser(repos);
   const cookieValue = await repos.activeWorkspace.get();
-  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const workspaceId = await resolveActiveWorkspaceId(repos, userId, cookieValue);
   const settings = await repos.workspace.getSettings(workspaceId);
   return settings.weekStart;
 }
@@ -269,7 +283,7 @@ export async function getActiveWorkspaceWeekStart(repos: Repositories): Promise<
 export async function getActiveWorkspaceRole(repos: Repositories): Promise<WorkspaceRole> {
   const userId = await requireUser(repos);
   const cookieValue = await repos.activeWorkspace.get();
-  const workspaceId = await resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  const workspaceId = await resolveActiveWorkspaceId(repos, userId, cookieValue);
   const membership = await requireWorkspaceMembership(repos, userId, workspaceId);
   return membership.role;
 }
@@ -284,7 +298,7 @@ export async function getActiveWorkspaceRole(repos: Repositories): Promise<Works
 export async function getActiveWorkspaceId(repos: Repositories): Promise<string> {
   const userId = await requireUser(repos);
   const cookieValue = await repos.activeWorkspace.get();
-  return resolveWorkspaceIdWithFallback(repos.workspace, userId, cookieValue);
+  return resolveActiveWorkspaceId(repos, userId, cookieValue);
 }
 
 // Ticket 110 — "Workspace-Mitgliederübersicht". No requireWorkspaceMembership

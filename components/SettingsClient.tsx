@@ -58,6 +58,7 @@ import { errorMessageClass } from "@/lib/ui/status-styles";
 import { errorFeedbackProps, successFeedbackProps } from "@/lib/ui/feedback";
 import { applyThemePreference } from "@/components/ThemeInitializer";
 import { APP_THEMES, parseTheme, THEME_STORAGE_KEY, type AppTheme } from "@/lib/domain/theme";
+import { productFeatures } from "@/lib/config/product-features";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-line bg-background/60 px-3.5 text-sm outline-none transition-all duration-150 hover:border-foreground/20 focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-brand/10 disabled:opacity-50";
@@ -99,7 +100,7 @@ export function SettingsClient({
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <ProfileSection profile={profile} lang={lang} />
-      <WorkspaceSection lang={lang} />
+      {productFeatures.workspaceAndTeam && <WorkspaceSection lang={lang} />}
       <LanguageSection initialLanguage={initialLanguage} lang={lang} />
       <DesignSection lang={lang} />
       {/* Ticket 044: placed right after LanguageSection, per the ticket's

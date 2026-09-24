@@ -40,6 +40,7 @@ import { logout } from "@/lib/application/auth";
 import { getRepositories } from "@/lib/application/client";
 import type { WorkspaceMembershipSummary } from "@/lib/application/workspace";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
+import { productFeatures } from "@/lib/config/product-features";
 import { resolveManagementLinkIds, resolveNavLinkIds, type ManagementLinkId, type NavLinkId } from "@/lib/domain/dashboard-nav";
 import { companyAnalytics, companyOverview, nav, t, type Lang, type Translated } from "@/lib/i18n";
 
@@ -504,7 +505,7 @@ export function DashboardNav({
           </Link>
         </div>
 
-        {!sidebarCollapsed && (
+        {!sidebarCollapsed && productFeatures.workspaceAndTeam && (
           <>
             <WorkspaceSwitcher lang={lang} workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} />
             {/* Ticket 173 — "Workspace-Typ wird erkennbar" for the
