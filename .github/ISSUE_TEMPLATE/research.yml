@@ -1,0 +1,27 @@
+name: Research / Spike
+description: Time-boxed investigation ending in evidence and a recommendation
+title: "[Research] "
+labels: ["type:research", "status:needs-decision"]
+body:
+  - type: textarea
+    id: question
+    attributes: {label: Research Question / Ausgangslage}
+    validations: {required: true}
+  - type: textarea
+    id: goal
+    attributes: {label: Goal and Decision Enabled}
+    validations: {required: true}
+  - type: input
+    id: timebox
+    attributes: {label: Timebox, placeholder: "Example: 4 hours"}
+    validations: {required: true}
+  - type: textarea
+    id: method
+    attributes: {label: Method / Sources / Experiments}
+  - type: textarea
+    id: deliverables
+    attributes: {label: Acceptance Criteria / Deliverables, placeholder: "- [ ] Findings documented\n- [ ] Options compared\n- [ ] Recommendation recorded"}
+    validations: {required: true}
+  - type: textarea
+    id: scope
+    attributes: {label: Out of Scope / Dependencies}

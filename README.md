@@ -15,9 +15,11 @@ Login funktioniert mit demselben Account wie in der Mac-/Windows-App.
 - Migrationen, RLS-Policies, Edge Functions: bleiben in
   `TimTracker-Starter/supabase/` die eine Quelle der Wahrheit — hier
   nicht duplizieren
-- Tickets/Backlog: bleiben zentral in
-  `TimTracker-Starter/docs/tickets/` — auch für dieses Repo, kein
-  eigenes Ticket-System hier
+- Neue Web-Arbeit wird in GitHub Issues dieses Repositories verwaltet.
+  Historische Spezifikationen in `TimTracker-Starter/docs/tickets/` bleiben
+  Kontext und werden bei Bedarf verlinkt; sie sind keine zweite Quelle für
+  neue Ticketnummern. Cross-Repository-Abhängigkeiten werden explizit mit
+  `tiqloo/TimTracker#<issue>` referenziert.
 
 ## Stack
 
