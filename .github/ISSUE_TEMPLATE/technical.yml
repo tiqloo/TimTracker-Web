@@ -1,0 +1,23 @@
+name: Technical Task
+description: Infrastructure, tooling, migration, or internal engineering work
+title: "[Technical] "
+labels: ["type:technical", "status:needs-decision"]
+body:
+  - type: textarea
+    id: context
+    attributes: {label: Problem / Ausgangslage}
+    validations: {required: true}
+  - type: textarea
+    id: goal
+    attributes: {label: Ziel / Expected Outcome}
+    validations: {required: true}
+  - type: textarea
+    id: acceptance
+    attributes: {label: Acceptance Criteria, placeholder: "- [ ] …"}
+    validations: {required: true}
+  - type: textarea
+    id: approach
+    attributes: {label: Technical Notes / Constraints}
+  - type: textarea
+    id: dependencies
+    attributes: {label: Dependencies / Rollout / Rollback / Out of Scope}

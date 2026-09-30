@@ -1,0 +1,24 @@
+name: Documentation
+description: Missing, incorrect, or unclear project documentation
+title: "[Docs] "
+labels: ["type:documentation", "status:needs-decision"]
+body:
+  - type: textarea
+    id: problem
+    attributes: {label: Problem / Audience}
+    validations: {required: true}
+  - type: textarea
+    id: goal
+    attributes: {label: Goal / Expected Behavior}
+    validations: {required: true}
+  - type: textarea
+    id: locations
+    attributes: {label: Affected Documentation / Sources of Truth}
+    validations: {required: true}
+  - type: textarea
+    id: acceptance
+    attributes: {label: Acceptance Criteria, placeholder: "- [ ] …\n- [ ] Links verified\n- [ ] No conflicting duplicate guidance"}
+    validations: {required: true}
+  - type: textarea
+    id: scope
+    attributes: {label: Out of Scope / Dependencies}

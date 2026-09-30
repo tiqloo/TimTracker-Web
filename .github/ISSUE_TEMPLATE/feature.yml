@@ -1,0 +1,46 @@
+name: Feature / User Story
+description: A user-facing capability with verifiable acceptance criteria
+title: "[Feature] "
+labels: ["type:feature", "status:needs-decision"]
+body:
+  - type: textarea
+    id: story
+    attributes: {label: User Story, description: "Als … möchte ich … damit …", placeholder: "Als …\nmöchte ich …\ndamit …"}
+    validations: {required: true}
+  - type: textarea
+    id: problem
+    attributes: {label: Problem / Ausgangslage}
+    validations: {required: true}
+  - type: textarea
+    id: goal
+    attributes: {label: Ziel}
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes: {label: Expected Behavior}
+    validations: {required: true}
+  - type: textarea
+    id: flow
+    attributes: {label: Flow}
+    validations: {required: true}
+  - type: textarea
+    id: acceptance
+    attributes: {label: Acceptance Criteria, placeholder: "- [ ] …"}
+    validations: {required: true}
+  - type: textarea
+    id: edge
+    attributes: {label: Edge Cases}
+  - type: textarea
+    id: out
+    attributes: {label: Out of Scope}
+  - type: textarea
+    id: technical
+    attributes: {label: Technical Notes}
+  - type: textarea
+    id: dependencies
+    attributes: {label: Dependencies, description: "Link issues or write None."}
+    validations: {required: true}
+  - type: textarea
+    id: dod
+    attributes: {label: Definition of Done, placeholder: "- [ ] Acceptance criteria met\n- [ ] Tests and build pass\n- [ ] Documentation updated if needed"}
+    validations: {required: true}
