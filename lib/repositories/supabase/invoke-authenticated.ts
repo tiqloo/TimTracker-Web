@@ -37,9 +37,44 @@ export async function invokeAuthenticated<T = unknown>(
       "Sitzung konnte nicht geladen werden. Bitte die Seite neu laden und erneut versuchen.",
     );
   }
-  return client.functions.invoke<T>(functionName, {
+
+  const result = await client.functions.invoke<T>(functionName, {
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
+  if (!isUnauthenticatedFunctionError(result.error)) {
+    return result;
+  }
+
+  // Real production bug (reported via screenshot: "Abo verwalten" showing
+  // "Nicht angemeldet." although genuinely signed in). Root cause is in
+  // auth-js's own GoTrueClient.__loadSession(): when the stored access
+  // token is past its eager-refresh margin, it tries to refresh, and if
+  // that refresh fails non-retryably (e.g. a concurrent tab/request
+  // already rotated the one-time-use refresh token) it falls back to
+  // handing back the STALE stored access token instead of null, as long as
+  // that token's own expires_at hasn't been reached yet client-side. That
+  // stale token still gets accepted by getSession() above, but is rejected
+  // by the Edge Function's JWT verification server-side — surfacing the
+  // server's generic "not signed in" response even though the user is.
+  // client.auth.refreshSession() (unlike getSession()) always talks to the
+  // auth server directly and bypasses that stale-storage fallback, so
+  // retry exactly once with a force-refreshed token. A second 401 after an
+  // explicit refresh means the session is genuinely dead, not stale.
+  const { data: refreshed, error: refreshError } = await client.auth.refreshSession();
+  if (refreshError || !refreshed.session) {
+    return result;
+  }
+  return client.functions.invoke<T>(functionName, {
+    headers: { Authorization: `Bearer ${refreshed.session.access_token}` },
+  });
+}
+
+function isUnauthenticatedFunctionError(error: unknown): boolean {
+  return (
+    error instanceof FunctionsHttpError &&
+    error.context instanceof Response &&
+    error.context.status === 401
+  );
 }
 
 // `functions.invoke()`'s returned `error` for a non-2xx response is a
