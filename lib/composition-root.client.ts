@@ -11,6 +11,7 @@ import { createCookieActiveWorkspaceRepository } from "@/lib/repositories/cookie
 import { UnauthorizedError } from "@/lib/domain/application-error";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Repositories } from "@/lib/repositories/repositories";
+import { productFeatures } from "@/lib/config/product-features";
 
 // Composition root — BROWSER half. Analogous to
 // App/DependencyContainer.swift in TimTracker-Starter, wires the concrete
@@ -54,6 +55,7 @@ async function resolveActiveWorkspaceIdForRequest(
 ): Promise<string> {
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new UnauthorizedError();
+  if (!productFeatures.workspaceAndTeam) return workspace.getPersonalWorkspaceId(data.user.id);
   const cookieValue = await activeWorkspace.get();
   return resolveWorkspaceIdWithFallback(workspace, data.user.id, cookieValue);
 }

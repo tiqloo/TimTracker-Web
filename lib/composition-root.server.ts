@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Repositories } from "@/lib/repositories/repositories";
 import type { WorkspaceRepository } from "@/lib/repositories/workspace.repository";
 import type { ActiveWorkspaceRepository } from "@/lib/repositories/active-workspace.repository";
+import { productFeatures } from "@/lib/config/product-features";
 
 // Ticket 103 — resolves which workspace projects.getAll()/create() and
 // time-entries' range reads should operate on: the stored cookie value if
@@ -34,6 +35,7 @@ const resolveActiveWorkspaceIdForRequest = cache(
   async (client: SupabaseClient, workspace: WorkspaceRepository, activeWorkspace: ActiveWorkspaceRepository): Promise<string> => {
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) throw new UnauthorizedError();
+    if (!productFeatures.workspaceAndTeam) return workspace.getPersonalWorkspaceId(data.user.id);
     const cookieValue = await activeWorkspace.get();
     return resolveWorkspaceIdWithFallback(workspace, data.user.id, cookieValue);
   },

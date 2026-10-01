@@ -12,6 +12,7 @@ import {
   shouldValidateHistoryRange,
 } from "@/lib/http/proxy-routing";
 import { buildCsp } from "@/lib/http/csp";
+import { disabledWorkspaceFeatureRedirect } from "@/lib/config/product-features";
 
 // "/" is the public marketing homepage (unauthenticated visitors land
 // here, and signed-in users may revisit it too — it is never gated or
@@ -217,6 +218,14 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const disabledFeatureTarget = disabledWorkspaceFeatureRedirect(pathname, Boolean(user));
+  if (disabledFeatureTarget) {
+    return copyCookies(
+      response,
+      withCsp(NextResponse.redirect(new URL(disabledFeatureTarget, request.url)), csp),
+    );
+  }
 
   if (!user && isProtectedPath(pathname)) {
     const loginUrl = new URL("/login", request.url);

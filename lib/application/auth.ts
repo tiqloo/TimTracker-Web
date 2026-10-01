@@ -3,6 +3,7 @@
 // lib/repositories/* or lib/composition-root.ts directly.
 import { cache } from "react";
 import type { Repositories } from "@/lib/repositories/repositories";
+import { isWorkspaceOnlyPath, productFeatures } from "../config/product-features.ts";
 import type { AuthChangeEvent } from "@/lib/repositories/auth.repository";
 import type { Profile } from "@/lib/domain/profile";
 import { normalizeDisplayNameInput } from "../domain/profile.ts";
@@ -203,6 +204,9 @@ export async function setOnboardingIntent(repos: Repositories, intent: "organiza
 // paths from lib/domain/redirect-target.ts's own allowlist, checked the
 // same way here.
 export async function resolvePostAuthDestination(repos: Repositories, requestedDestination: string): Promise<string> {
+  if (!productFeatures.workspaceAndTeam) {
+    return isWorkspaceOnlyPath(requestedDestination.split(/[?#]/u, 1)[0] ?? "") ? "/dashboard" : requestedDestination;
+  }
   if (requestedDestination === "/auth/desktop-complete" || requestedDestination.startsWith("/invite/accept")) {
     return requestedDestination;
   }

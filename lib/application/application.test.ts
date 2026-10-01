@@ -82,6 +82,12 @@ import type { Project } from "../domain/project.ts";
 import type { Subscription } from "../domain/subscription.ts";
 import type { DailyBreakdown, TimeEntry } from "../domain/time-entry.ts";
 import type { Repositories } from "../repositories/repositories.ts";
+import { productFeatures, resolveProductFeatures } from "../config/product-features.ts";
+
+// The legacy workspace/team use-case suite remains a regression harness for
+// the preserved implementation. Personal-mode behavior has focused tests in
+// lib/config/product-features.test.ts and below.
+Object.assign(productFeatures, resolveProductFeatures("workspace"));
 
 const MANAGED_PROJECT: Project = {
   id: "project-1",
@@ -1775,4 +1781,33 @@ test("full data export includes all personal records once and excludes system pr
   assert.equal(state.calls.filter(({ method }) => method === "projects.getAll").length, 1);
   assert.equal(state.calls.filter(({ method }) => method === "entries.range").length, 1);
   assert.equal(state.calls.filter(({ method }) => method === "subscription.get").length, 1);
+});
+
+test("personal product mode ignores an organization cookie, hides invitations, and drops stale organization onboarding", async () => {
+  Object.assign(productFeatures, resolveProductFeatures("personal"));
+  try {
+    const { repos } = memoryRepositories({
+      activeWorkspaceCookie: "workspace-org-1",
+      memberships: { "workspace-personal-1": "owner", "workspace-org-1": "admin" },
+      workspaceDetails: {
+        "workspace-personal-1": { name: "Persönlich", type: "PERSONAL" },
+        "workspace-org-1": { name: "Acme", type: "ORGANIZATION" },
+      },
+      profile: {
+        email: "person@example.com",
+        displayName: null,
+        createdAt: "2025-01-02T03:04:05Z",
+        avatarPath: null,
+        onboardingIntent: "organization",
+      },
+    });
+
+    assert.equal(await getActiveWorkspaceId(repos), "workspace-personal-1");
+    assert.deepEqual((await getWorkspaceSwitcherData(repos)).workspaces.map((item) => item.workspaceId), ["workspace-personal-1"]);
+    assert.deepEqual(await listPendingInvitations(repos), []);
+    assert.equal(await resolvePostAuthDestination(repos, "/dashboard"), "/dashboard");
+    assert.equal(await resolvePostAuthDestination(repos, "/invite/accept?token=old"), "/dashboard");
+  } finally {
+    Object.assign(productFeatures, resolveProductFeatures("workspace"));
+  }
 });
