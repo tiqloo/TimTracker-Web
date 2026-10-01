@@ -383,7 +383,10 @@ export function historyChartTooltip(
 // --- components/ManageSubscriptionButton.tsx --------------------------
 
 export const manageSubscriptionButton = {
-  manage: { de: "Abo verwalten", en: "Manage Subscription" },
+  manage: {
+    de: "Im Stripe-Kundenportal verwalten",
+    en: "Manage in the Stripe customer portal",
+  },
   opening: { de: "Wird geöffnet…", en: "Opening…" },
   error: {
     de: "Abo-Verwaltung konnte nicht geöffnet werden.",
@@ -776,6 +779,15 @@ export const themeLabels = {
 
 export const billing = {
   pageTitle: { de: "Abo verwalten", en: "Manage Subscription" },
+  pageDescription: {
+    de: "Behalte deinen Abo-Status, die nächste Abrechnung und deine Zahlungsdaten im Blick.",
+    en: "Keep track of your subscription status, next billing date, and payment details.",
+  },
+  overviewTitle: { de: "Dein Abo", en: "Your subscription" },
+  overviewDescription: {
+    de: "Alle wichtigen Informationen zu deinem persönlichen Tiqloo-Abo.",
+    en: "All important information about your personal Tiqloo subscription.",
+  },
   statusPrefix: { de: "Status:", en: "Status:" },
   statusLabels: {
     trialing: { de: "Testphase", en: "Trial" },
@@ -793,7 +805,16 @@ export const billing = {
     de: "Kein Testzeitraum oder Abo hinterlegt.",
     en: "No trial period or subscription on file.",
   },
-  backToSettings: { de: "← Zurück zu den Einstellungen", en: "← Back to Settings" },
+  portalTitle: { de: "Zahlung und Abo verwalten", en: "Manage billing and subscription" },
+  portalDescription: {
+    de: "Im sicheren Stripe-Kundenportal kannst du Zahlungsmethode, Rechnungen und Kündigung verwalten.",
+    en: "Use the secure Stripe customer portal to manage your payment method, invoices, and cancellation.",
+  },
+  portalSecurityNote: {
+    de: "Du wirst dafür sicher zu Stripe weitergeleitet.",
+    en: "You will be securely redirected to Stripe.",
+  },
+  backToSettings: { de: "Zurück zu den Einstellungen", en: "Back to Settings" },
 } as const;
 
 // Mirrors the native app's "Noch %@ Tage Testphase" / "%@ days left in
