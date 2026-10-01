@@ -17,6 +17,7 @@
 // crashing — see the Phase 1e ticket section for the exact local test
 // result.
 import { useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { manageSubscription } from "@/lib/application/billing";
 import { getRepositories } from "@/lib/application/client";
 import { manageSubscriptionButton, t, type Lang } from "@/lib/i18n";
@@ -60,8 +61,12 @@ export function ManageSubscriptionButton({ lang }: { lang: Lang }) {
           className={primaryButtonClass}
         >
           {pending ? t(lang, manageSubscriptionButton.opening) : t(lang, manageSubscriptionButton.manage)}
+          {!pending && <ExternalLink size={16} strokeWidth={1.8} aria-hidden="true" />}
         </button>
       </div>
+      <span className="sr-only" aria-live="polite">
+        {pending ? t(lang, manageSubscriptionButton.opening) : ""}
+      </span>
       {error && <p {...errorFeedbackProps} className={errorClass}>{error}</p>}
     </div>
   );
