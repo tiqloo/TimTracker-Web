@@ -24,3 +24,7 @@ export const getSubscriptionStatus = cache(async (
 export async function manageSubscription(repos: Repositories): Promise<string> {
   return repos.subscription.openBillingPortal();
 }
+
+export async function startSubscriptionCheckout(repos: Repositories): Promise<string> {
+  return repos.subscription.startCheckout();
+}

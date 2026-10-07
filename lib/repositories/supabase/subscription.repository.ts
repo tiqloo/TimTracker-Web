@@ -49,5 +49,17 @@ export function createSupabaseSubscriptionRepository(
       if (!data?.url) throw new Error("create-portal-session returned no url");
       return data.url;
     },
+
+    async startCheckout() {
+      // create-checkout-session is auth:"user"-gated exactly like
+      // create-portal-session, so it needs the same explicit bearer token.
+      const { data, error } = await invokeAuthenticated<{ url: string }>(
+        client,
+        "create-checkout-session",
+      );
+      if (error) throw await describeFunctionsError(error);
+      if (!data?.url) throw new Error("create-checkout-session returned no url");
+      return data.url;
+    },
   };
 }

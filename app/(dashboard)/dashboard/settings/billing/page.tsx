@@ -8,6 +8,8 @@ import { getEffectiveLanguageCode } from "@/lib/application/language";
 import { languageCodeToLocale } from "@/lib/domain/language";
 import { formatFullDate } from "@/lib/format";
 import { ManageSubscriptionButton } from "@/components/ManageSubscriptionButton";
+import { StartCheckoutButton } from "@/components/StartCheckoutButton";
+import { canManageInBillingPortal } from "@/lib/domain/subscription";
 import { billing, t, trialDaysRemainingParts } from "@/lib/i18n";
 import { getBillingStatusPresentation } from "@/lib/ui/billing-status";
 
@@ -63,6 +65,7 @@ export default async function BillingSettingsPage() {
   const trialParts =
     trialDaysRemaining !== null ? trialDaysRemainingParts(languageCode, trialDaysRemaining) : null;
 
+  const canManage = canManageInBillingPortal(subscription);
   const statusPresentation = getBillingStatusPresentation(subscription.status);
   const periodEndLabel = billing[statusPresentation.periodLabel];
   const statusToneClass = {
@@ -159,9 +162,9 @@ export default async function BillingSettingsPage() {
                 <CreditCard size={18} strokeWidth={1.8} aria-hidden="true" />
               </span>
               <div>
-                <h2 className="text-sm font-semibold">{t(languageCode, billing.portalTitle)}</h2>
+                <h2 className="text-sm font-semibold">{t(languageCode, canManage ? billing.portalTitle : billing.checkoutTitle)}</h2>
                 <p className="mt-1 text-sm leading-5 text-text-secondary">
-                  {t(languageCode, billing.portalDescription)}
+                  {t(languageCode, canManage ? billing.portalDescription : billing.checkoutDescription)}
                 </p>
                 <p className="mt-2 flex items-center gap-1.5 text-xs text-text-secondary">
                   <ShieldCheck size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -170,7 +173,11 @@ export default async function BillingSettingsPage() {
               </div>
             </div>
             <div className="shrink-0">
-              <ManageSubscriptionButton lang={languageCode} />
+              {canManage ? (
+                <ManageSubscriptionButton lang={languageCode} />
+              ) : (
+                <StartCheckoutButton lang={languageCode} />
+              )}
             </div>
           </div>
         </div>

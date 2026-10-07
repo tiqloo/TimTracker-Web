@@ -288,6 +288,7 @@ function memoryRepositories(overrides: Partial<MemoryState> = {}): {
     subscription: {
       async getCurrent() { record("subscription.get"); return state.subscription; },
       async openBillingPortal() { record("subscription.portal"); return "https://billing.example"; },
+      async startCheckout() { record("subscription.checkout"); return "https://checkout.example"; },
     },
     language: {
       async get() { return "de"; },
