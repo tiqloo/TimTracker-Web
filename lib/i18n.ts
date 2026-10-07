@@ -394,6 +394,15 @@ export const manageSubscriptionButton = {
   },
 } satisfies Record<string, Translated>;
 
+export const startCheckoutButton = {
+  start: { de: "Abo abschließen", en: "Subscribe" },
+  opening: { de: "Wird geöffnet…", en: "Opening…" },
+  error: {
+    de: "Der Bezahlvorgang konnte nicht gestartet werden.",
+    en: "Could not start checkout.",
+  },
+} satisfies Record<string, Translated>;
+
 // --- components/ProjectsClient.tsx / app/(dashboard)/dashboard/projects ---
 
 export const projects = {
@@ -809,6 +818,11 @@ export const billing = {
   portalDescription: {
     de: "Im sicheren Stripe-Kundenportal kannst du Zahlungsmethode, Rechnungen und Kündigung verwalten.",
     en: "Use the secure Stripe customer portal to manage your payment method, invoices, and cancellation.",
+  },
+  checkoutTitle: { de: "Abo abschließen", en: "Subscribe" },
+  checkoutDescription: {
+    de: "Schließe dein Abo sicher über Stripe ab. Danach kannst du es hier jederzeit verwalten.",
+    en: "Subscribe securely via Stripe. Afterwards you can manage it here at any time.",
   },
   portalSecurityNote: {
     de: "Du wirst dafür sicher zu Stripe weitergeleitet.",

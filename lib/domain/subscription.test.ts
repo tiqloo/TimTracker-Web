@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canUseApp } from "./subscription.ts";
+import { canManageInBillingPortal, canUseApp } from "./subscription.ts";
 
 const now = new Date("2026-09-01T12:00:00Z");
 
@@ -16,4 +16,14 @@ test("subscription gate allows only active or trialing, non-expired access", () 
 
 test("subscription gate fails closed for an invalid period end", () => {
   assert.equal(canUseApp({ status: "active", currentPeriodEnd: "not-a-date" }, now), false);
+});
+
+// Only a paying subscription is guaranteed to have a Stripe customer; the
+// billing portal is unreachable for everyone else (create-portal-session
+// answers 409), so they get checkout instead — same rule as the Mac app.
+test("billing portal is offered only for an active subscription", () => {
+  assert.equal(canManageInBillingPortal({ status: "active", currentPeriodEnd: null }), true);
+  for (const status of ["trialing", "past_due", "canceled", "unpaid", "incomplete_expired", "none"] as const) {
+    assert.equal(canManageInBillingPortal({ status, currentPeriodEnd: null }), false);
+  }
 });

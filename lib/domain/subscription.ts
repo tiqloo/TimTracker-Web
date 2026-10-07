@@ -30,3 +30,12 @@ export function canUseApp(subscription: Subscription, now: Date = new Date()): b
     new Date(subscription.currentPeriodEnd) > now;
   return hasEntitlingStatus && notExpired;
 }
+
+// Mirrors the native app (SettingsViewModel.showsManageSubscriptionCTA):
+// only a paying subscription is guaranteed to have a Stripe customer, so
+// only then can the billing portal be opened. Everyone else (trial, none,
+// expired, ...) has no stripe_customer_id yet and must start checkout —
+// create-portal-session would answer 409 "Kein Stripe-Kunde hinterlegt".
+export function canManageInBillingPortal(subscription: Subscription): boolean {
+  return subscription.status === "active";
+}

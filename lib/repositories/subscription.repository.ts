@@ -7,4 +7,5 @@ import type { Subscription } from "@/lib/domain/subscription";
 export interface SubscriptionRepository {
   getCurrent(): Promise<Subscription>;
   openBillingPortal(): Promise<string>; // returns the portal URL to redirect to
+  startCheckout(): Promise<string>; // returns the Stripe Checkout URL to redirect to
 }
