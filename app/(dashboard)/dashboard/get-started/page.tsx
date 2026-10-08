@@ -98,7 +98,7 @@ export default async function GetStartedPage() {
           {t(lang, onboarding.accountBody)} <strong className="break-all text-foreground">{profile.email}</strong>
         </Step>
         <Step complete={hasSyncedEntry} icon={Download} title={t(lang, onboarding.downloadTitle)} lang={lang}>
-          <p>{t(lang, onboarding.downloadBody)}</p>
+          <p>{t(lang, release && !release.notarized ? onboarding.downloadBetaBody : onboarding.downloadBody)}</p>
           {release ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <a href={release.downloadUrl} className="inline-flex rounded-xl bg-brand px-4 py-2.5 font-semibold text-white transition-colors hover:bg-brand/90">

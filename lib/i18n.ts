@@ -1230,6 +1230,10 @@ export const onboarding = {
     de: "Lade ausschließlich die aktuelle, signierte Testversion herunter.",
     en: "Only download the current signed beta version.",
   },
+  downloadBetaBody: {
+    de: "Lade die aktuelle Beta-Version herunter. Sie ist noch nicht von Apple notarisiert: Beim ersten Start unter Systemeinstellungen → Datenschutz & Sicherheit auf „Trotzdem öffnen“ klicken (Anleitung auf der Download-Seite).",
+    en: "Download the current beta. It is not yet notarized by Apple: on first launch click \"Open Anyway\" under System Settings → Privacy & Security (instructions on the download page).",
+  },
   downloadAction: { de: "Tiqloo für macOS laden", en: "Download Tiqloo for macOS" },
   downloadUnavailable: {
     de: "Der geprüfte Mac-Download wird gerade vorbereitet. Wir schalten ihn erst frei, wenn Signatur und Notarisierung bestätigt sind.",
@@ -1370,6 +1374,27 @@ export const home = {
   downloadBody: {
     de: "Lade die signierte und von Apple geprüfte Tiqloo-App herunter. Öffne danach das DMG und ziehe Tiqloo in den Programme-Ordner.",
     en: "Download the signed and Apple-notarized Tiqloo app. Then open the DMG and drag Tiqloo into Applications.",
+  },
+  downloadBetaBody: {
+    de: "Das ist eine Beta-Version. Sie ist noch nicht von Apple notarisiert, deshalb warnt macOS beim ersten Start. Lade sie nur von dieser Seite.",
+    en: "This is a beta version. It is not yet notarized by Apple, so macOS warns on first launch. Only download it from this page.",
+  },
+  downloadBetaStepsTitle: { de: "So öffnest du die Beta", en: "How to open the beta" },
+  downloadBetaStep1: {
+    de: "DMG öffnen und Tiqloo in den Ordner „Programme“ ziehen.",
+    en: "Open the DMG and drag Tiqloo into Applications.",
+  },
+  downloadBetaStep2: {
+    de: "Tiqloo starten. macOS meldet, dass die App nicht überprüft werden konnte – das ist bei dieser Beta erwartet.",
+    en: "Launch Tiqloo. macOS says the app could not be verified – this is expected for this beta.",
+  },
+  downloadBetaStep3: {
+    de: "Systemeinstellungen → Datenschutz & Sicherheit öffnen, nach unten scrollen und neben „Tiqloo“ auf „Trotzdem öffnen“ klicken.",
+    en: "Open System Settings → Privacy & Security, scroll down and click \"Open Anyway\" next to \"Tiqloo\".",
+  },
+  downloadBetaStep4: {
+    de: "Mit dem Passwort bestätigen. Das ist nur beim ersten Start nötig.",
+    en: "Confirm with your password. This is only needed on first launch.",
   },
   downloadAction: { de: "Für Mac herunterladen", en: "Download for Mac" },
   downloadVersion: { de: "Version", en: "Version" },

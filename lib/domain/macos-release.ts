@@ -4,6 +4,9 @@ export interface MacosRelease {
   minimumMacos: string;
   fileSize: string;
   sha256: string;
+  // false = ad-hoc signed beta (macOS warns on first launch). Only an
+  // explicit NEXT_PUBLIC_MACOS_NOTARIZED=true claims Apple notarization.
+  notarized: boolean;
 }
 
 export function getPublicMacosRelease(
@@ -25,5 +28,7 @@ export function getPublicMacosRelease(
     return null;
   }
 
-  return { downloadUrl, version, minimumMacos, fileSize, sha256 };
+  const notarized = env.NEXT_PUBLIC_MACOS_NOTARIZED?.trim().toLowerCase() === "true";
+
+  return { downloadUrl, version, minimumMacos, fileSize, sha256, notarized };
 }
