@@ -343,7 +343,7 @@ function MacDownload({ lang, release }: { lang: Lang; release: MacosRelease | nu
         <div>
           <p className="font-mono text-xs tracking-wide text-brand uppercase">{t(lang, home.downloadEyebrow)}</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{t(lang, home.downloadTitle)}</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/65 sm:text-base">{t(lang, home.downloadBody)}</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/65 sm:text-base">{t(lang, release && !release.notarized ? home.downloadBetaBody : home.downloadBody)}</p>
           {release ? (
             <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-foreground/65">
               <div><dt className="inline font-medium text-foreground">{t(lang, home.downloadVersion)} </dt><dd className="inline">{release.version}</dd></div>
@@ -352,6 +352,16 @@ function MacDownload({ lang, release }: { lang: Lang; release: MacosRelease | nu
             </dl>
           ) : (
             <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{t(lang, home.downloadUnavailable)}</p>
+          )}
+          {release && !release.notarized && (
+            <div className="mt-5 max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <p className="font-medium">{t(lang, home.downloadBetaStepsTitle)}</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                {[home.downloadBetaStep1, home.downloadBetaStep2, home.downloadBetaStep3, home.downloadBetaStep4].map((step) => (
+                  <li key={step.en}>{t(lang, step)}</li>
+                ))}
+              </ol>
+            </div>
           )}
         </div>
         {release && (

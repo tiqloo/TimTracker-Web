@@ -30,7 +30,21 @@ test("release exposes a complete signed-download configuration", () => {
     minimumMacos: "14.0",
     fileSize: "24 MB",
     sha256: "a".repeat(64),
+    notarized: false,
   });
+});
+
+test("release only claims notarization when explicitly configured", () => {
+  const base = {
+    NEXT_PUBLIC_MACOS_DOWNLOAD_URL: "https://downloads.tiqloo.com/Tiqloo.dmg",
+    NEXT_PUBLIC_MACOS_APP_VERSION: "1.0.0",
+    NEXT_PUBLIC_MACOS_MIN_VERSION: "14.0",
+    NEXT_PUBLIC_MACOS_FILE_SIZE: "24 MB",
+    NEXT_PUBLIC_MACOS_SHA256: "a".repeat(64),
+  };
+  assert.equal(getPublicMacosRelease(base)?.notarized, false);
+  assert.equal(getPublicMacosRelease({ ...base, NEXT_PUBLIC_MACOS_NOTARIZED: "yes" })?.notarized, false);
+  assert.equal(getPublicMacosRelease({ ...base, NEXT_PUBLIC_MACOS_NOTARIZED: "true" })?.notarized, true);
 });
 
 test("release rejects an invalid checksum", () => {
