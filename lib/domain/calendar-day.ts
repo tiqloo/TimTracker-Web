@@ -57,6 +57,37 @@ function inclusiveDayCount(from: string, to: string): number {
   return Math.round((toMs - fromMs) / 86_400_000) + 1;
 }
 
+// GitHub #47: turns any requested "Historie" range into one that
+// `resolveHistoryDateRange` accepts, instead of answering with a bare 400
+// text page. Returns `null` when the params are already valid (nothing to
+// fix), otherwise the corrected params — `{}` means "fall back to the
+// default range" (malformed input, same no-partial-valid rule as
+// `resolveHistoryRange` in lib/format.ts).
+export function normalizeHistoryDateRangeParams(
+  today: string,
+  params: { from?: string; to?: string },
+): { from?: string; to?: string } | null {
+  try {
+    resolveHistoryDateRange(today, params);
+    return null;
+  } catch (error) {
+    if (!(error instanceof InvalidHistoryRangeError)) throw error;
+  }
+  if (!isValidIsoCalendarDay(today)) return {};
+  const { from: rawFrom, to: rawTo } = params;
+  if ((rawFrom !== undefined && !isValidIsoCalendarDay(rawFrom)) || (rawTo !== undefined && !isValidIsoCalendarDay(rawTo))) {
+    return {};
+  }
+  let to = rawTo ?? today;
+  if (to > today) to = today;
+  let from = rawFrom ?? addDays(to, -29);
+  if (from > to) from = to;
+  if (inclusiveDayCount(from, to) > MAX_HISTORY_RANGE_DAYS) {
+    from = addDays(to, -(MAX_HISTORY_RANGE_DAYS - 1));
+  }
+  return { from, to };
+}
+
 export function resolveHistoryDateRange(
   today: string,
   params: { from?: string; to?: string },
