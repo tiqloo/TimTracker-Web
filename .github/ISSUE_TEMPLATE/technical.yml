@@ -16,6 +16,10 @@ body:
     attributes: {label: Acceptance Criteria, placeholder: "- [ ] …"}
     validations: {required: true}
   - type: textarea
+    id: tests
+    attributes: {label: Testanforderungen, description: "Welche automatisierten und manuellen Tests belegen die Acceptance Criteria? Exakte Befehle, falls bekannt.", placeholder: "- [ ] Unit-Test …\n- [ ] Manueller Check …"}
+    validations: {required: true}
+  - type: textarea
     id: approach
     attributes: {label: Technical Notes / Constraints}
   - type: textarea
