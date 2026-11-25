@@ -1,14 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import {
-  calendarDayInTimeZone,
-  InvalidHistoryRangeError,
-  resolveHistoryDateRange,
-} from "@/lib/domain/calendar-day";
+import { calendarDayInTimeZone } from "@/lib/domain/calendar-day";
 import { normalizeDashboardRedirect } from "@/lib/domain/redirect-target";
 import {
   isProtectedPath,
   shouldRedirectAuthenticatedUser,
+  historyRangeRedirectSearch,
   shouldValidateHistoryRange,
 } from "@/lib/http/proxy-routing";
 import { buildCsp } from "@/lib/http/csp";
@@ -170,27 +167,23 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   if (shouldValidateHistoryRange(pathname)) {
-    try {
-      // Ticket 118 — deliberately still the PRODUCT_TIME_ZONE default, not
-      // the active workspace's own configured timezone: middleware runs on
-      // EVERY navigation, and resolving the real workspace timezone here
-      // would add a DB round trip (auth + membership + settings lookup) to
-      // that hot path for a purely cosmetic effect — this only shapes the
-      // "future date range" 400 rejection boundary, never the actual data
-      // returned (the page/route handlers below already resolve and use
-      // the real workspace timezone for that). Worst case this boundary is
-      // off by the gap between Europe/Berlin and the real workspace zone,
-      // right at the "is this range in the future" edge — not a
-      // data-correctness issue.
-      resolveHistoryDateRange(calendarDayInTimeZone(new Date()), {
-        from: request.nextUrl.searchParams.get("from") ?? undefined,
-        to: request.nextUrl.searchParams.get("to") ?? undefined,
-      });
-    } catch (error) {
-      if (error instanceof InvalidHistoryRangeError) {
-        return withCsp(new NextResponse(error.message, { status: 400 }), csp);
-      }
-      throw error;
+    // Ticket 118 — deliberately still the PRODUCT_TIME_ZONE default, not
+    // the active workspace's own configured timezone: middleware runs on
+    // EVERY navigation, and resolving the real workspace timezone here
+    // would add a DB round trip to that hot path. Worst case the "future"
+    // boundary is off by the gap between Europe/Berlin and the real
+    // workspace zone — never a data-correctness issue.
+    //
+    // GitHub #47: an invalid range is corrected via redirect instead of a
+    // bare 400 text page (future end date, > MAX days, from > to, bad day).
+    const redirectSearch = historyRangeRedirectSearch(
+      calendarDayInTimeZone(new Date()),
+      request.nextUrl.searchParams,
+    );
+    if (redirectSearch !== null) {
+      const target = request.nextUrl.clone();
+      target.search = redirectSearch;
+      return withCsp(NextResponse.redirect(target), csp);
     }
   }
 

@@ -4,6 +4,8 @@ import {
   calendarDayInTimeZone,
   InvalidHistoryRangeError,
   isValidIsoCalendarDay,
+  MAX_HISTORY_RANGE_DAYS,
+  normalizeHistoryDateRangeParams,
   resolveHistoryDateRange,
 } from "./calendar-day.ts";
 
@@ -78,4 +80,59 @@ test("resolveHistoryDateRange rejects reversed, future and oversized ranges", ()
     resolveHistoryDateRange("2026-09-01", { from: "2025-09-01", to: "2026-09-01" }),
     { from: "2025-09-01", to: "2026-09-01" },
   );
+});
+
+// GitHub #47: invalid "Historie" ranges are corrected instead of rejected.
+test("normalizeHistoryDateRangeParams leaves valid and default ranges alone", () => {
+  assert.equal(normalizeHistoryDateRangeParams("2026-11-25", {}), null);
+  assert.equal(normalizeHistoryDateRangeParams("2026-11-25", { from: "2026-11-01", to: "2026-11-25" }), null);
+});
+
+test("normalizeHistoryDateRangeParams clamps a future end date to today", () => {
+  assert.deepEqual(
+    normalizeHistoryDateRangeParams("2026-11-25", { from: "2026-11-01", to: "2026-11-30" }),
+    { from: "2026-11-01", to: "2026-11-25" },
+  );
+});
+
+test("normalizeHistoryDateRangeParams handles a range lying entirely in the future", () => {
+  assert.deepEqual(
+    normalizeHistoryDateRangeParams("2026-11-25", { from: "2026-12-01", to: "2026-12-05" }),
+    { from: "2026-11-25", to: "2026-11-25" },
+  );
+});
+
+test("normalizeHistoryDateRangeParams fixes from > to", () => {
+  assert.deepEqual(
+    normalizeHistoryDateRangeParams("2026-11-25", { from: "2026-11-20", to: "2026-11-10" }),
+    { from: "2026-11-10", to: "2026-11-10" },
+  );
+});
+
+test("normalizeHistoryDateRangeParams shortens ranges above the maximum length", () => {
+  const corrected = normalizeHistoryDateRangeParams("2026-11-25", { from: "2020-01-01", to: "2026-11-25" });
+  assert.equal(corrected?.to, "2026-11-25");
+  assert.doesNotThrow(() => resolveHistoryDateRange("2026-11-25", corrected!));
+  const fromMs = Date.parse(`${corrected!.from}T00:00:00Z`);
+  const toMs = Date.parse(`${corrected!.to}T00:00:00Z`);
+  assert.equal((toMs - fromMs) / 86_400_000 + 1, MAX_HISTORY_RANGE_DAYS);
+});
+
+test("normalizeHistoryDateRangeParams falls back to the default for malformed days", () => {
+  assert.deepEqual(normalizeHistoryDateRangeParams("2026-11-25", { from: "abc", to: "2026-11-10" }), {});
+  assert.deepEqual(normalizeHistoryDateRangeParams("2026-11-25", { from: "2026-02-30" }), {});
+});
+
+test("every corrected range is accepted by resolveHistoryDateRange", () => {
+  const cases = [
+    { from: "2026-11-01", to: "2027-01-01" },
+    { to: "2026-12-31" },
+    { from: "2026-12-31" },
+    { from: "2026-11-30", to: "2026-11-01" },
+  ];
+  for (const params of cases) {
+    const corrected = normalizeHistoryDateRangeParams("2026-11-25", params);
+    assert.ok(corrected !== null, JSON.stringify(params));
+    assert.doesNotThrow(() => resolveHistoryDateRange("2026-11-25", corrected!), JSON.stringify(params));
+  }
 });

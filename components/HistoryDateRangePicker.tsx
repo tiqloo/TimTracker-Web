@@ -147,13 +147,19 @@ export function HistoryDateRangePicker({
   }
 
   function navigateTo(nextFrom: string, nextTo: string) {
-    const query = new URLSearchParams({ from: nextFrom, to: nextTo });
+    // GitHub #47: never request a range ending in the future — the page
+    // only shows past/today data (the proxy would correct it anyway).
+    const latest = todayIso();
+    const clampedTo = nextTo > latest ? latest : nextTo;
+    const clampedFrom = nextFrom > clampedTo ? clampedTo : nextFrom;
+    const query = new URLSearchParams({ from: clampedFrom, to: clampedTo });
     if (projectId) query.set("project", projectId);
     setOpen(false);
     router.push(`${basePath}?${query.toString()}`);
   }
 
   function handleDayClick(iso: string) {
+    if (iso > todayIso()) return;
     if (anchor === null) {
       setAnchor(iso);
       setPendingFrom(iso);
@@ -254,21 +260,27 @@ export function HistoryDateRangePicker({
               const inRange = iso >= pendingFrom && iso <= pendingTo;
               const isRangeEdge = iso === pendingFrom || iso === pendingTo;
               const isToday = iso === today;
+              // GitHub #47: future days are visible (full month grid) but
+              // not selectable.
+              const isFuture = iso > today;
               return (
                 <button
                   key={iso}
                   type="button"
+                  disabled={isFuture}
                   onClick={() => handleDayClick(iso)}
                   aria-current={isToday ? "date" : undefined}
                   aria-pressed={isRangeEdge}
                   className={[
                     "rounded-md py-1 text-xs tabular-nums transition-colors duration-150",
-                    inMonth ? "text-foreground" : "text-foreground/30",
+                    isFuture ? "cursor-not-allowed text-foreground/20" : inMonth ? "text-foreground" : "text-foreground/30",
                     isRangeEdge
                       ? "bg-brand text-background"
                       : inRange
                         ? "bg-brand-soft"
-                        : "hover:bg-paper",
+                        : isFuture
+                          ? ""
+                          : "hover:bg-paper",
                     isToday && !isRangeEdge ? "ring-1 ring-inset ring-brand" : "",
                   ]
                     .filter(Boolean)
