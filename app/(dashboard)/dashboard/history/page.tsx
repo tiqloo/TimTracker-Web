@@ -48,22 +48,25 @@ export default async function HistoryPage({
 }) {
   const repos = await getRepositories();
   const headerList = await headers();
-  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  // GitHub #56: independent reads start together instead of one after another.
+  // The project list is read up front as well (see the Ticket 043 comment
+  // below for how it is used); a blocked user simply never renders it.
+  const [lang, subscription, timeZone, weekStart, params, allProjects] = await Promise.all([
+    getEffectiveLanguageCode(repos, headerList.get("accept-language")),
+    // Same access gate as "Heute" (app/(dashboard)/page.tsx) — reused
+    // verbatim, not reimplemented.
+    getSubscriptionStatus(repos),
+    getActiveWorkspaceTimeZone(repos),
+    getActiveWorkspaceWeekStart(repos),
+    searchParams,
+    repos.projects.getAll(),
+  ]);
   const locale = languageCodeToLocale(lang);
-
-  // Same access gate as "Heute" (app/(dashboard)/page.tsx) — reused
-  // verbatim, not reimplemented.
-  const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
     return <AccessGate title={t(lang, history.pageTitle)} status={subscription.status} lang={lang} />;
   }
 
-  const [timeZone, weekStart] = await Promise.all([
-    getActiveWorkspaceTimeZone(repos),
-    getActiveWorkspaceWeekStart(repos),
-  ]);
   const today = isoToday(new Date(), timeZone);
-  const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
 
   // Ticket 043 project filter. Validated against the real project list
@@ -72,7 +75,6 @@ export default async function HistoryPage({
   // repository's own comment) rather than trusted as-is: a stale or
   // tampered `project` query param falls back to "all projects" instead
   // of silently producing a confusing "filtered to nothing" page.
-  const allProjects = await repos.projects.getAll();
   const requestedProjectId = params.project?.trim() || undefined;
   const activeProject = requestedProjectId
     ? allProjects.find((project) => project.id === requestedProjectId)

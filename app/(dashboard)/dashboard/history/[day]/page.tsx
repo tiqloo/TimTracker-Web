@@ -56,10 +56,13 @@ export default async function HistoryDayPage({
 
   const repos = await getRepositories();
   const headerList = await headers();
-  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
+  // GitHub #56: independent reads start together instead of one after another.
+  const [lang, subscription] = await Promise.all([
+    getEffectiveLanguageCode(repos, headerList.get("accept-language")),
+    getSubscriptionStatus(repos),
+  ]);
   const locale = languageCodeToLocale(lang);
 
-  const subscription = await getSubscriptionStatus(repos);
   if (!canUseApp(subscription)) {
     return (
       <AccessGate title={formatDayLabel(day, locale)} status={subscription.status} lang={lang} />
