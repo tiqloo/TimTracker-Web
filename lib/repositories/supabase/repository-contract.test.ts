@@ -362,7 +362,9 @@ test("getBreakdown resolves the active workspace's timezone and uses it for a st
     end_time: null,
     source: "manual",
     note: null,
-    updated_at: "2020-01-01T23:00:00.000Z",
+    // GitHub #53: last heartbeat after midnight, so the end-of-day clamp
+    // (not the heartbeat) is what limits this stale open entry.
+    updated_at: "2020-01-02T05:00:00.000Z",
   };
 
   const utcFake = queryClient({ data: [openPastEntryRow], error: null });

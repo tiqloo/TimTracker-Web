@@ -54,7 +54,42 @@ function startOfDayInstant(isoDay: string, timeZone: string): Date {
 // entry itself belongs to (`entry.day`) is decided once, at creation time,
 // by whichever app wrote it (see time_entries.repository.ts's own
 // comment); this function never re-derives or changes that.
-function timeEntryInterval(entry: TimeEntry, now: Date, timeZone: string = PRODUCT_TIME_ZONE): { startMs: number; endMs: number } {
+// GitHub #53: an entry without `end_time` is only "running" while the Mac
+// app is demonstrably alive. Since tiqloo/TimTracker#55 the app refreshes
+// the running entry's `updated_at` at most once a minute (heartbeat) and
+// syncs about once a minute, so the server copy lags by at most ~2 min.
+// After this tolerance without a fresh `updated_at` the app has quit,
+// crashed or the Mac is off — the entry then counts only up to its last
+// sign of life instead of up to "now" (previously: "07:48 – läuft, 12 h"
+// for an app that ran two minutes).
+export const RUNNING_ENTRY_STALE_AFTER_MS = 5 * 60 * 1000;
+
+function lastSignOfLifeMs(entry: TimeEntry): number {
+  return Math.max(new Date(entry.startTime).getTime(), new Date(entry.updatedAt).getTime());
+}
+
+export function isEntryLive(entry: TimeEntry, now: Date): boolean {
+  return entry.endTime === null && now.getTime() - lastSignOfLifeMs(entry) <= RUNNING_ENTRY_STALE_AFTER_MS;
+}
+
+// Returns the entry as the UI and all sums should see it: a stale open
+// entry gets its last sign of life as end time — never past the end of its
+// own calendar day (same clamp as before, Ticket 199/118) — and is
+// therefore no longer shown as "läuft"; everything else is unchanged.
+export function settleStaleRunningEntry(entry: TimeEntry, now: Date, timeZone: string = PRODUCT_TIME_ZONE): TimeEntry {
+  if (entry.endTime !== null || isEntryLive(entry, now)) return entry;
+  const startMs = new Date(entry.startTime).getTime();
+  const endOfDayMs = startOfDayInstant(nextIsoDay(entry.day), timeZone).getTime();
+  const endMs = Math.max(startMs, Math.min(lastSignOfLifeMs(entry), endOfDayMs));
+  return { ...entry, endTime: new Date(endMs).toISOString() };
+}
+
+export function settleStaleRunningEntries(entries: TimeEntry[], now: Date, timeZone: string = PRODUCT_TIME_ZONE): TimeEntry[] {
+  return entries.map((entry) => settleStaleRunningEntry(entry, now, timeZone));
+}
+
+function timeEntryInterval(rawEntry: TimeEntry, now: Date, timeZone: string = PRODUCT_TIME_ZONE): { startMs: number; endMs: number } {
+  const entry = settleStaleRunningEntry(rawEntry, now, timeZone);
   const startMs = new Date(entry.startTime).getTime();
   const today = calendarDayInTimeZone(now, timeZone);
   const endMs = entry.endTime

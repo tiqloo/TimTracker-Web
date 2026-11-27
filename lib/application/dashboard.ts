@@ -5,6 +5,7 @@ import type { Repositories } from "@/lib/repositories/repositories";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import { calendarDayInTimeZone, PRODUCT_TIME_ZONE } from "../domain/calendar-day.ts";
 import { ValidationError } from "../domain/application-error.ts";
+import { settleStaleRunningEntries } from "../domain/time-entry-aggregation.ts";
 import { addDaysIso, fromDayAndTimeInput, startOfWeekIso } from "../format.ts";
 import { getActiveWorkspaceTimeZone } from "./workspace.ts";
 import type { WeekStart } from "./workspace.ts";
@@ -55,7 +56,9 @@ export async function getEntriesForDay(
   repos: Repositories,
   day: string,
 ): Promise<TimeEntry[]> {
-  return repos.timeEntries.getForDay(day);
+  // GitHub #53: an open entry whose app is no longer alive is shown with
+  // its last sign of life as end time, not as "läuft".
+  return settleStaleRunningEntries(await repos.timeEntries.getForDay(day), new Date());
 }
 
 export async function getEntriesForRange(
@@ -64,7 +67,7 @@ export async function getEntriesForRange(
   toDay: string,
   projectId?: string,
 ): Promise<TimeEntry[]> {
-  return repos.timeEntries.getForRange(fromDay, toDay, projectId);
+  return settleStaleRunningEntries(await repos.timeEntries.getForRange(fromDay, toDay, projectId), new Date());
 }
 
 export async function getTodayBreakdown(
