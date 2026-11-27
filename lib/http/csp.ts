@@ -18,7 +18,10 @@ export function buildCsp(supabaseUrl: string, nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self'",
+    // GitHub #51: Profilbilder (und Workspace-Logos) kommen als signierte
+    // URLs aus dem privaten Supabase-Storage. Mit nur 'self' blockierte
+    // der Browser sie in Produktion -> kaputtes Bild im Nutzermenü.
+    `img-src 'self' ${supabaseHost}`,
     "font-src 'self'",
     `connect-src 'self' ${supabaseHost} ${supabaseWsHost}`,
     "frame-src 'none'",

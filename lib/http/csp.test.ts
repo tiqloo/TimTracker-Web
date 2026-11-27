@@ -27,3 +27,11 @@ test("buildCsp embeds the given nonce in script-src", () => {
   const csp = buildCsp("https://example.supabase.co", "the-nonce-value");
   assert.match(csp, /script-src 'self' 'nonce-the-nonce-value' 'strict-dynamic'/);
 });
+
+test("buildCsp allows images from the Supabase host (signed Storage URLs for avatars)", () => {
+  // GitHub #51: with `img-src 'self'` only, the avatar's signed URL from the
+  // private 'avatars' bucket was blocked in production.
+  const csp = buildCsp("https://knpjasgpuqieojojijal.supabase.co", "nonce123");
+  const imgSrc = csp.split("; ").find((directive) => directive.startsWith("img-src"));
+  assert.equal(imgSrc, "img-src 'self' https://knpjasgpuqieojojijal.supabase.co");
+});
