@@ -9,6 +9,7 @@ import type { Project } from "@/lib/domain/project";
 import type { DailyBreakdown, TimeEntry } from "@/lib/domain/time-entry";
 import {
   buildDailyBreakdowns,
+  settleStaleRunningEntries,
   timeEntryDurationSeconds,
 } from "../domain/time-entry-aggregation.ts";
 
@@ -77,8 +78,9 @@ export async function getHistoryExportData(
   projectId?: string,
   timeZone?: string,
 ): Promise<HistoryExportData> {
-  const entries = await repos.timeEntries.getForRange(fromDay, toDay, projectId);
   const now = new Date();
+  // GitHub #53: same "last sign of life" rule as the dashboard.
+  const entries = settleStaleRunningEntries(await repos.timeEntries.getForRange(fromDay, toDay, projectId), now);
   return {
     rows: buildExportRows(entries, projects, now, timeZone),
     summaries: buildDailyBreakdowns(entries, now, timeZone),

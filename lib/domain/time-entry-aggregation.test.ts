@@ -6,6 +6,9 @@ import {
   STANDARD_PROJECT_ID,
   timeEntryDurationSeconds,
   unionSeconds,
+  isEntryLive,
+  settleStaleRunningEntry,
+  RUNNING_ENTRY_STALE_AFTER_MS,
 } from "./time-entry-aggregation.ts";
 import type { TimeEntry } from "./time-entry.ts";
 
@@ -36,6 +39,9 @@ test("timeEntryDurationSeconds uses the shared snapshot time for running entries
     "2026-08-01T08:00:00.000Z",
     null,
   );
+  // GitHub #53: these entries represent a still-running app, so they carry
+  // a fresh heartbeat (`updatedAt`); otherwise they would be settled at it.
+  running.updatedAt = "2026-08-01T10:00:00.000Z";
   assert.equal(timeEntryDurationSeconds(running, new Date("2026-08-01T10:00:00.000Z")), 7200);
 });
 
@@ -81,6 +87,10 @@ test("old running entries stop at the next Berlin midnight", () => {
     "2026-07-01T20:00:00Z",
     null,
   );
+  // GitHub #53: these entries represent a still-running app, so they carry
+  // a fresh heartbeat (`updatedAt`); otherwise they would be settled at it.
+  winter.updatedAt = "2026-01-03T12:00:00Z";
+  summer.updatedAt = "2026-07-03T12:00:00Z";
   assert.equal(timeEntryDurationSeconds(winter, new Date("2026-01-03T12:00:00Z")), 3600);
   assert.equal(timeEntryDurationSeconds(summer, new Date("2026-07-03T12:00:00Z")), 7200);
 });
@@ -97,6 +107,9 @@ test("timeEntryDurationSeconds uses an explicitly passed workspace timezone inst
     null,
   );
   const now = new Date("2026-01-03T12:00:00Z");
+  // GitHub #53: these entries represent a still-running app, so they carry
+  // a fresh heartbeat (`updatedAt`); otherwise they would be settled at it.
+  winter.updatedAt = now.toISOString();
   assert.equal(timeEntryDurationSeconds(winter, now, "Europe/Berlin"), 3600);
   assert.equal(timeEntryDurationSeconds(winter, now, "America/New_York"), 25200);
 });
@@ -121,6 +134,9 @@ test("unionSeconds' end-of-day clamp is correct across a non-Berlin DST transiti
     null,
   );
   const now = new Date("2026-10-05T00:00:00Z");
+  // GitHub #53: these entries represent a still-running app, so they carry
+  // a fresh heartbeat (`updatedAt`); otherwise they would be settled at it.
+  runningIntoDst.updatedAt = now.toISOString();
   assert.equal(unionSeconds([runningIntoDst], now, "Australia/Sydney"), 4 * 3600);
 });
 
@@ -192,4 +208,54 @@ test("overlaps ACROSS categories do not reduce either category's own total (Tick
   // its full 30min, neither is subtracted from the other.
   assert.equal(breakdown?.projectSeconds, 7200);
   assert.equal(breakdown?.pauseSeconds, 1800);
+});
+
+// GitHub #53: open entries count only while the Mac app shows signs of life.
+function openEntry(startTime: string, updatedAt: string): TimeEntry {
+  return {
+    id: "e53",
+    projectId: STANDARD_PROJECT_ID,
+    day: "2026-11-27",
+    startTime,
+    endTime: null,
+    source: "automatic",
+    note: null,
+    updatedAt,
+  };
+}
+
+test("#53: a stale open entry counts only up to its last sign of life (27.11.: 07:48, app quit 07:50)", () => {
+  const entry = openEntry("2026-11-27T06:48:20Z", "2026-11-27T06:50:44Z");
+  const evening = new Date("2026-11-27T19:00:00Z");
+  assert.equal(timeEntryDurationSeconds(entry, evening, "Europe/Berlin"), 144);
+  assert.equal(isEntryLive(entry, evening), false);
+  assert.equal(settleStaleRunningEntry(entry, evening).endTime, "2026-11-27T06:50:44.000Z");
+});
+
+test("#53: an open entry with a fresh heartbeat is still live and counts up to now", () => {
+  const entry = openEntry("2026-11-27T06:48:20Z", "2026-11-27T18:58:00Z");
+  const now = new Date("2026-11-27T19:00:00Z");
+  assert.equal(isEntryLive(entry, now), true);
+  assert.equal(settleStaleRunningEntry(entry, now), entry);
+  assert.equal(timeEntryDurationSeconds(entry, now, "Europe/Berlin"), 12 * 3600 + 11 * 60 + 40);
+});
+
+test("#53: the tolerance boundary is RUNNING_ENTRY_STALE_AFTER_MS", () => {
+  const entry = openEntry("2026-11-27T10:00:00Z", "2026-11-27T10:00:00Z");
+  const atLimit = new Date(Date.parse("2026-11-27T10:00:00Z") + RUNNING_ENTRY_STALE_AFTER_MS);
+  assert.equal(isEntryLive(entry, atLimit), true);
+  assert.equal(isEntryLive(entry, new Date(atLimit.getTime() + 1000)), false);
+});
+
+test("#53: closed entries are never changed", () => {
+  const closed = { ...openEntry("2026-11-27T10:00:00Z", "2026-11-27T10:00:00Z"), endTime: "2026-11-27T12:00:00Z" };
+  const now = new Date("2026-11-27T19:00:00Z");
+  assert.equal(settleStaleRunningEntry(closed, now), closed);
+  assert.equal(timeEntryDurationSeconds(closed, now, "Europe/Berlin"), 7200);
+});
+
+test("#53: daily breakdowns use the same rule", () => {
+  const entry = openEntry("2026-11-27T06:48:20Z", "2026-11-27T06:50:44Z");
+  const [breakdown] = buildDailyBreakdowns([entry], new Date("2026-11-27T19:00:00Z"), "Europe/Berlin");
+  assert.equal(breakdown.totalSeconds, 144);
 });
