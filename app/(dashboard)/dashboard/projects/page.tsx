@@ -35,11 +35,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ProjectsPage() {
   const repos = await getRepositories();
   const headerList = await headers();
-  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
-
-  // Same access gate as "Heute"/"Historie" — reused verbatim, not
-  // reimplemented.
-  const subscription = await getSubscriptionStatus(repos);
+  // GitHub #56: independent reads start together instead of one after another.
+  const [lang, subscription] = await Promise.all([
+    getEffectiveLanguageCode(repos, headerList.get("accept-language")),
+    // Same access gate as "Heute"/"Historie" — reused verbatim, not
+    // reimplemented.
+    getSubscriptionStatus(repos),
+  ]);
   if (!canUseApp(subscription)) {
     return (
       <AccessGate title={t(lang, i18nProjects.pageTitle)} status={subscription.status} lang={lang} />

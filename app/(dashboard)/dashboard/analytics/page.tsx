@@ -31,19 +31,20 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; project?: string }> }) {
   const repos = await getRepositories();
   const headerList = await headers();
-  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
-  const locale = languageCodeToLocale(lang);
-  const subscription = await getSubscriptionStatus(repos);
-  if (!canUseApp(subscription)) return <AccessGate title={t(lang, history.analyticsTitle)} status={subscription.status} lang={lang} />;
-
-  const [timeZone, weekStart] = await Promise.all([
+  // GitHub #56: independent reads start together instead of one after another.
+  const [lang, subscription, timeZone, weekStart, params, allProjects] = await Promise.all([
+    getEffectiveLanguageCode(repos, headerList.get("accept-language")),
+    getSubscriptionStatus(repos),
     getActiveWorkspaceTimeZone(repos),
     getActiveWorkspaceWeekStart(repos),
+    searchParams,
+    repos.projects.getAll(),
   ]);
+  const locale = languageCodeToLocale(lang);
+  if (!canUseApp(subscription)) return <AccessGate title={t(lang, history.analyticsTitle)} status={subscription.status} lang={lang} />;
+
   const today = isoToday(new Date(), timeZone);
-  const params = await searchParams;
   const { from, to } = resolveHistoryRange(today, params);
-  const allProjects = await repos.projects.getAll();
   const requestedProjectId = params.project?.trim();
   const activeProject = requestedProjectId ? allProjects.find((project) => project.id === requestedProjectId) : undefined;
   const projectId = activeProject?.id;

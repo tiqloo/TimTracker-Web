@@ -44,11 +44,13 @@ function currentTimeMs(): number {
 export default async function TodayPage() {
   const repos = await getRepositories();
   const headerList = await headers();
-  const lang = await getEffectiveLanguageCode(repos, headerList.get("accept-language"));
-
-  // Access gate: mirrors the RLS policy via canUseApp() (see
-  // lib/domain/subscription.ts).
-  const subscription = await getSubscriptionStatus(repos);
+  // GitHub #56: independent reads start together instead of one after another.
+  const [lang, subscription] = await Promise.all([
+    getEffectiveLanguageCode(repos, headerList.get("accept-language")),
+    // Access gate: mirrors the RLS policy via canUseApp() (see
+    // lib/domain/subscription.ts).
+    getSubscriptionStatus(repos),
+  ]);
   if (!canUseApp(subscription)) {
     return <AccessGate title={t(lang, today.pageTitle)} status={subscription.status} lang={lang} />;
   }
